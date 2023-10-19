@@ -25,4 +25,6 @@ Run-Symbol auf main.py drücken
 - TODO: KINDER KORREKT
 
 - Weitere Info:
-https://www.priminfo.admin.ch/de/praemien
+-- https://www.finanzmonitor.com/krankenkasse/grundversicherung-krankenkasse-krankenkassenpramien-franchise-und-selbstbehalt
+-- https://www.priminfo.admin.ch/de/praemien
+-- ab dem 3. Kind gibt es Prämienrabatt
