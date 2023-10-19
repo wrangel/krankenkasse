@@ -23,3 +23,6 @@ VSC neu starten
 Run-Symbol auf main.py drücken
 
 - TODO: KINDER KORREKT
+
+- Weitere Info:
+https://www.priminfo.admin.ch/de/praemien

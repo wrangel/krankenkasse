@@ -1,4 +1,4 @@
-###import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import pandas as pd
 
 from constants import *
@@ -25,9 +25,9 @@ def get_franchisen(text, praemienregion_marker):
     :return: Dict with "Prämien" per "Zielgruppe", number of "Prämien"
     """
     praemien_1 = sorted(
-        set([line for line in text.split(line_splitter) if praemienregion_marker in line])
-        , key=lambda x: x[0])
-    praemien_2 = [i[:i.find(praemienregion_marker_2)].strip().split(" ") for i in praemien_1]
+        set([line for line in text.split(line_splitter) if praemienregion_marker in line]), key=lambda x: x[0])
+    praemien_2 = [i[:i.find(praemienregion_marker_2)].strip().split(
+        " ") for i in praemien_1]
     return {zielgruppen[0]: praemien_2[0], zielgruppen[1]: praemien_2[1]}, sum([len(l) for l in praemien_2]) - 1
 
 
@@ -72,11 +72,14 @@ def handle_line(line, info_und_praemien, anzahl_praemien, zielgruppe_id, versich
         except ValueError:
             strings.append(s)
     if len(numbers) == anzahl_praemien:
-        update_dict(info_und_praemien, strings, numbers, zielgruppe_id, versicherungsmodell)
-    if len(numbers) == anzahl_praemien + 1:  # Entferne numerische Elemente in der Versicherungsbezeichnung
+        update_dict(info_und_praemien, strings, numbers,
+                    zielgruppe_id, versicherungsmodell)
+    # Entferne numerische Elemente in der Versicherungsbezeichnung
+    if len(numbers) == anzahl_praemien + 1:
         strings.append(str(numbers[6]))
         del numbers[6]
-        update_dict(info_und_praemien, strings, numbers, zielgruppe_id, versicherungsmodell)
+        update_dict(info_und_praemien, strings, numbers,
+                    zielgruppe_id, versicherungsmodell)
 
 
 def get_relevant_info(text, anzahl_franchisen, praemienregion_marker, unerwuenschte_angebote, umweltabgabe):
@@ -92,13 +95,15 @@ def get_relevant_info(text, anzahl_franchisen, praemienregion_marker, unerwuensc
                     # Schliesse Zeilen mit der Franchise, viel-Kind-Angebote und unerwünschte Angebote aus
                     if praemienregion_marker not in line and viel_kind_marker not in line \
                             and all(angebot not in line for angebot in unerwuenschte_angebote):
-                        handle_line(line, info_und_praemien, anzahl_franchisen, zielgruppe_id, versicherungsmodell, umweltabgabe)
+                        handle_line(line, info_und_praemien, anzahl_franchisen,
+                                    zielgruppe_id, versicherungsmodell, umweltabgabe)
     return info_und_praemien
 
 
 def get_beste_angebote(info_und_praemien, alle_franchisen):
     beste_praemien_pro_franchisen = []
-    beste_praemien_pro_franchisen_dict = {zielgruppe: {} for zielgruppe in zielgruppen}
+    beste_praemien_pro_franchisen_dict = {
+        zielgruppe: {} for zielgruppe in zielgruppen}
     for zielgruppe_id in range(len(zielgruppen)):
         relevant_dict = info_und_praemien[zielgruppen[zielgruppe_id]]
         info_liste = []
@@ -115,7 +120,8 @@ def get_beste_angebote(info_und_praemien, alle_franchisen):
             praemie = relevante_praemien[idx_minimale_praemie]
             beste_praemien_pro_franchisen.append(
                 (zielgruppen[zielgruppe_id], franchise, info_liste[idx_minimale_praemie], praemie))
-            beste_praemien_pro_franchisen_dict[zielgruppen[zielgruppe_id]].update({int(franchise): praemie})
+            beste_praemien_pro_franchisen_dict[zielgruppen[zielgruppe_id]].update(
+                {int(franchise): praemie})
     [print(e) for e in beste_praemien_pro_franchisen]
     return beste_praemien_pro_franchisen_dict
 
@@ -124,7 +130,8 @@ def berechne_gesamtkosten(zielgruppe, beste_praemien_pro_franchisen, maximale_kr
                           hoechstgrenze_selbstbehalt):
     franchisen_praemien = beste_praemien_pro_franchisen[zielgruppe]
     krankenkosten_jahr = [i for i in range(maximale_krankenkosten + 1)]
-    gesamtkosten_jahr = pd.DataFrame(index=krankenkosten_jahr, columns=franchisen_praemien.keys())
+    gesamtkosten_jahr = pd.DataFrame(
+        index=krankenkosten_jahr, columns=franchisen_praemien.keys())
     for franchise, praemie in franchisen_praemien.items():
         eigenkosten_jahr = []
         for i in krankenkosten_jahr:
@@ -136,24 +143,26 @@ def berechne_gesamtkosten(zielgruppe, beste_praemien_pro_franchisen, maximale_kr
                 + min(i, franchise) \
                 # falls Krankheitskosten die Franchise übersteigen,
                 # zahle 10% des übersteigenden Betrags, bis max. zur Höchstgrenze chf
-                + min((max(0, i - franchise)) * 0.1, hoechstgrenze_selbstbehalt[zielgruppe])
+                + min((max(0, i - franchise)) * 0.1,
+                      hoechstgrenze_selbstbehalt[zielgruppe])
             )
         gesamtkosten_jahr[franchise] = eigenkosten_jahr
     # Berechne die minimalen Gesamtkosten pro Krankheitskosten
     gesamtkosten_jahr['Min'] = gesamtkosten_jahr.idxmin(axis=1)
-    # Ab welchen Krankenkosten lohnt sich die tiefe Franchise ?
-    grenzwert = (gesamtkosten_jahr['Min'] - gesamtkosten_jahr['Min'].shift()).fillna(0).idxmin(axis=0)
+    # Ab welchen Krankenkosten lohnt sich die tiefe Franchise?
+    grenzwert = (
+        gesamtkosten_jahr['Min'] - gesamtkosten_jahr['Min'].shift()).fillna(0).idxmin(axis=0)
     return gesamtkosten_jahr, grenzwert
 
 
 def produce_results(zielgruppe, gesamtkosten_jahr, grenzwert, file_name):
     # Zeige, welche Franchise sich zu welchen Krankheitskosten lohnt
-    ###plt.plot(gesamtkosten_jahr['Min'])
-    ###plt.suptitle("Ab " + str(
-    ###   grenzwert) + " CHF Krankheitskosten pro Jahr lohnt sich die tiefste Franchise für " + zielgruppe + ".",
-    ###             fontsize=12)
+    # plt.plot(gesamtkosten_jahr['Min'])
+    # plt.suptitle("Ab " + str(
+    # grenzwert) + " CHF Krankheitskosten pro Jahr lohnt sich die tiefste Franchise für " + zielgruppe + ".",
+    # fontsize=12)
     print("\n")
     with pd.option_context('display.max_rows', None, 'display.max_columns', None):
         print(gesamtkosten_jahr._slice(slice(grenzwert - 3, grenzwert + 3)))
     gesamtkosten_jahr.to_csv(file_name, sep='\t')
-    ###plt.show()
+    # plt.show()
