@@ -17,14 +17,24 @@ command+shift+P, dann "Python: Select Interpreter": die neueste Version wählen
 Zweimal hintereinander im Programme/Python x.xx-Ordner "Install Certificates.command" ausführen
 
 Module installieren: VSC, Terminal, pip3 install ...
-pip3 install --upgrade certifi
-VSC neu starten
+VSC ev. neu starten
 
 Run-Symbol auf main.py drücken
 
 - TODO: KINDER KORREKT
+- TODO 15% Rabatt auf Medikamente mit Pharmed
 
-- Weitere Info:
+- Weitere Info
+-- https://opendata.swiss/de/dataset/health-insurance-premiums/resource/8cabe491-0280-41bb-ad31-e30bebabf985
 -- https://www.finanzmonitor.com/krankenkasse/grundversicherung-krankenkasse-krankenkassenpramien-franchise-und-selbstbehalt
 -- https://www.priminfo.admin.ch/de/praemien
 -- ab dem 3. Kind gibt es Prämienrabatt
+
+
+
+Kinder 7 Fr
+0 100 200 300 400 500 600
+Erw 6 Fr
+300 500 1000 1500 2000 2500
+
+alle_franchisen: {'Kinder': ['0', '100', '200', '300', '400', '500', '600'], 'Erwachsene': ['300', '500', '1000', '1500', '2000', '2500']}

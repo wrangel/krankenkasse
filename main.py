@@ -1,22 +1,34 @@
+from datetime import datetime
+import pandas as pd
 from utils import *
 from tika import parser
 import tika
+import httplib2
+from bs4 import BeautifulSoup
 
 tika.initVM()
 
-# TODO Angebote mit weniger als 12 Stufen gehen verloren; Problem bei Kindern!
-# TODO display table in shell
-
-# TODO 15% Rabatt auf Medikamente mit Pharmed
-
 if __name__ == '__main__':
 
-    import pandas as pd
-    # https://opendata.swiss/de/dataset/health-insurance-premiums/resource/8cabe491-0280-41bb-ad31-e30bebabf985
+    # Get the metadata
+    http = httplib2.Http()
+    _, content = http.request(website + home)
+
+    url_legende = [website + link['href'] for link in BeautifulSoup(content, "html.parser").find_all(
+        'a', href=True) if legende_link % datetime.now().year in link['href']][0]
+
+    legende = pd.read_excel(url_legende, sheet_name=sheet_name, skiprows=1, usecols=[
+        'Nummer\nNuméro\nNumero', 'Name\nNom\nNome']).\
+        replace('\\n', ' ', regex=True)
+
+    print(legende)
+
+    quit()
+
     data = pd.read_csv(download_url, encoding=download_url_encoding)
 
     '''
-    print("!! ACHTUNG: Angebote mit weniger als 12 Stufen gehen verloren, die Resultate bei Kindern sind daher nicht korrekt !!")
+    print("!! ACHTUNG: Die Resultate bei Kindern sind nicht korrekt !!")
 
     print("Zielgruppe (Erwachsene oder Kinder):")
     zielgruppe = input()
@@ -43,8 +55,11 @@ if __name__ == '__main__':
     relevant_text = text[text.index(
         text_marker_start): text.index(text_marker_end)]
 
-    print(relevant_text)
+    ##
+    a = get_relevant_info(relevant_text, anzahl_franchisen, praemienregion_marker,
+                          unerwuenschte_angebote, umweltabgabe)
     quit()
+    ##
 
     beste_praemien_pro_franchisen = get_beste_angebote(
         get_relevant_info(relevant_text, anzahl_franchisen, praemienregion_marker,

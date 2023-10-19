@@ -28,7 +28,7 @@ def get_franchisen(text, praemienregion_marker):
         set([line for line in text.split(line_splitter) if praemienregion_marker in line]), key=lambda x: x[0])
     praemien_2 = [i[:i.find(praemienregion_marker_2)].strip().split(
         " ") for i in praemien_1]
-    return {zielgruppen[0]: praemien_2[0], zielgruppen[1]: praemien_2[1]}, sum([len(l) for l in praemien_2]) - 1
+    return {zielgruppen[0]: praemien_2[0], zielgruppen[1]: praemien_2[1]}, sum([len(l) for l in praemien_2])
 
 
 def create_dict_entry(strings, numbers, versicherungsmodell):
@@ -90,6 +90,7 @@ def get_relevant_info(text, anzahl_franchisen, praemienregion_marker, unerwuensc
         versicherungsmodell = block.split("\n")[0].strip()
         for zielgruppe_id in range(len(zielgruppen)):
             # Nimm nacheinander Erwachsene und Kinder, nimm die relevante Prämienregion
+            print(block)
             if zielgruppe_marker[zielgruppe_id] in block and praemienregion_marker in block:
                 for line in block.split(line_splitter):
                     # Schliesse Zeilen mit der Franchise, viel-Kind-Angebote und unerwünschte Angebote aus

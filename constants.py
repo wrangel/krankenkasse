@@ -1,9 +1,17 @@
-line_splitter = "\n\n"
-
 # Ändert sich nie oder sehr selten:
-# https://www.comparis.ch/krankenkassen/info/glossar/selbstbehalt-grundversicherung
-hoechstgrenze_selbstbehalt = {"Erwachsene": 400, "Kinder": 350}
+# https://www.comparis.ch/krankenkassen/grundversicherungen/selbstbehalt
+hoechstgrenze_selbstbehalt = {"Erwachsene": 700, "Kinder": 350}
 maximale_krankenkosten = 10000
+
+# Homepage für Legende zur Liste
+website = "https://www.bag.admin.ch"
+home = "/bag/de/home/versicherungen/krankenversicherung/krankenversicherung-versicherer-aufsicht/verzeichnisse-krankenundrueckversicherer.html"
+legende_link = "Zugelassene%%20Krankenversicherer_1.10.%s.xlsx"
+sheet_name = "Zugelassene Krankenversicherer"
+
+# alt
+
+line_splitter = "\n\n"
 
 # Stelle Textmarker zusammen
 download_url = "https://bag-files.opendata.swiss/owncloud/index.php/s/83Vtexg1buoOk6M"
@@ -13,7 +21,7 @@ text_marker_start = "Prämien – Grundversicherung\nPrimes – Assurance de bas
 text_marker_end = "Prämienregionen\nRégions de primes"
 zielgruppen = ["Kinder", "Erwachsene"]
 zielgruppe_marker = ["Franchise " + zielgruppe for zielgruppe in zielgruppen]
-viel_kind_marker = "dès le 3ème enfant"
+viel_kind_marker = "dès le 3ème enfant"  # TODO deutsch Drei und mehr Kinder
 unerwuenschte_angebote = ["Qualimed"]
 versicherungsmodell_marker = "Prämien – "
 praemien_split_index = 6
