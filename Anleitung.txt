@@ -1,3 +1,10 @@
+DIESE APP BERECHNET 
+A) DIE BILLIGSTEN PRÄMIEN FÜR DIE TIEFSTE UND HÖCHSTE FRANCHISE
+B) DIE GRENZE, AB WELCHER SICH DIE BILLIGSTE FRANCHISE LOHNT
+
+
+- Bereitmachen und laufen lassen:
+
 Auf
 https://www.python.org/downloads/macos/
 neuesten Python-Interpreter runterladen, alten löschen
@@ -15,7 +22,4 @@ VSC neu starten
 
 Run-Symbol auf main.py drücken
 
-
-
-
-https://bag-files.opendata.swiss/owncloud/index.php/s/83Vtexg1buoOk6M
+- TODO: KINDER KORREKT
