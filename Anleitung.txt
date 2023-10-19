@@ -1,0 +1,21 @@
+Auf
+https://www.python.org/downloads/macos/
+neuesten Python-Interpreter runterladen, alten löschen
+(installiert Interpreter auf /usr/local/bin/python3, der Ordner in Programs sind Zusatzelemente)
+
+Falls der Python Interpreter nicht bekannt ist, den installierten bekanntmachen:
+(Die Extension ist bereits installiert, es brauch nur noch den Interpreter)
+command+shift+P, dann "Python: Select Interpreter": die neueste Version wählen
+
+Zweimal hintereinander im Programme/Python x.xx-Ordner "Install Certificates.command" ausführen
+
+Module installieren: VSC, Terminal, pip3 install ...
+pip3 install --upgrade certifi
+VSC neu starten
+
+Run-Symbol auf main.py drücken
+
+
+
+
+https://bag-files.opendata.swiss/owncloud/index.php/s/83Vtexg1buoOk6M
