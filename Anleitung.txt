@@ -26,6 +26,8 @@ Run-Symbol auf main.py drücken
 
 - Weitere Info
 -- https://opendata.swiss/de/dataset/health-insurance-premiums/resource/8cabe491-0280-41bb-ad31-e30bebabf985
+-- https://opendata.swiss/de/dataset/health-insurance-premiums/resource/e2d5b3fc-07a1-447e-8ee1-c813bb81f0cc
+-- https://www.bag.admin.ch/bag/de/home/versicherungen/krankenversicherung/krankenversicherung-versicherer-aufsicht/praemienregionen.html
 -- https://www.finanzmonitor.com/krankenkasse/grundversicherung-krankenkasse-krankenkassenpramien-franchise-und-selbstbehalt
 -- https://www.priminfo.admin.ch/de/praemien
 -- ab dem 3. Kind gibt es Prämienrabatt

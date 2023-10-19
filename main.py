@@ -8,24 +8,35 @@ from bs4 import BeautifulSoup
 
 tika.initVM()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     # Get the metadata
     http = httplib2.Http()
     _, content = http.request(website + home)
 
-    url_legende = [website + link['href'] for link in BeautifulSoup(content, "html.parser").find_all(
-        'a', href=True) if legende_link % datetime.now().year in link['href']][0]
+    url_metadata = [website + link["href"] for link in BeautifulSoup(content, "html.parser").find_all(
+        "a", href=True) if legende_link % datetime.now().year in link["href"]][0]
 
-    legende = pd.read_excel(url_legende, sheet_name=sheet_name, skiprows=1, usecols=[
-        'Nummer\nNuméro\nNumero', 'Name\nNom\nNome']).\
-        replace('\\n', ' ', regex=True)
+    metadata = pd.read_excel(url_metadata, sheet_name=legende_sheet_name, skiprows=1, usecols=relevant_columns[:2]).\
+        replace("\\n", " ", regex=True).\
+        rename(columns={relevant_columns[0]: relevant_columns[3],
+               relevant_columns[1]: relevant_columns[2]})
 
-    print(legende)
+    # Get the data
+    data = pd.read_csv(
+        download_url, encoding=download_url_encoding, delimiter=";", usecols=relevant_columns[3:] + filter_columns)
+
+    # Filter the data
+    relevant_data = data[data[filter_columns[0]] == filter_prämienregion]
+
+    print(relevant_data)
+    quit()
+    # Join the data with metadata
+    a = data.merge(metadata, on="Versicherer", how="left")
+
+    print(a)
 
     quit()
-
-    data = pd.read_csv(download_url, encoding=download_url_encoding)
 
     '''
     print("!! ACHTUNG: Die Resultate bei Kindern sind nicht korrekt !!")

@@ -3,11 +3,14 @@
 hoechstgrenze_selbstbehalt = {"Erwachsene": 700, "Kinder": 350}
 maximale_krankenkosten = 10000
 
-# Homepage für Legende zur Liste
 website = "https://www.bag.admin.ch"
 home = "/bag/de/home/versicherungen/krankenversicherung/krankenversicherung-versicherer-aufsicht/verzeichnisse-krankenundrueckversicherer.html"
 legende_link = "Zugelassene%%20Krankenversicherer_1.10.%s.xlsx"
-sheet_name = "Zugelassene Krankenversicherer"
+legende_sheet_name = "Zugelassene Krankenversicherer"
+relevant_columns = ["Nummer\nNuméro\nNumero", "Name\nNom\nNome", "Name des Versicherers", "Versicherer",
+                    "Franchise", "Prämie", "Tarifbezeichnung"]
+filter_columns = ["Region"]
+filter_prämienregion = "PR-REG CH1"  # Zürich Stadt im Kanton Zürich
 
 # alt
 
