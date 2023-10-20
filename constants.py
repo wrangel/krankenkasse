@@ -11,26 +11,3 @@ relevant_columns = ["Nummer\nNuméro\nNumero", "Name\nNom\nNome", "Name des Vers
                     "Franchise", "Prämie", "Tarifbezeichnung"]
 filter_columns = ["Region", "Altersklasse",
                   "Altersuntergruppe", "Unfalleinschluss", "isBaseP", "Kanton"]
-
-
-# alt
-
-line_splitter = "\n\n"
-
-# Stelle Textmarker zusammen
-download_url = "https://bag-files.opendata.swiss/owncloud/index.php/s/83Vtexg1buoOk6M"
-download_url_encoding = "iso-8859-1"
-input_file = "https://www.priminfo.admin.ch/downloads/wegweiser_ZH.pdf"
-text_marker_start = "Prämien – Grundversicherung\nPrimes – Assurance de base"
-text_marker_end = "Prämienregionen\nRégions de primes"
-zielgruppen = ["Kinder", "Erwachsene"]
-zielgruppe_marker = ["Franchise " + zielgruppe for zielgruppe in zielgruppen]
-viel_kind_marker = "dès le 3ème enfant"  # TODO deutsch Drei und mehr Kinder
-unerwuenschte_angebote = ["Qualimed"]
-versicherungsmodell_marker = "Prämien – "
-praemien_split_index = 6
-praemienregion_marker_1 = "Prämienregionen"
-praemienregion_marker_2 = "Region / Région"
-praemienregion_marker_3 = ["8057", "Zürich"]
-
-output_file = "~/Desktop/uebersicht_krankenkasse.txt"

@@ -6,50 +6,14 @@ import tika
 import httplib2
 from bs4 import BeautifulSoup
 from tabulate import tabulate
+import 
 
 tika.initVM()
 
 if __name__ == "__main__":
 
-    beste_praemien_pro_franchisen = {'Erwachsene': {300: 444.6, 500: 433.7, 1000: 406.6, 1500: 379.5, 2000: 352.3, 2500: 324.8},
-                                     'Kinder': {0: 104.5, 100: 99.4, 200: 94.3, 300: 89.1, 400: 84.3, 500: 78.9, 600: 73.7}}
-
-    for zielgruppe, franchisen_praemien in beste_praemien_pro_franchisen.items():
-        krankenkosten_jahr = [i for i in range(maximale_krankenkosten + 1)]
-        gesamtkosten_jahr = pd.DataFrame(
-            index=krankenkosten_jahr, columns=franchisen_praemien.keys())
-        for franchise, praemie in franchisen_praemien.items():
-            eigenkosten_jahr = []
-            for franchise, praemie in franchisen_praemien.items():
-                eigenkosten_jahr = []
-                for i in krankenkosten_jahr:
-                    eigenkosten_jahr.append(
-                        # 12 * Monatsprämie
-                        12 * praemie \
-                        # falls die Krankheitskosten geringer sind als die Franchise, zahle die Krankheitskosten,
-                        # sonst zahle die gesamte Franchise
-                        + min(i, franchise) \
-                        # falls Krankheitskosten die Franchise übersteigen,
-                        # zahle 10% des übersteigenden Betrags, bis max. zur Höchstgrenze chf
-                        + min((max(0, i - franchise)) * 0.1,
-                              hoechstgrenze_selbstbehalt[zielgruppe])
-                    )
-                gesamtkosten_jahr[franchise] = eigenkosten_jahr
-        # Berechne die minimalen Gesamtkosten pro Krankheitskosten
-        gesamtkosten_jahr['Min'] = gesamtkosten_jahr.idxmin(axis=1)
-        # Ab welchen Krankenkosten lohnt sich die tiefe Franchise?
-        grenzwert = (
-            gesamtkosten_jahr['Min'] - gesamtkosten_jahr['Min'].shift()).fillna(0).idxmin(axis=0)
-        print(grenzwert)
-
-    quit()
-
-    # - umweltabgabe TODO
-
-    #############
-
     # Umweltabgabe
-    # print("Umweltabgabe (pro Monat, findet man per Web-Suche):")
+    #print("Umweltabgabe (pro Monat, findet man per Web-Suche):")
     # umweltabgabe = float(input()) # TODO
     umweltabgabe = 5.35
 
@@ -126,12 +90,42 @@ if __name__ == "__main__":
         .values()
     )[0]
 
+        results = []
+    for zielgruppe, franchisen_praemien in beste_praemien_pro_franchisen.items():
+        # Beziehe die Umweltabgaben mit ein (ohne Wirkung, da stets derselbe Abzug)
+        franchisen_praemien.update((franchise, prämie-umweltabgabe)
+                                   for franchise, prämie in franchisen_praemien.items())
+        # Spanne einen Range an Krankenkosten auf
+        krankenkosten_jahr = [i for i in range(maximale_krankenkosten + 1)]
+        # Pivotiere Krankenosten und Franchisen
+        gesamtkosten_jahr = pd.DataFrame(
+            index=krankenkosten_jahr, columns=franchisen_praemien.keys())
+        for franchise, praemie in franchisen_praemien.items():
+            eigenkosten_jahr = []
+            for franchise, praemie in franchisen_praemien.items():
+                eigenkosten_jahr = []
+                for i in krankenkosten_jahr:
+                    eigenkosten_jahr.append(
+                        # 12 * Monatsprämie
+                        12 * praemie \
+                        # falls die Krankheitskosten geringer sind als die Franchise, zahle die Krankheitskosten,
+                        # sonst zahle die gesamte Franchise
+                        + min(i, franchise) \
+                        # falls Krankheitskosten die Franchise übersteigen,
+                        # zahle 10% des übersteigenden Betrags, bis max. zur Höchstgrenze chf
+                        + min((max(0, i - franchise)) * 0.1,
+                              hoechstgrenze_selbstbehalt[zielgruppe])
+                    )
+                gesamtkosten_jahr[franchise] = eigenkosten_jahr
+        # Berechne die minimalen Gesamtkosten pro Krankheitskosten
+        gesamtkosten_jahr['Min'] = gesamtkosten_jahr.idxmin(axis=1)
+        # Ab welchen Krankenkosten lohnt sich die tiefe Franchise?
+        grenzwert = (
+            gesamtkosten_jahr['Min'] - gesamtkosten_jahr['Min'].shift()).fillna(0).idxmin(axis=0)
+        results.append({"ZG": zielgruppe,
+                       "GJ": gesamtkosten_jahr, "GW": grenzwert})
 
-'''
-    kostenuebersicht, grenzwert = berechne_gesamtkosten(
-        zielgruppe, beste_praemien_pro_franchisen, maximale_krankenkosten,
-        hoechstgrenze_selbstbehalt
-    )
-
-    produce_results(zielgruppe, kostenuebersicht, grenzwert, output_file)
-'''
+    for result in results:
+        with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+            print(result["GJ"]._slice(
+                slice(result["GW"] - 3, result["GW"] + 3)).to_markdown())
