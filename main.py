@@ -61,12 +61,12 @@ if __name__ == "__main__":
     relevant_data = filtered_data.merge(metadata, on="Versicherer", how="left")
 
     # Finde beste Prämie pro Franchise
-    beste_prämie_pro_franchise_tmp = relevant_data.groupby(
+    beste_prämie_pro_franchise_tmp1 = relevant_data.groupby(
         ["Altersklasse", "Franchise"]).agg(
             Prämie=("Prämie", "min")
     )
 
-    beste_prämie_pro_franchise = beste_prämie_pro_franchise_tmp\
+    beste_prämie_pro_franchise_tmp2 = beste_prämie_pro_franchise_tmp1\
         .merge(
             relevant_data, on=["Altersklasse", "Franchise", "Prämie"],
             how="left").iloc[:, [0, 1, 2, 10, 9]]\
@@ -75,37 +75,22 @@ if __name__ == "__main__":
         .replace("AKL-KIN", "Kinder", regex=True)\
         .astype({"Franchise": int, "Prämie": float})
 
-    print(beste_prämie_pro_franchise.sort_values(
-        by=["Altersklasse", "Franchise"]))
+    beste_prämie_pro_franchise = beste_prämie_pro_franchise_tmp2.sort_values(
+        by=["Altersklasse", "Franchise"])
+
+    print(beste_prämie_pro_franchise)  # OUTPUT TODO
+
+    beste_prämie_pro_franchise_dict = beste_prämie_pro_franchise.iloc[:, [
+        0, 1, 2]].groupby("Altersklasse")\
+        .apply(lambda x: x.set_index("Altersklasse").to_dict("list")).to_dict()
+
+    # .to_dict('records')
+
+    print(beste_prämie_pro_franchise_dict)
 
     quit()
-    # - umweltabgabe
 
-    # Parse das PDF
-    text = parser.from_file(input_file).get("content")
-
-    # Berechne Prämienregion-Marker
-    praemienregion_marker = praemienregion_marker_2 + \
-        " " + get_praemienregion(text)
-
-    # Stelle die Franchisen zusammen
-    alle_franchisen, anzahl_franchisen = get_franchisen(
-        text, praemienregion_marker)
-
-    # Stelle die relevanten Informationen zusammen
-    relevant_text = text[text.index(
-        text_marker_start): text.index(text_marker_end)]
-
-    ##
-    a = get_relevant_info(relevant_text, anzahl_franchisen, praemienregion_marker,
-                          unerwuenschte_angebote, umweltabgabe)
-    quit()
-    ##
-
-    beste_praemien_pro_franchisen = get_beste_angebote(
-        get_relevant_info(relevant_text, anzahl_franchisen, praemienregion_marker,
-                          unerwuenschte_angebote, umweltabgabe), alle_franchisen
-    )
+    # - umweltabgabe TODO
 
     kostenuebersicht, grenzwert = berechne_gesamtkosten(
         zielgruppe, beste_praemien_pro_franchisen, maximale_krankenkosten,

@@ -12,6 +12,7 @@ relevant_columns = ["Nummer\nNuméro\nNumero", "Name\nNom\nNome", "Name des Vers
 filter_columns = ["Region", "Altersklasse",
                   "Altersuntergruppe", "Unfalleinschluss", "isBaseP", "Kanton"]
 
+
 # alt
 
 line_splitter = "\n\n"
