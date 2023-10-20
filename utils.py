@@ -1,9 +1,13 @@
 from constants import *
 
-# Berechne die optimale Franchise pro Krankheitskosten
-
 
 def berechne_kipppunkt(beste_praemien_pro_franchisen, umweltabgabe):
+    """Berechne die optimale Franchise pro Krankheitskosten
+
+    :param beste_praemien_pro_franchisen: Dict mit besten Prämien pro Franchisen
+    :param umweltabgabe: Abgefragte derzeitige Umweltabgabe
+    :return: Liste von Tupeln mit Zielgruppe, Eigenkosten-Matrix und Kipppunkt der Krankheitskosten
+    """
     results = []
     for zielgruppe, franchisen_praemien in beste_praemien_pro_franchisen.items():
         # Beziehe die Umweltabgaben mit ein (ohne Wirkung, da stets derselbe Abzug)

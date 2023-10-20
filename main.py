@@ -81,7 +81,7 @@ if __name__ == "__main__":
     beste_prämie_pro_franchise = beste_prämie_pro_franchise_tmp2.sort_values(
         by=["Altersklasse", "Franchise"])
 
-    # print(beste_prämie_pro_franchise.to_markdown())  # OUTPUT TODO
+    print(beste_prämie_pro_franchise.to_markdown())
 
     beste_prämie_pro_franchise_dict = list(
         beste_prämie_pro_franchise.iloc[:, [0, 1, 2]]
@@ -90,7 +90,7 @@ if __name__ == "__main__":
         .values()
     )[0]
 
-        
+    results = berechne_kipppunkt(beste_prämie_pro_franchise_dict, umweltabgabe)
 
     for result in results:
         with pd.option_context('display.max_rows', None, 'display.max_columns', None):
