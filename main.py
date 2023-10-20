@@ -6,14 +6,13 @@ import tika
 import httplib2
 from bs4 import BeautifulSoup
 from tabulate import tabulate
-import 
 
 tika.initVM()
 
 if __name__ == "__main__":
 
     # Umweltabgabe
-    #print("Umweltabgabe (pro Monat, findet man per Web-Suche):")
+    # print("Umweltabgabe (pro Monat, findet man per Web-Suche):")
     # umweltabgabe = float(input()) # TODO
     umweltabgabe = 5.35
 
@@ -82,6 +81,7 @@ if __name__ == "__main__":
         by=["Altersklasse", "Franchise"])
 
     print(beste_prämie_pro_franchise.to_markdown())
+    print("\n")
 
     beste_prämie_pro_franchise_dict = list(
         beste_prämie_pro_franchise.iloc[:, [0, 1, 2]]
