@@ -10,6 +10,10 @@ tika.initVM()
 
 if __name__ == "__main__":
 
+    # Umweltabgabe
+    print("Umweltabgabe (pro Monat, findet man per Web-Suche):")
+    umweltabgabe = float(input())
+
     # Get the metadata
     http = httplib2.Http()
     _, content = http.request(website + home)
@@ -69,7 +73,10 @@ if __name__ == "__main__":
         .replace("FRA-", "", regex=True)\
         .replace("AKL-ERW", "Erwachsene", regex=True)\
         .replace("AKL-KIN", "Kinder", regex=True)\
-        .astype({"Franchise": int})
+        .astype({"Franchise": int, "Prämie": float})
+
+    beste_prämie_pro_franchise = beste_prämie_pro_franchise["Prämie"].sub(
+        umweltabgabe)
 
     print(beste_prämie_pro_franchise.sort_values(
         by=["Altersklasse", "Franchise"]))
