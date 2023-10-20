@@ -5,14 +5,16 @@ from tika import parser
 import tika
 import httplib2
 from bs4 import BeautifulSoup
+from tabulate import tabulate
 
 tika.initVM()
 
 if __name__ == "__main__":
 
     # Umweltabgabe
-    print("Umweltabgabe (pro Monat, findet man per Web-Suche):")
-    umweltabgabe = float(input())
+    # print("Umweltabgabe (pro Monat, findet man per Web-Suche):")
+    # umweltabgabe = float(input()) # TODO
+    umweltabgabe = 5.35
 
     # Get the metadata
     http = httplib2.Http()
@@ -78,15 +80,13 @@ if __name__ == "__main__":
     beste_prämie_pro_franchise = beste_prämie_pro_franchise_tmp2.sort_values(
         by=["Altersklasse", "Franchise"])
 
-    print(beste_prämie_pro_franchise)  # OUTPUT TODO
+    # print(beste_prämie_pro_franchise.to_markdown())  # OUTPUT TODO
 
-    beste_prämie_pro_franchise_dict = beste_prämie_pro_franchise.iloc[:, [
-        0, 1, 2]].groupby("Altersklasse")\
-        .apply(lambda x: x.set_index("Altersklasse").to_dict("list")).to_dict()
-
-    # .to_dict('records')
-
-    print(beste_prämie_pro_franchise_dict)
+    beste_prämie_pro_franchise_dict = list(
+        beste_prämie_pro_franchise.iloc[:, [0, 1, 2]]
+        .set_index("Franchise").groupby("Altersklasse").agg(dict).apply(lambda x: x.to_dict())
+        .to_dict().values()
+    )[0]
 
     quit()
 
