@@ -28,8 +28,7 @@ if __name__ == "__main__":
 
     # Filter and beautify the data
     filtered_data = data[
-        # Keine Ein-, Drei-, Vier-, oder Fünfkind-Tarife
-        (data[filter_columns[2]].isna()) &
+
         # Prämienregion ZH Stadt
         (data[filter_columns[0]] == filter_prämienregion) &
         # Erwachsene ohne Unfall, Kinder mit Unfall
@@ -43,12 +42,18 @@ if __name__ == "__main__":
                 (data[filter_columns[1]] == "AKL-KIN") &
                 (data[filter_columns[3]] == "MIT-UNF")
             )
+        ) &
+        (
+            (data[filter_columns[2]].isna()) |
+            (data[filter_columns[2]] == "K1")
         )
     ]
 
     # Join the relevant data with metadata
     relevant_data = filtered_data.merge(metadata, on="Versicherer",
                                         how="left").iloc[:, [8, 7, 2, 3, 5, 6]]
+
+    # Finde beste Prämie pro Franchise
 
     print(relevant_data)
     quit()
