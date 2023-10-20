@@ -57,18 +57,22 @@ if __name__ == "__main__":
     relevant_data = filtered_data.merge(metadata, on="Versicherer", how="left")
 
     # Finde beste Prämie pro Franchise
-    beste_prämie_pro_franchise = relevant_data.groupby(
+    beste_prämie_pro_franchise_tmp = relevant_data.groupby(
         ["Altersklasse", "Franchise"]).agg(
             Prämie=("Prämie", "min")
     )
 
-    print(beste_prämie_pro_franchise)
+    beste_prämie_pro_franchise = beste_prämie_pro_franchise_tmp\
+        .merge(
+            relevant_data, on=["Altersklasse", "Franchise", "Prämie"],
+            how="left").iloc[:, [0, 1, 2, 10, 9]]\
+        .replace("FRA-", "", regex=True)\
+        .replace("AKL-ERW", "Erwachsene", regex=True)\
+        .replace("AKL-KIN", "Kinder", regex=True)\
+        .astype({"Franchise": int})
 
-    a = beste_prämie_pro_franchise.merge(
-        relevant_data, on=["Altersklasse", "Franchise", "Prämie"],
-        how="left").iloc[:, [0, 1, 2, 9, 10]]
-
-    print(a)
+    print(beste_prämie_pro_franchise.sort_values(
+        by=["Altersklasse", "Franchise"]))
     quit()
 
     # - umweltabgabe
