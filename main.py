@@ -18,10 +18,10 @@ if __name__ == "__main__":
 
     # Get the metadata
     http = httplib2.Http()
-    _, content = http.request(website + home)
+    _, content = http.request(website + legende_url)
 
     url_metadata = [website + link["href"] for link in BeautifulSoup(content, "html.parser").find_all(
-        "a", href=True) if legende_link % datetime.now().year in link["href"]][0]
+        "a", href=True) if legende_excel % datetime.now().year in link["href"]][0]
 
     metadata = pd.read_excel(url_metadata, sheet_name=legende_sheet_name, skiprows=1, usecols=relevant_columns[:2]).\
         replace("\\n", " ", regex=True).\
@@ -30,7 +30,7 @@ if __name__ == "__main__":
 
     # Get the data
     data = pd.read_csv(
-        download_url, encoding=download_url_encoding, delimiter=";", usecols=relevant_columns[3:] + filter_columns)
+        daten_url, encoding=daten_url_encoding, delimiter=";", usecols=relevant_columns[3:] + filter_columns)
 
     # Filter and beautify the data
     filtered_data = data[
@@ -81,7 +81,6 @@ if __name__ == "__main__":
         by=["Altersklasse", "Franchise"])
 
     print(beste_prämie_pro_franchise.to_markdown())
-    print("\n")
 
     beste_prämie_pro_franchise_dict = list(
         beste_prämie_pro_franchise.iloc[:, [0, 1, 2]]
@@ -92,7 +91,4 @@ if __name__ == "__main__":
 
     results = berechne_kipppunkt(beste_prämie_pro_franchise_dict, umweltabgabe)
 
-    for result in results:
-        with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-            print(result["GJ"]._slice(
-                slice(result["GW"] - 3, result["GW"] + 3)).to_markdown())
+    display_results(results)

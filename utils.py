@@ -1,4 +1,5 @@
 from constants import *
+import pandas as pd
 
 
 def berechne_kipppunkt(beste_praemien_pro_franchisen, umweltabgabe):
@@ -43,3 +44,20 @@ def berechne_kipppunkt(beste_praemien_pro_franchisen, umweltabgabe):
         results.append({"ZG": zielgruppe,
                        "GJ": gesamtkosten_jahr, "GW": grenzwert})
     return results
+
+
+def display_results(results):
+    """
+    Zeige die Resultate an
+
+    :param results: Resultate der Berechnung 
+    """
+    for result in results:
+        with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+            print("\n")
+            print(result["GJ"]._slice(
+                slice(result["GW"] - 3, result["GW"] + 3)).to_markdown())
+            print("\n")
+            print(
+                "Die tiefste Franchise bei %s lohnt sich ab jährlichen Krankheitskosten von %s CHF" % (result["ZG"], result["GW"]))
+    print("\n")
