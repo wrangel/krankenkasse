@@ -85,7 +85,8 @@ if __name__ == "__main__":
     beste_prämie_pro_franchise_dict = list(
         beste_prämie_pro_franchise.iloc[:, [0, 1, 2]]
         .set_index("Franchise").groupby("Altersklasse").agg(dict).apply(lambda x: x.to_dict())
-        .to_dict().values()
+        .to_dict()
+        .values()
     )[0]
 
     quit()
