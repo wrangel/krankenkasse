@@ -43,10 +43,13 @@ if __name__ == "__main__":
                 (data[filter_columns[3]] == "MIT-UNF")
             )
         ) &
+        # Keine spezielle Altersuntergruppe (Drei-, Vier-, und Fünfkind-Tarife)
         (
             (data[filter_columns[2]].isna()) |
             (data[filter_columns[2]] == "K1")
-        )
+        ) &
+        # Nur Basistarife
+        (data[filter_columns[4]] == 0)
     ]
 
     # Join the relevant data with metadata

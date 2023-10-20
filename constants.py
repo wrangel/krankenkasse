@@ -10,7 +10,7 @@ legende_sheet_name = "Zugelassene Krankenversicherer"
 relevant_columns = ["Nummer\nNuméro\nNumero", "Name\nNom\nNome", "Name des Versicherers", "Versicherer", "Altersklasse", "Unfalleinschluss",
                     "Franchise", "Prämie", "Tarifbezeichnung"]
 filter_columns = ["Region", "Altersklasse",
-                  "Altersuntergruppe", "Unfalleinschluss"]
+                  "Altersuntergruppe", "Unfalleinschluss", "isBaseP"]
 filter_prämienregion = "PR-REG CH1"  # Zürich Stadt im Kanton Zürich
 
 # alt
