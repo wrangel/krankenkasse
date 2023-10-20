@@ -1,5 +1,7 @@
 DIESE APP BERECHNET 
 A) DIE BILLIGSTEN PRÄMIEN FÜR DIE TIEFSTE UND HÖCHSTE FRANCHISE
+  - Kinder mit Unfalldeckung, Erwachsene ohne
+  - abzüglich der verierenden Umweltpauschale
 B) DIE GRENZE, AB WELCHER SICH DIE BILLIGSTE FRANCHISE LOHNT
 
 

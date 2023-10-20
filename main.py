@@ -54,19 +54,24 @@ if __name__ == "__main__":
     ]
 
     # Join the relevant data with metadata
-    relevant_data = filtered_data.merge(metadata, on="Versicherer",
-                                        how="left").iloc[:, [8, 7, 2, 5, 6]]
+    relevant_data = filtered_data.merge(metadata, on="Versicherer", how="left")
 
     # Finde beste Prämie pro Franchise
+    beste_prämie_pro_franchise = relevant_data.groupby(
+        ["Altersklasse", "Franchise"]).agg(
+            Prämie=("Prämie", "min")
+    )
 
-    print(relevant_data)
+    print(beste_prämie_pro_franchise)
 
-    a = relevant_data.groupby(
-        ["Altersklasse", "Franchise"])["Prämie"].min()
+    a = beste_prämie_pro_franchise.merge(
+        relevant_data, on=["Altersklasse", "Franchise", "Prämie"],
+        how="left").iloc[:, [0, 1, 2, 9, 10]]
+
     print(a)
-
     quit()
 
+    # - umweltabgabe
     '''
 
     print("Zielgruppe (Erwachsene oder Kinder):")
