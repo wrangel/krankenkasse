@@ -30,7 +30,9 @@ if __name__ == "__main__":
     filtered_data = data[
         # Keine Ein-, Drei-, Vier-, oder Fünfkind-Tarife
         (data[filter_columns[2]].isna()) &
+        # Prämienregion ZH Stadt
         (data[filter_columns[0]] == filter_prämienregion) &
+        # Erwachsene ohne Unfall, Kinder mit Unfall
         (
             (
                 (data[filter_columns[1]] == "AKL-ERW") &
@@ -43,14 +45,10 @@ if __name__ == "__main__":
             )
         )
     ]
-    print(filtered_data)
-    quit()
-
-   # df[((df['a'] == 1) & (df['b'] ==2)) | ((df['a'] == 4) & (df['b'] ==3))]
 
     # Join the relevant data with metadata
     relevant_data = filtered_data.merge(metadata, on="Versicherer",
-                                        how="left").iloc[:, 1:]
+                                        how="left").iloc[:, [8, 7, 2, 3, 5, 6]]
 
     print(relevant_data)
     quit()
