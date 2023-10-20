@@ -51,11 +51,15 @@ if __name__ == "__main__":
 
     # Join the relevant data with metadata
     relevant_data = filtered_data.merge(metadata, on="Versicherer",
-                                        how="left").iloc[:, [8, 7, 2, 3, 5, 6]]
+                                        how="left").iloc[:, [8, 7, 2, 5, 6]]
 
     # Finde beste Prämie pro Franchise
 
     print(relevant_data)
+
+    a = relevant_data.groupby(
+        ["Altersklasse", "Franchise"])["Prämie"].min()
+    print(a)
     quit()
 
     '''
