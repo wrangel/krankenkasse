@@ -28,9 +28,10 @@ if __name__ == "__main__":
 
     # Filter and beautify the data
     filtered_data = data[
-
+        # Kanton ZH
+        (data[filter_columns[5]] == "ZH") &
         # Prämienregion ZH Stadt
-        (data[filter_columns[0]] == filter_prämienregion) &
+        (data[filter_columns[0]] == "PR-REG CH1") &
         # Erwachsene ohne Unfall, Kinder mit Unfall
         (
             (
@@ -63,6 +64,7 @@ if __name__ == "__main__":
     a = relevant_data.groupby(
         ["Altersklasse", "Franchise"])["Prämie"].min()
     print(a)
+
     quit()
 
     '''
