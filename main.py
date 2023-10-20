@@ -26,20 +26,36 @@ if __name__ == "__main__":
     data = pd.read_csv(
         download_url, encoding=download_url_encoding, delimiter=";", usecols=relevant_columns[3:] + filter_columns)
 
-    # Filter the data
-    relevant_data = data[data[filter_columns[0]] == filter_prämienregion]
+    # Filter and beautify the data
+    filtered_data = data[
+        # Keine Ein-, Drei-, Vier-, oder Fünfkind-Tarife
+        (data[filter_columns[2]].isna()) &
+        (data[filter_columns[0]] == filter_prämienregion) &
+        (
+            (
+                (data[filter_columns[1]] == "AKL-ERW") &
+                (data[filter_columns[3]] == "OHN-UNF")
+            )
+            |
+            (
+                (data[filter_columns[1]] == "AKL-KIN") &
+                (data[filter_columns[3]] == "MIT-UNF")
+            )
+        )
+    ]
+    print(filtered_data)
+    quit()
+
+   # df[((df['a'] == 1) & (df['b'] ==2)) | ((df['a'] == 4) & (df['b'] ==3))]
+
+    # Join the relevant data with metadata
+    relevant_data = filtered_data.merge(metadata, on="Versicherer",
+                                        how="left").iloc[:, 1:]
 
     print(relevant_data)
     quit()
-    # Join the data with metadata
-    a = data.merge(metadata, on="Versicherer", how="left")
-
-    print(a)
-
-    quit()
 
     '''
-    print("!! ACHTUNG: Die Resultate bei Kindern sind nicht korrekt !!")
 
     print("Zielgruppe (Erwachsene oder Kinder):")
     zielgruppe = input()

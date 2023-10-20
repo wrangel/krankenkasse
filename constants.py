@@ -7,9 +7,10 @@ website = "https://www.bag.admin.ch"
 home = "/bag/de/home/versicherungen/krankenversicherung/krankenversicherung-versicherer-aufsicht/verzeichnisse-krankenundrueckversicherer.html"
 legende_link = "Zugelassene%%20Krankenversicherer_1.10.%s.xlsx"
 legende_sheet_name = "Zugelassene Krankenversicherer"
-relevant_columns = ["Nummer\nNuméro\nNumero", "Name\nNom\nNome", "Name des Versicherers", "Versicherer",
+relevant_columns = ["Nummer\nNuméro\nNumero", "Name\nNom\nNome", "Name des Versicherers", "Versicherer", "Altersklasse", "Unfalleinschluss",
                     "Franchise", "Prämie", "Tarifbezeichnung"]
-filter_columns = ["Region"]
+filter_columns = ["Region", "Altersklasse",
+                  "Altersuntergruppe", "Unfalleinschluss"]
 filter_prämienregion = "PR-REG CH1"  # Zürich Stadt im Kanton Zürich
 
 # alt
