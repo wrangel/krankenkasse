@@ -75,25 +75,11 @@ if __name__ == "__main__":
         .replace("AKL-KIN", "Kinder", regex=True)\
         .astype({"Franchise": int, "Prämie": float})
 
-    beste_prämie_pro_franchise = beste_prämie_pro_franchise["Prämie"].sub(
-        umweltabgabe)
-
     print(beste_prämie_pro_franchise.sort_values(
         by=["Altersklasse", "Franchise"]))
+
     quit()
-
     # - umweltabgabe
-    '''
-
-    print("Zielgruppe (Erwachsene oder Kinder):")
-    zielgruppe = input()
-    print("Umweltabgabe (pro Monat, findet man per Web-Suche):")
-    umweltabgabe = float(input())
-    '''
-
-    zielgruppe = "Kinder"
-    umweltabgabe = 5.35
-    ###
 
     # Parse das PDF
     text = parser.from_file(input_file).get("content")
