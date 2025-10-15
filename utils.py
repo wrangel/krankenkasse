@@ -1,5 +1,6 @@
 import pandas as pd
 from constants import praemien_url, hoechstgrenze_selbstbehalt, maximale_krankenkosten
+import sys
 
 
 def get_data(kanton="ZH", region="PR-REG CH1"):
@@ -10,7 +11,8 @@ def get_data(kanton="ZH", region="PR-REG CH1"):
         (df["Region"] == region) &
         (df["Altersklasse"].isin(["AKL-ERW", "AKL-KIN"])) &
         (df["Unfalleinschluss"].isin(["OHN-UNF", "MIT-UNF"])) &
-        ((df["Altersuntergruppe"].isna()) | (df["Altersuntergruppe"] == "K1")) &
+        # TODO Kill Altersuntergruppe, oder basierend auf Jahrgang, Problem KX nicht dokumentiert
+        # ((df["Altersuntergruppe"].isna()) | (df["Altersuntergruppe"] == "K1")) &
         (df["isBaseP"] == 0)
     ]
     return filtered[["Versicherer", "Altersklasse", "Unfalleinschluss", "Franchise", "Prämie", "Tarifbezeichnung"]]
@@ -40,6 +42,7 @@ def beste_prämien(df):
 
 def berechne_kipppunkt(praemien_dict, umweltabgabe):
     results = []
+
     for zielgruppe, franchisen in praemien_dict.items():
         franchisen = {f: p - umweltabgabe for f, p in franchisen.items()}
         krankenkosten = list(range(maximale_krankenkosten + 1))
@@ -52,8 +55,18 @@ def berechne_kipppunkt(praemien_dict, umweltabgabe):
                 for k in krankenkosten
             ]
 
+        kosten_df.to_csv(f"kostenvergleich_{zielgruppe.lower()}.csv")
+        print(
+            f"→ Datei 'kostenvergleich_{zielgruppe.lower()}.csv' wurde gespeichert.")
+
         kosten_df["Min"] = kosten_df.idxmin(axis=1)
-        grenzwert = (kosten_df["Min"] != kosten_df["Min"].shift()).idxmax()
+
+        grenzwert = next(
+            (k for k in kosten_df.index[1:] if kosten_df["Min"].iloc[k]
+             != kosten_df["Min"].iloc[k - 1]),
+            None
+        )
+
         results.append({"ZG": zielgruppe, "GJ": kosten_df, "GW": grenzwert})
     return results
 

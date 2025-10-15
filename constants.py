@@ -5,3 +5,6 @@ maximale_krankenkosten = 10000
 # Datenquelle
 praemien_url = "https://www.priminfo.admin.ch/downloads/gesamtbericht_ch.xlsx"
 praemien_sheet = "Export"
+
+
+# TODO suche den Versicherer unter: Verzeichnis zugelassene Krankenversicherer (priminfo)

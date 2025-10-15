@@ -15,9 +15,5 @@ if __name__ == "__main__":
 
     beste_prämien_dict = beste_prämien(data)
 
-    print(beste_prämien_dict)
-
-    sys.exit(0)
-
     results = berechne_kipppunkt(beste_prämien_dict, umweltabgabe)
     display_results(results)
