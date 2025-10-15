@@ -18,7 +18,8 @@ command+shift+P, dann "Python: Select Interpreter": die neueste Version wählen
 
 Zweimal hintereinander im Programme/Python x.xx-Ordner "Install Certificates.command" ausführen
 
-Module installieren: VSC, Terminal, pip3 install ...
+In constants.py die Umweltabgabe eintragen
+Module installieren: pip3 install pandas
 VSC ev. neu starten
 
 Run-Symbol auf main.py drücken
@@ -32,4 +33,3 @@ Run-Symbol auf main.py drücken
 -- https://www.bag.admin.ch/bag/de/home/versicherungen/krankenversicherung/krankenversicherung-versicherer-aufsicht/praemienregionen.html
 -- https://www.finanzmonitor.com/krankenkasse/grundversicherung-krankenkasse-krankenkassenpramien-franchise-und-selbstbehalt
 -- https://www.priminfo.admin.ch/de/praemien
--- ab dem 3. Kind gibt es Prämienrabatt

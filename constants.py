@@ -11,5 +11,7 @@ maximale_krankenkosten = 10000
 praemien_url = "https://www.priminfo.admin.ch/downloads/gesamtbericht_ch.xlsx"
 praemien_sheet = "Export"
 
-# Umweltabgabe pro Monat (JEDES JAHR NEU!!)
+# Umweltabgabe pro Monat (JEDES JAHR NEU!!!)
 umweltabgabe_standard = 5.15
+
+# Versicherernamen unter: https://www.bag.admin.ch/de/verzeichnisse-der-zugelassenen-kranken-und-rueckversicherer !!!
