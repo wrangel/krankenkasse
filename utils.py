@@ -1,9 +1,11 @@
 import pandas as pd
 from constants import praemien_url, hoechstgrenze_selbstbehalt, maximale_krankenkosten
-import sys
 
 
 def get_data(kanton="ZH", region="PR-REG CH1"):
+    """
+    Lädt BAG-Prämiendaten und filtert nach Kanton, Region, Altersklasse und Unfalldeckung.
+    """
     df = pd.read_excel(praemien_url, sheet_name="Export")
 
     filtered = df[
@@ -11,14 +13,16 @@ def get_data(kanton="ZH", region="PR-REG CH1"):
         (df["Region"] == region) &
         (df["Altersklasse"].isin(["AKL-ERW", "AKL-KIN"])) &
         (df["Unfalleinschluss"].isin(["OHN-UNF", "MIT-UNF"])) &
-        # TODO Kill Altersuntergruppe, oder basierend auf Jahrgang, Problem KX nicht dokumentiert
-        # ((df["Altersuntergruppe"].isna()) | (df["Altersuntergruppe"] == "K1")) &
         (df["isBaseP"] == 0)
     ]
     return filtered[["Versicherer", "Altersklasse", "Unfalleinschluss", "Franchise", "Prämie", "Tarifbezeichnung"]]
 
 
 def beste_prämien(df):
+    """
+    Ermittelt die günstigste Prämie pro Franchise und Altersklasse.
+    Gibt ein Dictionary zurück: {Altersklasse: {Franchise: Prämie}}
+    """
     df = df.copy()
     df["Franchise"] = df["Franchise"].str.extract(r"FRA-(\d+)")[0].astype(int)
     df["Prämie"] = df["Prämie"].astype(float)
@@ -41,6 +45,10 @@ def beste_prämien(df):
 
 
 def berechne_kipppunkt(praemien_dict, umweltabgabe):
+    """
+    Berechnet den Kipppunkt: ab welchen Krankheitskosten sich eine tiefere Franchise lohnt.
+    Exportiert die Kostenmatrix als CSV.
+    """
     results = []
 
     for zielgruppe, franchisen in praemien_dict.items():
@@ -55,23 +63,22 @@ def berechne_kipppunkt(praemien_dict, umweltabgabe):
                 for k in krankenkosten
             ]
 
-        kosten_df.to_csv(f"kostenvergleich_{zielgruppe.lower()}.csv")
-        print(
-            f"→ Datei 'kostenvergleich_{zielgruppe.lower()}.csv' wurde gespeichert.")
-
         kosten_df["Min"] = kosten_df.idxmin(axis=1)
 
-        grenzwert = next(
+        kipppunkt = next(
             (k for k in kosten_df.index[1:] if kosten_df["Min"].iloc[k]
              != kosten_df["Min"].iloc[k - 1]),
             None
         )
 
-        results.append({"ZG": zielgruppe, "GJ": kosten_df, "GW": grenzwert})
+        results.append({"ZG": zielgruppe, "GJ": kosten_df, "GW": kipppunkt})
     return results
 
 
 def display_results(results):
+    """
+    Zeigt den Kipppunkt und die Kostenmatrix im Bereich ±3 CHF um den Kipppunkt.
+    """
     for result in results:
         print(
             f"\nDie tiefste Franchise bei {result['ZG']} lohnt sich ab jährlichen Krankheitskosten von {result['GW']} CHF:\n")

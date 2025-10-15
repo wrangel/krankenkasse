@@ -5,15 +5,12 @@ from utils import (
     berechne_kipppunkt,
     display_results
 )
-import sys
+from constants import umweltabgabe_standard
 
 if __name__ == "__main__":
-    print("Umweltabgabe (pro Monat, findet man per Web-Suche):")
-    umweltabgabe = 5.15  # TODO float(input())
+    print("Berechne Kipppunkt basierend auf Umweltabgabe und BAG-Prämiendaten…")
 
     data = get_data(kanton="ZH", region="PR-REG CH1")
-
     beste_prämien_dict = beste_prämien(data)
-
-    results = berechne_kipppunkt(beste_prämien_dict, umweltabgabe)
+    results = berechne_kipppunkt(beste_prämien_dict, umweltabgabe_standard)
     display_results(results)
