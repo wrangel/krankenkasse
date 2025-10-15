@@ -1,9 +1,9 @@
 import pandas as pd
-from constants import praemien_url, praemien_sheet, hoechstgrenze_selbstbehalt, maximale_krankenkosten
+from constants import praemien_url, hoechstgrenze_selbstbehalt, maximale_krankenkosten
 
 
 def get_data(kanton="ZH", region="PR-REG CH1"):
-    df = pd.read_excel(praemien_url, sheet_name=praemien_sheet)
+    df = pd.read_excel(praemien_url, sheet_name="Export")
 
     filtered = df[
         (df["Kanton"] == kanton) &
@@ -13,13 +13,12 @@ def get_data(kanton="ZH", region="PR-REG CH1"):
         ((df["Altersuntergruppe"].isna()) | (df["Altersuntergruppe"] == "K1")) &
         (df["isBaseP"] == 0)
     ]
-
     return filtered[["Versicherer", "Altersklasse", "Unfalleinschluss", "Franchise", "Prämie", "Tarifbezeichnung"]]
 
 
 def beste_prämien(df):
     df = df.copy()
-    df["Franchise"] = df["Franchise"].astype(int)
+    df["Franchise"] = df["Franchise"].str.extract(r"FRA-(\d+)")[0].astype(int)
     df["Prämie"] = df["Prämie"].astype(float)
     df["Altersklasse"] = df["Altersklasse"].replace(
         {"AKL-ERW": "Erwachsene", "AKL-KIN": "Kinder"})
@@ -33,9 +32,10 @@ def beste_prämien(df):
     print(merged[["Altersklasse", "Franchise", "Prämie", "Versicherer"]].sort_values(
         ["Altersklasse", "Franchise"]).to_markdown())
 
-    return merged.groupby("Altersklasse").apply(
-        lambda g: dict(zip(g["Franchise"], g["Prämie"]))
-    ).to_dict()
+    return {
+        zielgruppe: dict(zip(gruppe["Franchise"], gruppe["Prämie"]))
+        for zielgruppe, gruppe in merged.groupby("Altersklasse")
+    }
 
 
 def berechne_kipppunkt(praemien_dict, umweltabgabe):
