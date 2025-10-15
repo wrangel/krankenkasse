@@ -21,6 +21,7 @@ def get_data(kanton="ZH", region="PR-REG CH1"):
     filtered = filtered[
         (filtered["Altersklasse"] != "AKL-KIN") |
         (filtered["Altersuntergruppe"].isna()) |
+        # Strub und der Grund, weshalb die Berechnung nicht stimmt:
         (~filtered["Altersuntergruppe"].isin(["K1", "K2"]))
     ]
 
