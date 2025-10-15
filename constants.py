@@ -1,15 +1,7 @@
-# Ändert sich nie oder sehr selten:
-# https://www.comparis.ch/krankenkassen/grundversicherungen/selbstbehalt
+# Kipppunkt-Logik
 hoechstgrenze_selbstbehalt = {"Erwachsene": 700, "Kinder": 350}
 maximale_krankenkosten = 10000
 
-website = "https://www.bag.admin.ch"
-legende_url = "/bag/de/home/versicherungen/krankenversicherung/krankenversicherung-versicherer-aufsicht/verzeichnisse-krankenundrueckversicherer.html"
-legende_excel = "Zugelassene%%20Krankenversicherer_1.10.%s.xlsx"
-legende_sheet_name = "Zugelassene Krankenversicherer"
-daten_url = "https://bag-files.opendata.swiss/owncloud/index.php/s/83Vtexg1buoOk6M"
-daten_url_encoding = "iso-8859-1"
-relevant_columns = ["Nummer\nNuméro\nNumero", "Name\nNom\nNome", "Name des Versicherers", "Versicherer", "Altersklasse", "Unfalleinschluss",
-                    "Franchise", "Prämie", "Tarifbezeichnung"]
-filter_columns = ["Region", "Altersklasse",
-                  "Altersuntergruppe", "Unfalleinschluss", "isBaseP", "Kanton"]
+# Datenquelle
+praemien_url = "https://www.priminfo.admin.ch/downloads/gesamtbericht_ch.xlsx"
+praemien_sheet = "Prämienliste"
