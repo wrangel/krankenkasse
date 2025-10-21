@@ -20,6 +20,4 @@ VSC ev. neu starten
 
 Run-Symbol auf main.py drücken
 
--- Achtung: 
---- Umweltabgabe in constants.py anpassen
---- Kinderprämien sind wegen der K1-K5-Thematik nicht verlässlich, der Kipppunkt ungefähr schon
+-- Achtung!! Umweltabgabe in constants.py anpassen

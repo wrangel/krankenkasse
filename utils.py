@@ -13,16 +13,14 @@ def get_data(kanton="ZH", region="PR-REG CH1"):
         (df["Kanton"] == kanton) &
         (df["Region"] == region) &
         (df["Altersklasse"].isin(["AKL-ERW", "AKL-KIN"])) &
-        (df["Unfalleinschluss"].isin(["OHN-UNF", "MIT-UNF"])) &
+        (
+            ((df["Altersklasse"] == "AKL-ERW") & (df["Unfalleinschluss"] == "OHN-UNF")) |
+            ((df["Altersklasse"] == "AKL-KIN") &
+             (df["Unfalleinschluss"] == "MIT-UNF") &
+             # Nicht dokumentiert, aber durch Versuche soweit als korrekt belegt
+             (df["Altersuntergruppe"].isin(["K1", "K4"])))
+        ) &
         (df["isBaseP"] == 0)
-    ]
-
-    # Filter: alle Altersuntergruppen außer K1 und K2 (inkl. leer)
-    filtered = filtered[
-        (filtered["Altersklasse"] != "AKL-KIN") |
-        (filtered["Altersuntergruppe"].isna()) |
-        # Strub und der Grund, weshalb die Berechnung nicht stimmt:
-        (~filtered["Altersuntergruppe"].isin(["K1", "K2"]))
     ]
 
     return filtered[["Versicherer", "Altersklasse", "Unfalleinschluss", "Franchise", "Prämie", "Tarifbezeichnung"]]
