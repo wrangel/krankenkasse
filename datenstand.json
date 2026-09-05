@@ -1,0 +1,79 @@
+{
+  "praemienjahr": 2026,
+  "spalten": [
+    "Altersklasse",
+    "Altersuntergruppe",
+    "Erhebungsjahr",
+    "Franchise",
+    "Franchisestufe",
+    "Geschäftsjahr",
+    "Hoheitsgebiet",
+    "Kanton",
+    "Prämie",
+    "Region",
+    "Tarif",
+    "Tarifbezeichnung",
+    "Tariftyp",
+    "Unfalleinschluss",
+    "Versicherer",
+    "befristet",
+    "isBaseF",
+    "isBaseP"
+  ],
+  "altersklassen": [
+    "AKL-ERW",
+    "AKL-JUG",
+    "AKL-KIN"
+  ],
+  "altersuntergruppen": [
+    "K1",
+    "K3",
+    "K4",
+    "K5"
+  ],
+  "franchisen": [
+    "FRA-0",
+    "FRA-100",
+    "FRA-1000",
+    "FRA-1500",
+    "FRA-200",
+    "FRA-2000",
+    "FRA-2500",
+    "FRA-300",
+    "FRA-400",
+    "FRA-500",
+    "FRA-600"
+  ],
+  "anzahl_kantone": 28,
+  "befund_referenz": {
+    "kanton": "ZH",
+    "region": "PR-REG CH1",
+    "Erwachsene": {
+      "optimal": [
+        300,
+        2500
+      ],
+      "nie_optimal": [
+        500,
+        1000,
+        1500,
+        2000
+      ],
+      "kipppunkt": 1893
+    },
+    "Kinder": {
+      "optimal": [
+        0,
+        600
+      ],
+      "nie_optimal": [
+        100,
+        200,
+        300,
+        400,
+        500
+      ],
+      "kipppunkt": 467
+    }
+  }
+}

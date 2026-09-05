@@ -116,6 +116,37 @@ Kostenbeteiligung ausgewiesen.
 
 Optionen: `--kanton`, `--region`, `--umweltabgabe`, `--max-kosten`.
 
+## Überwachung der Datenquellen
+
+Die beiden BAG-Quellen brechen auf unterschiedliche Weise, und die gefährlichere der
+beiden bricht *lautlos*:
+
+| Quelle | URL | Verhalten beim Jahreswechsel |
+|--------|-----|------------------------------|
+| Prämienvergleich | fester Pfad | verschwindet nie – der Inhalt wird still ersetzt |
+| Versichererverzeichnis | Hash **und** Jahr im Pfad | läuft auf einen 404 |
+
+Ein blosser Erreichbarkeitstest würde also ausgerechnet den Wechsel des Prämienjahres
+nicht bemerken. `pruefe_datenquellen.py` vergleicht deshalb gegen den in
+`datenstand.json` festgehaltenen Stand: Erreichbarkeit, Prämienjahr, Spalten,
+Altersklassen, Altersuntergruppen, Franchisenstufen – und den zentralen Befund, dass nur
+die höchste und die tiefste Franchise je optimal sind.
+
+```bash
+python pruefe_datenquellen.py              # prüfen (Exit-Code 1 bei Abweichung)
+python pruefe_datenquellen.py --schreiben   # neuen Stand festhalten
+```
+
+Der Workflow [`datenquellen.yml`](.github/workflows/datenquellen.yml) führt das
+automatisch aus: wöchentlich, und im September/Oktober täglich – dann veröffentlicht das
+BAG die Prämien des Folgejahres. Schlägt der Lauf fehl, benachrichtigt GitHub den
+Repository-Besitzer. Damit meldet sich das Projekt von selbst, statt still falsche Zahlen
+zu zeigen.
+
+Besonders wichtig ist der Befundtest: Sollte künftig doch eine mittlere Franchise
+irgendwo gewinnen, ist die zentrale Aussage dieses README hinfällig – und der Workflow
+sagt es, bevor es jemand anders merkt.
+
 ## Jährliche Pflege
 
 - **Umweltabgabe** – ändert jedes Jahr. In der Oberfläche direkt eingebbar, oder als

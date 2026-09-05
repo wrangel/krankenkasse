@@ -1,0 +1,48 @@
+name: Datenquellen
+
+# Wacht über die beiden BAG-Quellen. Sie brechen unterschiedlich:
+#
+# * Der Prämienvergleich liegt unter einem festen Pfad und verschwindet nie -
+#   sein Inhalt wird jährlich still ersetzt. Ein Erreichbarkeitstest allein
+#   würde den Wechsel des Prämienjahres also verschlafen.
+# * Das Versichererverzeichnis trägt Hash und Jahr im Pfad und läuft jedes Jahr
+#   auf einen 404.
+#
+# Deshalb prüft pruefe_datenquellen.py gegen datenstand.json auch Prämienjahr,
+# Spalten, Wertebereiche und den zentralen Befund. Schlägt der Lauf fehl,
+# verschickt GitHub die übliche Benachrichtigung an den Repository-Besitzer.
+#
+# Takt: Das BAG veröffentlicht die Prämien des Folgejahres jeweils Ende
+# September. Im September und Oktober wird deshalb täglich geprüft, sonst
+# wöchentlich.
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"        # ganzjährig: montags 06:00 UTC
+    - cron: "0 6 * 9,10 *"     # September/Oktober: täglich 06:00 UTC
+  workflow_dispatch:            # jederzeit von Hand auslösbar
+
+jobs:
+  pruefen:
+    name: pruefen
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Datenquellen gegen datenstand.json prüfen
+        run: python pruefe_datenquellen.py
