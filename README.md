@@ -94,18 +94,51 @@ Optionen: `--kanton`, `--region`, `--umweltabgabe`, `--max-kosten`.
   Kipppunkt fällt deshalb in verschiedenen Kantonen oft auf denselben Betrag, obwohl die
   Prämien selbst deutlich abweichen.
 
-## Einschränkungen
+## Wie ernst der Kipppunkt zu nehmen ist
 
-Der Kipppunkt wird auf den Franken genau ausgewiesen, ist dort aber **sehr knapp**:
-unmittelbar darüber beträgt der Vorteil oft weniger als ein Rappen pro Jahr. Für die
-praktische Wahl ist der Vergleich bei den realistisch erwarteten Krankheitskosten
-aussagekräftiger – dafür gibt es in der Oberfläche einen eigenen Regler.
+Kurz: weniger ernst, als die Zahl aussieht. Das Werkzeug rechnet den Kipppunkt
+franken­genau aus, aber die Kostenkurven schneiden sich sehr flach. Drei Befunde, die man
+kennen sollte, bevor man auf den Wert etwas gibt:
 
-Nicht berücksichtigt sind unter anderem Familien-Höchstgrenzen beim Selbstbehalt,
-Prämienverbilligungen, Zusatzversicherungen sowie Einschränkungen bei der Arztwahl in
-alternativen Modellen. Das Werkzeug ist eine Rechenhilfe und keine Finanz- oder
-Versicherungsberatung.
+**Der Unterschied ist klein.** Über den ganzen Bereich bis 10 000 CHF bringt die tiefste
+Franchise gegenüber der nächstbesten Stufe höchstens rund 70 CHF pro Jahr (Erwachsene,
+ZH Region 1) beziehungsweise 30 CHF (Kinder). Die prozentualen Prämienrabatte pro
+Franchisenstufe sind bundesweit geregelt und offenbar so kalibriert, dass sich die
+Varianten fast die Waage halten. Unmittelbar am Kipppunkt geht es um Rappen.
+
+**Die Wahl des Versicherers wiegt viel schwerer.** Bei identischer Franchise liegen
+zwischen dem günstigsten und dem teuersten Anbieter über 2 000 CHF pro Jahr. Wer sparen
+will, wechselt die Kasse, nicht die Franchise. Deshalb zeigt die Oberfläche die
+Spannweite prominent an.
+
+**Die Umweltabgabe verschiebt den Kipppunkt nicht.** Sie wird von jeder Prämie gleich
+abgezogen, verschiebt also alle Kostenkurven um denselben Betrag `12 × Abgabe` nach unten
+und lässt die Reihenfolge unverändert. Sie beeinflusst nur die absoluten Frankenbeträge.
+Dasselbe gilt für die Prämienverbilligung. Der jährliche Neueintrag lohnt sich also für
+korrekte Gesamtkosten, ändert an der Franchisenempfehlung aber nichts.
+
+Statt allein auf den Kipppunkt zu schauen, bietet die Oberfläche deshalb eine
+**Spürbarkeitsschwelle**: ab wann der Vorteil einen selbst gewählten Betrag pro Jahr
+überschreitet.
+
+## Was nicht berücksichtigt ist
+
+- **Familien-Höchstgrenze.** Sind mehrere Kinder einer Familie beim gleichen Versicherer
+  versichert, darf ihre Kostenbeteiligung zusammen das Zweifache des Höchstbetrages je
+  Kind nicht übersteigen (Art. 93 Abs. 3 KVV; bei der ordentlichen Franchise Art. 64
+  Abs. 4 KVG). Das Werkzeug rechnet pro Person und bildet diese Deckelung nicht ab – für
+  Familien mit mehreren Kindern fällt die reale Belastung tiefer aus.
+- **Prämienverbilligung**, Zusatzversicherungen, der Spitalbeitrag von 15 CHF pro Tag
+  sowie Bonus- und Hausarztmodell-Besonderheiten.
+- **Einschränkungen bei der Arztwahl.** Alternative Modelle (HMO, Hausarzt, Telmed) sind
+  in den Prämien enthalten, ihre Auflagen aber nicht bewertet. Die günstigste Prämie ist
+  nicht automatisch das passendste Modell.
+
+Das Werkzeug ist eine Rechenhilfe und keine Finanz- oder Versicherungsberatung.
 
 ## Lizenz
 
-Noch keine Lizenz festgelegt.
+[MIT](LICENSE) – Copyright (c) 2023-2026 Matthias Wettstein.
+
+Die Prämiendaten stammen vom Bundesamt für Gesundheit und unterliegen dessen
+Nutzungsbedingungen.

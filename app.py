@@ -75,6 +75,16 @@ with st.sidebar:
         help="Für den direkten Franchisenvergleich weiter unten.",
     )
 
+    toleranz = st.slider(
+        "Spürbarkeitsschwelle (CHF pro Jahr)",
+        min_value=10,
+        max_value=200,
+        value=50,
+        step=10,
+        help="Ab welchem jährlichen Unterschied ein Franchisenwechsel für dich "
+        "überhaupt der Rede wert ist.",
+    )
+
     with st.expander("Feineinstellungen"):
         unfalldeckung = {
             zg: st.radio(
@@ -143,13 +153,38 @@ for spalte, e in zip(spalten, ergebnisse):
                 f"{e.kipppunkt:,} CHF".replace(",", "'"),
             )
             beste_alternative = e.segmente.iloc[0]["Franchise"]
-            vorteil = e.ersparnis_am_kipppunkt
-            betrag = "unter 0.01" if vorteil < 0.01 else f"{vorteil:.2f}"
-            st.caption(
-                f"Darunter ist Franchise {beste_alternative} CHF günstiger. "
-                f"Der Kipppunkt ist knapp: unmittelbar darüber beträgt der Vorteil "
-                f"erst {betrag} CHF pro Jahr."
+            spuerbar = e.materieller_kipppunkt(toleranz)
+            wann = (
+                f"Um mehr als {toleranz:.0f} CHF pro Jahr erst ab {spuerbar} CHF."
+                if spuerbar is not None
+                else f"Mehr als {toleranz:.0f} CHF pro Jahr bringt sie nie."
             )
+            st.caption(
+                f"Darunter ist Franchise {beste_alternative} CHF günstiger. {wann} "
+                f"Grösster Vorteil überhaupt: **{e.max_vorteil:.0f} CHF pro Jahr**."
+            )
+
+groesster = max((e.max_vorteil for e in ergebnisse), default=0.0)
+spannweiten = {}
+for e in ergebnisse:
+    angebote = daten[
+        (daten["Zielgruppe"] == e.zielgruppe)
+        & (daten["Franchise"] == e.tiefste_franchise)
+    ]["Prämie"]
+    if not angebote.empty:
+        spannweiten[e.zielgruppe] = (angebote.max() - angebote.min()) * 12
+
+if spannweiten:
+    grösste_spannweite = f"{max(spannweiten.values()):,.0f}".replace(",", "'")
+    st.info(
+        f"**Die Franchisenwahl ist die kleinere Frage.** Über den ganzen Bereich bis "
+        f"{max_kosten} CHF bringt die tiefste Franchise höchstens "
+        f"**{groesster:.0f} CHF pro Jahr** gegenüber der nächstbesten Stufe – die "
+        f"Prämienrabatte pro Stufe sind so geregelt, dass sich die Varianten fast die "
+        f"Waage halten. Zwischen günstigstem und teuerstem Versicherer liegen bei "
+        f"gleicher Franchise dagegen bis zu **{grösste_spannweite} CHF pro Jahr**. "
+        f"Dort liegt das Geld."
+    )
 
 for e in ergebnisse:
     st.subheader(e.zielgruppe)

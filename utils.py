@@ -149,6 +149,32 @@ class Ergebnis:
     tiefste_franchise: int
     ersparnis_am_kipppunkt: float | None = None
 
+    @property
+    def vorteil_tiefste(self) -> pd.Series:
+        """Wie viel die tiefste Franchise pro Jahr besser ist als die beste Alternative.
+        Negativ, solange sich eine höhere Franchise mehr lohnt."""
+        andere = self.kosten.drop(columns=[self.tiefste_franchise])
+        return andere.min(axis=1) - self.kosten[self.tiefste_franchise]
+
+    @property
+    def max_vorteil(self) -> float:
+        """Grösster Vorteil der tiefsten Franchise gegenüber der besten Alternative,
+        über den ganzen untersuchten Kostenbereich. In der Praxis erstaunlich klein:
+        die Prämienrabatte pro Franchisenstufe sind so geregelt, dass sich die
+        Varianten fast die Waage halten."""
+        return float(self.vorteil_tiefste.max())
+
+    def materieller_kipppunkt(self, toleranz: float = 50.0) -> int | None:
+        """Erste Krankheitskosten, ab denen die tiefste Franchise um mehr als `toleranz`
+        Franken pro Jahr besser ist.
+
+        Der reine Kipppunkt ist mathematisch exakt, aber praktisch wertlos: die
+        Kostenkurven schneiden sich sehr flach, deshalb geht es dort um Rappen. Erst
+        dieser Wert beantwortet, ab wann sich der Wechsel spürbar lohnt.
+        """
+        treffer = self.vorteil_tiefste.index[self.vorteil_tiefste > toleranz]
+        return int(treffer[0]) if len(treffer) else None
+
 
 def _segmente(optimal: pd.Series) -> pd.DataFrame:
     """Fasst zusammenhängende Bereiche gleicher optimaler Franchise zusammen."""
@@ -217,7 +243,9 @@ def berechne_kipppunkt(
     return ergebnisse
 
 
-def display_results(ergebnisse: list[Ergebnis], umgebung: int = 3) -> None:
+def display_results(
+    ergebnisse: list[Ergebnis], umgebung: int = 3, toleranz: float = 50.0
+) -> None:
     """Textausgabe für den CLI-Lauf."""
     for e in ergebnisse:
         if e.kipppunkt is None:
@@ -228,8 +256,24 @@ def display_results(ergebnisse: list[Ergebnis], umgebung: int = 3) -> None:
         else:
             print(
                 f"\nDie tiefste Franchise ({e.tiefste_franchise} CHF) bei {e.zielgruppe} "
-                f"lohnt sich ab jährlichen Krankheitskosten von {e.kipppunkt} CHF:\n"
+                f"lohnt sich rechnerisch ab {e.kipppunkt} CHF Krankheitskosten."
             )
+            spuerbar = e.materieller_kipppunkt(toleranz)
+            if spuerbar is None:
+                print(
+                    f"  Aber: mehr als {toleranz:.0f} CHF pro Jahr bringt sie bis "
+                    f"{e.kosten.index[-1]} CHF Krankheitskosten nie."
+                )
+            else:
+                print(
+                    f"  Spürbar (über {toleranz:.0f} CHF pro Jahr) wird der Vorteil "
+                    f"erst ab {spuerbar} CHF."
+                )
+            print(
+                f"  Grösster Vorteil überhaupt: {e.max_vorteil:.0f} CHF pro Jahr. "
+                f"Die Wahl des Versicherers wiegt deutlich schwerer."
+            )
+            print()
             von = max(0, e.kipppunkt - umgebung)
             bis = min(e.kosten.index[-1], e.kipppunkt + umgebung)
             print(e.kosten.loc[von:bis].round(2).to_markdown())
