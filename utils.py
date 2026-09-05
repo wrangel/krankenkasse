@@ -243,6 +243,124 @@ def berechne_kipppunkt(
     return ergebnisse
 
 
+@dataclass
+class Haushalt:
+    """Zusammensetzung eines Haushalts. `kinder` enthält pro Kind die
+    Altersuntergruppe, wie sie der Versicherer für dieses Kind anwendet
+    (z. B. ("K1", "K1", "K3") für drei Kinder, davon eines zum Rabatttarif)."""
+
+    erwachsene: int = 1
+    jugendliche: int = 0
+    kinder: tuple[str, ...] = ()
+
+    @property
+    def anzahl_kinder(self) -> int:
+        return len(self.kinder)
+
+
+def _preisreihe(
+    basis: pd.DataFrame,
+    altersklasse: str,
+    unfall: str,
+    franchise: int,
+    untergruppe: str | None = None,
+) -> pd.Series:
+    """Günstigste Prämie je (Versicherer, Tarifbezeichnung) für eine Personenkategorie."""
+    teil = basis[
+        (basis["Altersklasse"] == altersklasse)
+        & (basis["Unfalleinschluss"] == unfall)
+        & (basis["Franchise"] == f"FRA-{franchise}")
+    ]
+    if untergruppe is not None:
+        teil = teil[teil["Altersuntergruppe"] == untergruppe]
+    return teil.groupby(["Versicherer", "Tarifbezeichnung"])["Prämie"].min()
+
+
+def haushalt_angebote(
+    df: pd.DataFrame,
+    haushalt: Haushalt,
+    franchise_erwachsene: int = 300,
+    franchise_jugendliche: int = 300,
+    franchise_kinder: int = 0,
+    kanton: str = "ZH",
+    region: str = "PR-REG CH1",
+    unfalldeckung: dict[str, str] | None = None,
+) -> pd.DataFrame:
+    """Jahresprämie des ganzen Haushalts je Versicherer und Tarif, aufsteigend sortiert.
+
+    Berücksichtigt werden nur Angebote, die *alle* benötigten Personenkategorien
+    führen – inklusive der verlangten Kinder-Untergruppen. Das ist der ehrliche
+    Vergleich für eine Familie: ein Versicherer mit günstigen Erwachsenenprämien,
+    aber ohne Geschwisterrabatt, kann für den Haushalt teurer sein.
+    """
+    unfalldeckung = unfalldeckung or {
+        "Erwachsene": "OHN-UNF",
+        "Jugendliche": "OHN-UNF",
+        "Kinder": "MIT-UNF",
+    }
+    basis = df[(df["Kanton"] == kanton) & (df["Region"] == region)]
+
+    teile: dict[str, pd.Series] = {}
+    if haushalt.erwachsene:
+        teile["Erwachsene"] = (
+            _preisreihe(basis, "AKL-ERW", unfalldeckung["Erwachsene"], franchise_erwachsene)
+            * haushalt.erwachsene
+        )
+    if haushalt.jugendliche:
+        teile["Jugendliche"] = (
+            _preisreihe(basis, "AKL-JUG", unfalldeckung["Jugendliche"], franchise_jugendliche)
+            * haushalt.jugendliche
+        )
+    for untergruppe in sorted(set(haushalt.kinder)):
+        anzahl = haushalt.kinder.count(untergruppe)
+        teile[f"Kinder {untergruppe}"] = (
+            _preisreihe(
+                basis, "AKL-KIN", unfalldeckung["Kinder"], franchise_kinder, untergruppe
+            )
+            * anzahl
+        )
+
+    if not teile:
+        return pd.DataFrame()
+
+    zusammen = pd.concat(teile, axis=1, join="inner").dropna()
+    if zusammen.empty:
+        return zusammen
+
+    zusammen["Monatsprämie"] = zusammen.sum(axis=1)
+    zusammen["Jahresprämie"] = zusammen["Monatsprämie"] * 12
+
+    namen = versicherer_namen()
+    ergebnis = zusammen.reset_index()
+    ergebnis["Versicherername"] = (
+        ergebnis["Versicherer"].map(namen).fillna(ergebnis["Versicherer"].astype(str))
+    )
+    return ergebnis.sort_values("Jahresprämie").reset_index(drop=True)
+
+
+def kinder_kostenbeteiligung(
+    kosten_je_kind: list[float], franchise: int
+) -> tuple[float, bool]:
+    """Kostenbeteiligung aller Kinder zusammen, mit Familien-Höchstgrenze.
+
+    Art. 93 Abs. 3 KVV: Sind mehrere Kinder einer Familie beim gleichen Versicherer
+    versichert, darf ihre Kostenbeteiligung das Zweifache des Höchstbetrages je Kind
+    (Franchise plus Selbstbehalt-Obergrenze) nicht übersteigen.
+
+    Gibt (Betrag, ob_gedeckelt) zurück. Die Verordnung setzt für unterschiedliche
+    Franchisen der Kinder keine Formel fest ("so setzt der Versicherer die
+    Höchstbeteiligung fest") – hier wird deshalb eine gemeinsame Franchise angenommen.
+    """
+    obergrenze = hoechstgrenze_selbstbehalt["Kinder"]
+    einzeln = sum(
+        min(k, franchise)
+        + min(max(0.0, k - franchise) * selbstbehalt_anteil, obergrenze)
+        for k in kosten_je_kind
+    )
+    hoechstbetrag = 2 * (franchise + obergrenze)
+    return (min(einzeln, hoechstbetrag), einzeln > hoechstbetrag)
+
+
 def display_results(
     ergebnisse: list[Ergebnis], umgebung: int = 3, toleranz: float = 50.0
 ) -> None:

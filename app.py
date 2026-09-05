@@ -12,14 +12,314 @@ from constants import (
     region_standard,
     umweltabgabe_standard,
 )
-from utils import beste_praemien, berechne_kipppunkt, get_data, lade_praemien
+from utils import (
+    Haushalt,
+    beste_praemien,
+    berechne_kipppunkt,
+    get_data,
+    haushalt_angebote,
+    kinder_kostenbeteiligung,
+    lade_praemien,
+)
 
 st.set_page_config(page_title="Krankenkassen-Kipppunkt", page_icon="🏥", layout="wide")
+
+FRANCHISEN_ERWACHSENE = [300, 500, 1000, 1500, 2000, 2500]
+FRANCHISEN_KINDER = [0, 100, 200, 300, 400, 500, 600]
 
 
 @st.cache_data(show_spinner="Lade BAG-Prämiendaten…")
 def praemien(max_alter_tage: int):
     return lade_praemien(max_alter_tage)
+
+
+def chf(betrag: float, nachkomma: int = 0) -> str:
+    return f"{betrag:,.{nachkomma}f}".replace(",", "'")
+
+
+def einzelperson_ansicht(
+    roh, kanton, region, zielgruppen, unfalldeckung, tariftypen, kinder_untergruppen,
+    umweltabgabe, max_kosten, erwartete_kosten, toleranz,
+):
+    if not zielgruppen:
+        st.info("Bitte mindestens eine Zielgruppe auswählen.")
+        return
+
+    daten = get_data(
+        roh,
+        kanton=kanton,
+        region=region,
+        zielgruppen=tuple(zielgruppen),
+        unfalldeckung=unfalldeckung,
+        kinder_untergruppen=tuple(kinder_untergruppen),
+        tariftypen=tuple(tariftypen) if tariftypen else None,
+    )
+    beste = beste_praemien(daten)
+    if beste.empty:
+        st.warning("Für diese Auswahl gibt es keine Prämien.")
+        return
+
+    ergebnisse = berechne_kipppunkt(beste, umweltabgabe, max_kosten)
+
+    for spalte, e in zip(st.columns(len(ergebnisse)), ergebnisse):
+        with spalte:
+            if e.kipppunkt is None:
+                st.metric(f"{e.zielgruppe}: Kipppunkt", "—")
+                st.caption(
+                    f"Franchise {e.tiefste_franchise} CHF lohnt sich bis "
+                    f"{max_kosten} CHF Krankheitskosten nie."
+                )
+                continue
+            st.metric(
+                f"{e.zielgruppe}: tiefste Franchise ({e.tiefste_franchise} CHF) ab",
+                f"{chf(e.kipppunkt)} CHF",
+            )
+            spuerbar = e.materieller_kipppunkt(toleranz)
+            wann = (
+                f"Um mehr als {toleranz:.0f} CHF pro Jahr erst ab {spuerbar} CHF."
+                if spuerbar is not None
+                else f"Mehr als {toleranz:.0f} CHF pro Jahr bringt sie nie."
+            )
+            st.caption(
+                f"Darunter ist Franchise {e.segmente.iloc[0]['Franchise']} CHF günstiger. "
+                f"{wann} Grösster Vorteil überhaupt: **{e.max_vorteil:.0f} CHF pro Jahr**."
+            )
+
+    groesster = max((e.max_vorteil for e in ergebnisse), default=0.0)
+    spannweiten = [
+        (gruppe["Prämie"].max() - gruppe["Prämie"].min()) * 12
+        for e in ergebnisse
+        for gruppe in [
+            daten[
+                (daten["Zielgruppe"] == e.zielgruppe)
+                & (daten["Franchise"] == e.tiefste_franchise)
+            ]
+        ]
+        if not gruppe.empty
+    ]
+    if spannweiten:
+        st.info(
+            f"**Die Franchisenwahl ist die kleinere Frage.** Über den ganzen Bereich bis "
+            f"{max_kosten} CHF bringt die tiefste Franchise höchstens "
+            f"**{groesster:.0f} CHF pro Jahr** gegenüber der nächstbesten Stufe – die "
+            f"Prämienrabatte pro Stufe sind so geregelt, dass sich die Varianten fast die "
+            f"Waage halten. Zwischen günstigstem und teuerstem Versicherer liegen bei "
+            f"gleicher Franchise dagegen bis zu **{chf(max(spannweiten))} CHF pro Jahr**. "
+            f"Dort liegt das Geld."
+        )
+
+    for e in ergebnisse:
+        st.subheader(e.zielgruppe)
+
+        kurven = e.kosten.reset_index().melt(
+            id_vars="Krankheitskosten", var_name="Franchise", value_name="Jahreskosten"
+        )
+        kurven["Franchise"] = kurven["Franchise"].astype(str)
+
+        diagramm = (
+            alt.Chart(kurven)
+            .mark_line()
+            .encode(
+                x=alt.X("Krankheitskosten:Q", title="Jährliche Krankheitskosten (CHF)"),
+                y=alt.Y(
+                    "Jahreskosten:Q",
+                    title="Gesamtkosten pro Jahr (CHF)",
+                    scale=alt.Scale(zero=False),
+                ),
+                color=alt.Color("Franchise:N", sort=None, title="Franchise"),
+                tooltip=[
+                    "Krankheitskosten",
+                    "Franchise",
+                    alt.Tooltip("Jahreskosten", format=".2f"),
+                ],
+            )
+            .properties(height=340)
+        )
+        if e.kipppunkt is not None:
+            diagramm += (
+                alt.Chart(pd.DataFrame({"k": [e.kipppunkt]}))
+                .mark_rule(strokeDash=[6, 4], color="crimson")
+                .encode(x="k:Q")
+            )
+        diagramm += (
+            alt.Chart(pd.DataFrame({"k": [erwartete_kosten]}))
+            .mark_rule(color="grey")
+            .encode(x="k:Q")
+        )
+        st.altair_chart(diagramm, use_container_width=True)
+
+        vergleich = (
+            e.kosten.loc[erwartete_kosten]
+            .rename("Jahreskosten")
+            .reset_index()
+            .rename(columns={"index": "Franchise"})
+            .sort_values("Jahreskosten")
+            .reset_index(drop=True)
+        )
+        vergleich["Franchise"] = vergleich["Franchise"].astype(int)
+        vergleich["Mehrkosten"] = (
+            vergleich["Jahreskosten"] - vergleich["Jahreskosten"].min()
+        ).round(2)
+        vergleich["Jahreskosten"] = vergleich["Jahreskosten"].round(2)
+        empfehlung = vergleich.iloc[0]
+        st.markdown(
+            f"Bei **{erwartete_kosten} CHF** Krankheitskosten ist für {e.zielgruppe} "
+            f"die Franchise **{int(empfehlung['Franchise'])} CHF** am günstigsten "
+            f"({empfehlung['Jahreskosten']:.2f} CHF pro Jahr)."
+        )
+        st.dataframe(vergleich, hide_index=True, use_container_width=True)
+
+        links, rechts = st.columns([3, 2])
+        with links:
+            st.markdown("**Günstigstes Angebot pro Franchise**")
+            tabelle = beste[beste["Zielgruppe"] == e.zielgruppe][
+                ["Franchise", "Prämie", "Versicherername", "Tarifbezeichnung", "Tariftyp"]
+            ].copy()
+            tabelle["Prämie abzgl. Umweltabgabe"] = (
+                tabelle["Prämie"] - umweltabgabe
+            ).round(2)
+            tabelle["Tariftyp"] = tabelle["Tariftyp"].map(TARIFTYPEN)
+            st.dataframe(tabelle, hide_index=True, use_container_width=True)
+        with rechts:
+            st.markdown("**Optimale Franchise nach Krankheitskosten**")
+            st.dataframe(e.segmente, hide_index=True, use_container_width=True)
+
+        st.download_button(
+            f"Kostenmatrix {e.zielgruppe} als CSV",
+            e.kosten.to_csv().encode("utf-8"),
+            file_name=f"kostenmatrix_{e.zielgruppe.lower()}_{kanton}.csv",
+            mime="text/csv",
+            key=f"dl_{e.zielgruppe}",
+        )
+
+
+def haushalt_ansicht(roh, kanton, region, unfalldeckung):
+    st.markdown(
+        "Vergleicht die **Jahresprämie des ganzen Haushalts** pro Versicherer. "
+        "Ein Anbieter mit günstigen Erwachsenenprämien, aber ohne Geschwisterrabatt, "
+        "kann für eine Familie teurer sein als einer mit Rabatt."
+    )
+
+    kopf = st.columns(4)
+    anzahl_erw = kopf[0].number_input("Erwachsene (ab 26)", 0, 6, 2)
+    anzahl_jug = kopf[1].number_input("Jugendliche (19–25)", 0, 6, 0)
+    anzahl_kin = kopf[2].number_input("Kinder (0–18)", 0, 8, 2)
+    franchise_erw = kopf[3].selectbox(
+        "Franchise Erwachsene / Jugendliche", FRANCHISEN_ERWACHSENE, index=5
+    )
+
+    untergruppen: list[str] = []
+    if anzahl_kin:
+        franchise_kin = st.selectbox(
+            "Franchise Kinder", FRANCHISEN_KINDER, index=len(FRANCHISEN_KINDER) - 1
+        )
+        st.markdown(
+            "**Tarifstufe je Kind** – welche Stufe ein Kind bekommt, hängt vom "
+            "Versicherer und der Familiensituation ab und steht in der Police. "
+            "`K1` ist der Normaltarif, `K3`/`K5` sind Rabattstufen für weitere Kinder."
+        )
+        for zeile in range(0, anzahl_kin, 4):
+            for spalte, i in zip(st.columns(4), range(zeile, min(zeile + 4, anzahl_kin))):
+                untergruppen.append(
+                    spalte.selectbox(
+                        f"Kind {i + 1}", ["K1", "K3", "K4", "K5"], key=f"kind_{i}"
+                    )
+                )
+    else:
+        franchise_kin = FRANCHISEN_KINDER[-1]
+
+    haushalt = Haushalt(
+        erwachsene=int(anzahl_erw),
+        jugendliche=int(anzahl_jug),
+        kinder=tuple(untergruppen),
+    )
+    if not (haushalt.erwachsene or haushalt.jugendliche or haushalt.kinder):
+        st.info("Bitte mindestens eine Person angeben.")
+        return
+
+    angebote = haushalt_angebote(
+        roh,
+        haushalt,
+        franchise_erwachsene=franchise_erw,
+        franchise_jugendliche=franchise_erw,
+        franchise_kinder=franchise_kin,
+        kanton=kanton,
+        region=region,
+        unfalldeckung=unfalldeckung,
+    )
+    if angebote.empty:
+        st.warning(
+            "Kein Versicherer führt alle verlangten Kategorien. Das passiert vor allem "
+            "bei seltenen Tarifstufen – nur 1 Versicherer führt K4, 4 führen K5."
+        )
+        return
+
+    guenstigstes = angebote.iloc[0]
+    teuerstes = angebote.iloc[-1]
+    metriken = st.columns(3)
+    metriken[0].metric(
+        "Günstigste Jahresprämie", f"{chf(guenstigstes['Jahresprämie'])} CHF"
+    )
+    metriken[1].metric(
+        "Teuerste Jahresprämie", f"{chf(teuerstes['Jahresprämie'])} CHF"
+    )
+    metriken[2].metric(
+        "Unterschied",
+        f"{chf(teuerstes['Jahresprämie'] - guenstigstes['Jahresprämie'])} CHF",
+        help="Pro Jahr, bei identischer Franchise und Haushaltszusammensetzung.",
+    )
+    st.caption(
+        f"Günstigstes Angebot: **{guenstigstes['Versicherername']}** – "
+        f"{guenstigstes['Tarifbezeichnung']}. {len(angebote)} Angebote führen alle "
+        f"verlangten Kategorien."
+    )
+
+    # Erst Anbieter, dann die Prämie je Personenkategorie, zuletzt die Summen.
+    kategorien = [
+        s
+        for s in angebote.columns
+        if s not in {"Versicherer", "Versicherername", "Tarifbezeichnung",
+                     "Monatsprämie", "Jahresprämie"}
+    ]
+    st.dataframe(
+        angebote[
+            ["Versicherername", "Tarifbezeichnung", *kategorien,
+             "Monatsprämie", "Jahresprämie"]
+        ].round(2),
+        hide_index=True,
+        use_container_width=True,
+    )
+
+    if haushalt.anzahl_kinder >= 2:
+        st.subheader("Familien-Höchstgrenze der Kinder")
+        kosten_je_kind = st.slider(
+            "Angenommene Krankheitskosten pro Kind und Jahr (CHF)",
+            0, 10000, 3000, step=250,
+        )
+        betrag, gedeckelt = kinder_kostenbeteiligung(
+            [float(kosten_je_kind)] * haushalt.anzahl_kinder, franchise_kin
+        )
+        ohne_deckel = sum(
+            min(kosten_je_kind, franchise_kin)
+            + min(max(0, kosten_je_kind - franchise_kin) * 0.1, 350)
+            for _ in range(haushalt.anzahl_kinder)
+        )
+        links, rechts = st.columns(2)
+        links.metric("Kostenbeteiligung aller Kinder", f"{chf(betrag)} CHF")
+        rechts.metric(
+            "Ohne Deckelung wären es",
+            f"{chf(ohne_deckel)} CHF",
+            delta=f"−{chf(ohne_deckel - betrag)} CHF" if gedeckelt else "nicht erreicht",
+            delta_color="normal" if gedeckelt else "off",
+        )
+        st.caption(
+            f"Art. 93 Abs. 3 KVV: Sind mehrere Kinder einer Familie beim gleichen "
+            f"Versicherer versichert, ist ihre Kostenbeteiligung auf das Zweifache des "
+            f"Höchstbetrages je Kind begrenzt – hier 2 × ({franchise_kin} + 350) = "
+            f"{chf(2 * (franchise_kin + 350))} CHF. Bei unterschiedlichen Franchisen der "
+            f"Kinder setzt der Versicherer die Höchstbeteiligung fest; hier wird eine "
+            f"gemeinsame Franchise angenommen."
+        )
 
 
 with st.sidebar:
@@ -33,7 +333,9 @@ with st.sidebar:
     roh = praemien(7)
     kantone = sorted(roh["Kanton"].dropna().unique())
     kanton = st.selectbox(
-        "Kanton", kantone, index=kantone.index(kanton_standard) if kanton_standard in kantone else 0
+        "Kanton",
+        kantone,
+        index=kantone.index(kanton_standard) if kanton_standard in kantone else 0,
     )
     verfuegbar = sorted(roh.loc[roh["Kanton"] == kanton, "Region"].dropna().unique())
     region = st.selectbox(
@@ -49,37 +351,30 @@ with st.sidebar:
         max_value=50.0,
         value=umweltabgabe_standard,
         step=0.05,
-        help="Wird von der Monatsprämie abgezogen. Ändert jedes Jahr.",
+        help="Wird von der Monatsprämie abgezogen. Verschiebt den Kipppunkt nicht, "
+        "da sie jede Franchise gleich entlastet.",
     )
 
     zielgruppen = st.multiselect(
-        "Zielgruppen",
-        list(ALTERSKLASSEN.values()),
-        default=["Erwachsene", "Kinder"],
+        "Zielgruppen", list(ALTERSKLASSEN.values()), default=["Erwachsene", "Kinder"]
     )
 
     max_kosten = st.slider(
-        "Maximale Krankheitskosten (CHF)",
-        min_value=2000,
-        max_value=20000,
-        value=maximale_krankenkosten,
-        step=1000,
+        "Maximale Krankheitskosten (CHF)", 2000, 20000, maximale_krankenkosten, step=1000
     )
-
     erwartete_kosten = st.slider(
         "Erwartete Krankheitskosten pro Jahr (CHF)",
-        min_value=0,
-        max_value=max_kosten,
-        value=min(1000, max_kosten),
+        0,
+        max_kosten,
+        min(1000, max_kosten),
         step=50,
-        help="Für den direkten Franchisenvergleich weiter unten.",
+        help="Für den direkten Franchisenvergleich.",
     )
-
     toleranz = st.slider(
         "Spürbarkeitsschwelle (CHF pro Jahr)",
-        min_value=10,
-        max_value=200,
-        value=50,
+        10,
+        200,
+        50,
         step=10,
         help="Ab welchem jährlichen Unterschied ein Franchisenwechsel für dich "
         "überhaupt der Rede wert ist.",
@@ -95,7 +390,7 @@ with st.sidebar:
                 horizontal=True,
                 key=f"unf_{zg}",
             )
-            for zg in zielgruppen
+            for zg in ALTERSKLASSEN.values()
         }
         tariftypen = st.multiselect(
             "Tariftypen",
@@ -104,11 +399,11 @@ with st.sidebar:
             format_func=lambda t: TARIFTYPEN[t],
         )
         kinder_untergruppen = st.multiselect(
-            "Altersuntergruppen Kinder",
+            "Altersuntergruppen Kinder (Einzelperson)",
             ["K1", "K3", "K4", "K5"],
             default=list(KINDER_UNTERGRUPPEN_STANDARD),
-            help="Nicht offiziell dokumentiert. K1 ist der Normalfall, "
-            "K3/K5 enthalten Familienrabatte für weitere Kinder.",
+            help="Nicht offiziell dokumentiert. K1 ist der Normaltarif, K3/K5 sind "
+            "Rabattstufen für weitere Kinder. Nur K1 führen alle Versicherer.",
         )
 
 st.title("Krankenkassen-Kipppunkt")
@@ -117,148 +412,13 @@ st.caption(
     "Datenquelle: BAG-Prämienvergleich (priminfo.admin.ch)."
 )
 
-if not zielgruppen:
-    st.info("Bitte mindestens eine Zielgruppe auswählen.")
-    st.stop()
+tab_person, tab_haushalt = st.tabs(["Einzelperson", "Haushalt"])
 
-daten = get_data(
-    roh,
-    kanton=kanton,
-    region=region,
-    zielgruppen=tuple(zielgruppen),
-    unfalldeckung=unfalldeckung,
-    kinder_untergruppen=tuple(kinder_untergruppen),
-    tariftypen=tuple(tariftypen) if tariftypen else None,
-)
-beste = beste_praemien(daten)
-
-if beste.empty:
-    st.warning("Für diese Auswahl gibt es keine Prämien.")
-    st.stop()
-
-ergebnisse = berechne_kipppunkt(beste, umweltabgabe, max_kosten)
-
-spalten = st.columns(len(ergebnisse))
-for spalte, e in zip(spalten, ergebnisse):
-    with spalte:
-        if e.kipppunkt is None:
-            st.metric(f"{e.zielgruppe}: Kipppunkt", "—")
-            st.caption(
-                f"Franchise {e.tiefste_franchise} CHF lohnt sich bis "
-                f"{max_kosten} CHF Krankheitskosten nie."
-            )
-        else:
-            st.metric(
-                f"{e.zielgruppe}: tiefste Franchise ({e.tiefste_franchise} CHF) ab",
-                f"{e.kipppunkt:,} CHF".replace(",", "'"),
-            )
-            beste_alternative = e.segmente.iloc[0]["Franchise"]
-            spuerbar = e.materieller_kipppunkt(toleranz)
-            wann = (
-                f"Um mehr als {toleranz:.0f} CHF pro Jahr erst ab {spuerbar} CHF."
-                if spuerbar is not None
-                else f"Mehr als {toleranz:.0f} CHF pro Jahr bringt sie nie."
-            )
-            st.caption(
-                f"Darunter ist Franchise {beste_alternative} CHF günstiger. {wann} "
-                f"Grösster Vorteil überhaupt: **{e.max_vorteil:.0f} CHF pro Jahr**."
-            )
-
-groesster = max((e.max_vorteil for e in ergebnisse), default=0.0)
-spannweiten = {}
-for e in ergebnisse:
-    angebote = daten[
-        (daten["Zielgruppe"] == e.zielgruppe)
-        & (daten["Franchise"] == e.tiefste_franchise)
-    ]["Prämie"]
-    if not angebote.empty:
-        spannweiten[e.zielgruppe] = (angebote.max() - angebote.min()) * 12
-
-if spannweiten:
-    grösste_spannweite = f"{max(spannweiten.values()):,.0f}".replace(",", "'")
-    st.info(
-        f"**Die Franchisenwahl ist die kleinere Frage.** Über den ganzen Bereich bis "
-        f"{max_kosten} CHF bringt die tiefste Franchise höchstens "
-        f"**{groesster:.0f} CHF pro Jahr** gegenüber der nächstbesten Stufe – die "
-        f"Prämienrabatte pro Stufe sind so geregelt, dass sich die Varianten fast die "
-        f"Waage halten. Zwischen günstigstem und teuerstem Versicherer liegen bei "
-        f"gleicher Franchise dagegen bis zu **{grösste_spannweite} CHF pro Jahr**. "
-        f"Dort liegt das Geld."
+with tab_person:
+    einzelperson_ansicht(
+        roh, kanton, region, zielgruppen, unfalldeckung, tariftypen,
+        kinder_untergruppen, umweltabgabe, max_kosten, erwartete_kosten, toleranz,
     )
 
-for e in ergebnisse:
-    st.subheader(e.zielgruppe)
-
-    kurven = (
-        e.kosten.reset_index()
-        .melt(id_vars="Krankheitskosten", var_name="Franchise", value_name="Jahreskosten")
-    )
-    kurven["Franchise"] = kurven["Franchise"].astype(str)
-
-    diagramm = (
-        alt.Chart(kurven)
-        .mark_line()
-        .encode(
-            x=alt.X("Krankheitskosten:Q", title="Jährliche Krankheitskosten (CHF)"),
-            y=alt.Y(
-                "Jahreskosten:Q",
-                title="Gesamtkosten pro Jahr (CHF)",
-                scale=alt.Scale(zero=False),
-            ),
-            color=alt.Color("Franchise:N", sort=None, title="Franchise"),
-            tooltip=["Krankheitskosten", "Franchise", alt.Tooltip("Jahreskosten", format=".2f")],
-        )
-        .properties(height=340)
-    )
-    if e.kipppunkt is not None:
-        diagramm += (
-            alt.Chart(pd.DataFrame({"k": [e.kipppunkt]}))
-            .mark_rule(strokeDash=[6, 4], color="crimson")
-            .encode(x="k:Q")
-        )
-    diagramm += (
-        alt.Chart(pd.DataFrame({"k": [erwartete_kosten]}))
-        .mark_rule(color="grey")
-        .encode(x="k:Q")
-    )
-    st.altair_chart(diagramm, use_container_width=True)
-
-    bei_erwartung = e.kosten.loc[erwartete_kosten]
-    vergleich = (
-        bei_erwartung.rename("Jahreskosten")
-        .reset_index()
-        .rename(columns={"index": "Franchise"})
-        .sort_values("Jahreskosten")
-        .reset_index(drop=True)
-    )
-    vergleich["Franchise"] = vergleich["Franchise"].astype(int)
-    vergleich["Mehrkosten"] = (vergleich["Jahreskosten"] - vergleich["Jahreskosten"].min()).round(2)
-    vergleich["Jahreskosten"] = vergleich["Jahreskosten"].round(2)
-    empfehlung = vergleich.iloc[0]
-    st.markdown(
-        f"Bei **{erwartete_kosten} CHF** Krankheitskosten ist für {e.zielgruppe} "
-        f"die Franchise **{int(empfehlung['Franchise'])} CHF** am günstigsten "
-        f"({empfehlung['Jahreskosten']:.2f} CHF pro Jahr)."
-    )
-    st.dataframe(vergleich, hide_index=True, use_container_width=True)
-
-    links, rechts = st.columns([3, 2])
-    with links:
-        st.markdown("**Günstigstes Angebot pro Franchise**")
-        tabelle = beste[beste["Zielgruppe"] == e.zielgruppe][
-            ["Franchise", "Prämie", "Versicherername", "Tarifbezeichnung", "Tariftyp"]
-        ].copy()
-        tabelle["Prämie abzgl. Umweltabgabe"] = (tabelle["Prämie"] - umweltabgabe).round(2)
-        tabelle["Tariftyp"] = tabelle["Tariftyp"].map(TARIFTYPEN)
-        st.dataframe(tabelle, hide_index=True, use_container_width=True)
-    with rechts:
-        st.markdown("**Optimale Franchise nach Krankheitskosten**")
-        st.dataframe(e.segmente, hide_index=True, use_container_width=True)
-
-    st.download_button(
-        f"Kostenmatrix {e.zielgruppe} als CSV",
-        e.kosten.to_csv().encode("utf-8"),
-        file_name=f"kostenmatrix_{e.zielgruppe.lower()}_{kanton}.csv",
-        mime="text/csv",
-        key=f"dl_{e.zielgruppe}",
-    )
+with tab_haushalt:
+    haushalt_ansicht(roh, kanton, region, unfalldeckung)
