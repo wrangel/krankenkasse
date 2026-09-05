@@ -1,0 +1,44 @@
+name: CI Workflow
+
+# The job name below ("check") is what a branch ruleset asks for under
+# "Require status checks to pass". Renaming the job means updating the rule.
+#
+# This repository has no test suite, so this proves two narrow things: that the
+# pinned dependencies still resolve and install, and that every module compiles.
+# That catches a broken requirements.txt or a syntax error before it reaches
+# main - it does not prove the app behaves correctly.
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/*"
+      - "bugfix/*"
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Byte-compile every module
+        run: python -m compileall -q .
