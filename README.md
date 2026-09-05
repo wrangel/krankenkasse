@@ -132,16 +132,21 @@ Kurz: weniger ernst, als die Zahl aussieht. Das Werkzeug rechnet den Kipppunkt
 franken­genau aus, aber die Kostenkurven schneiden sich sehr flach. Drei Befunde, die man
 kennen sollte, bevor man auf den Wert etwas gibt:
 
-**Der Unterschied ist klein.** Über den ganzen Bereich bis 10 000 CHF bringt die tiefste
-Franchise gegenüber der nächstbesten Stufe höchstens rund 70 CHF pro Jahr (Erwachsene,
-ZH Region 1) beziehungsweise 30 CHF (Kinder). Die prozentualen Prämienrabatte pro
-Franchisenstufe sind bundesweit geregelt und offenbar so kalibriert, dass sich die
-Varianten fast die Waage halten. Unmittelbar am Kipppunkt geht es um Rappen.
+**Die Franchisenwahl selbst lohnt sich sehr wohl.** Wer seine Krankheitskosten realistisch
+einschätzt, spart mit der passenden Franchise gegenüber der schlechtesten Wahl bis zu
+1 433 CHF pro Jahr (Erwachsene, ZH Region 1) beziehungsweise 420 CHF (Kinder). Bei
+0 CHF Krankheitskosten schlägt Franchise 2 500 die Franchise 300 um eben diese 1 433 CHF.
 
-**Die Wahl des Versicherers wiegt viel schwerer.** Bei identischer Franchise liegen
-zwischen dem günstigsten und dem teuersten Anbieter über 2 000 CHF pro Jahr. Wer sparen
-will, wechselt die Kasse, nicht die Franchise. Deshalb zeigt die Oberfläche die
-Spannweite prominent an.
+**Aber benachbarte Stufen liegen eng beieinander.** Gegenüber der *nächstbesten* Stufe
+bringt die tiefste Franchise höchstens rund 70 CHF pro Jahr (Erwachsene) beziehungsweise
+30 CHF (Kinder). Die prozentualen Prämienrabatte pro Franchisenstufe sind bundesweit
+geregelt und offenbar so kalibriert, dass sich aufeinanderfolgende Stufen fast die Waage
+halten. Genau deshalb ist der Kipppunkt unscharf: Es geht um die Richtung – hohe oder
+tiefe Franchise –, nicht um den Franken.
+
+**Zum Vergleich die Wahl des Versicherers.** Bei identischer Franchise liegen zwischen dem
+günstigsten und dem teuersten Anbieter über 2 000 CHF pro Jahr, also nochmals mehr als die
+Franchisenwahl. Beide Hebel lohnen sich; die Oberfläche zeigt beide Spannweiten an.
 
 **Die Umweltabgabe verschiebt den Kipppunkt nicht.** Sie wird von jeder Prämie gleich
 abgezogen, verschiebt also alle Kostenkurven um denselben Betrag `12 × Abgabe` nach unten

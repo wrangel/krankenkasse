@@ -82,7 +82,9 @@ def einzelperson_ansicht(
             )
             st.caption(
                 f"Darunter ist Franchise {e.segmente.iloc[0]['Franchise']} CHF günstiger. "
-                f"{wann} Grösster Vorteil überhaupt: **{e.max_vorteil:.0f} CHF pro Jahr**."
+                f"{wann} Gegenüber der nächstbesten Stufe höchstens "
+                f"{e.max_vorteil:.0f} CHF pro Jahr – zwischen bester und schlechtester "
+                f"Franchise dagegen bis zu **{chf(e.max_spannweite)} CHF**."
             )
 
     groesster = max((e.max_vorteil for e in ergebnisse), default=0.0)
@@ -97,15 +99,18 @@ def einzelperson_ansicht(
         ]
         if not gruppe.empty
     ]
+    groesste_spannweite = max((e.max_spannweite for e in ergebnisse), default=0.0)
     if spannweiten:
         st.info(
-            f"**Die Franchisenwahl ist die kleinere Frage.** Über den ganzen Bereich bis "
-            f"{max_kosten} CHF bringt die tiefste Franchise höchstens "
-            f"**{groesster:.0f} CHF pro Jahr** gegenüber der nächstbesten Stufe – die "
-            f"Prämienrabatte pro Stufe sind so geregelt, dass sich die Varianten fast die "
-            f"Waage halten. Zwischen günstigstem und teuerstem Versicherer liegen bei "
-            f"gleicher Franchise dagegen bis zu **{chf(max(spannweiten))} CHF pro Jahr**. "
-            f"Dort liegt das Geld."
+            f"**Die Franchisenwahl lohnt sich – aber nicht auf den Franken genau.** "
+            f"Wer seine Krankheitskosten realistisch einschätzt, spart mit der passenden "
+            f"Franchise bis zu **{chf(groesste_spannweite)} CHF pro Jahr** gegenüber der "
+            f"schlechtesten Wahl. *Benachbarte* Stufen liegen dagegen eng beieinander: "
+            f"gegenüber der nächstbesten Stufe bringt die tiefste Franchise höchstens "
+            f"{groesster:.0f} CHF. Deshalb ist der Kipppunkt selbst unscharf – rund um "
+            f"ihn geht es um Rappen. Zum Vergleich: zwischen günstigstem und teuerstem "
+            f"Versicherer liegen bei gleicher Franchise bis zu "
+            f"**{chf(max(spannweiten))} CHF pro Jahr**."
         )
 
     for e in ergebnisse:

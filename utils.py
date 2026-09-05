@@ -158,11 +158,26 @@ class Ergebnis:
 
     @property
     def max_vorteil(self) -> float:
-        """Grösster Vorteil der tiefsten Franchise gegenüber der besten Alternative,
-        über den ganzen untersuchten Kostenbereich. In der Praxis erstaunlich klein:
-        die Prämienrabatte pro Franchisenstufe sind so geregelt, dass sich die
-        Varianten fast die Waage halten."""
+        """Grösster Vorteil der tiefsten Franchise gegenüber der *nächstbesten* Stufe.
+
+        Achtung, eng gefasst: das misst nur, wie knapp benachbarte Franchisenstufen
+        beieinander liegen – nicht, wie viel die Franchisenwahl insgesamt ausmacht.
+        Dafür ist `max_spannweite` zuständig, die typisch ein Vielfaches beträgt.
+        """
         return float(self.vorteil_tiefste.max())
+
+    @property
+    def spannweite(self) -> pd.Series:
+        """Differenz zwischen bester und schlechtester Franchise je Kostenbetrag –
+        also der Preis eines Fehlgriffs bei bekannten Krankheitskosten."""
+        return self.kosten.max(axis=1) - self.kosten.min(axis=1)
+
+    @property
+    def max_spannweite(self) -> float:
+        """Grösster Unterschied zwischen bester und schlechtester Franchise. Das ist
+        der eigentliche Einsatz der Franchisenwahl: Wer seine Krankheitskosten kennt,
+        spart bis zu diesem Betrag pro Jahr gegenüber der schlechtesten Wahl."""
+        return float(self.spannweite.max())
 
     def materieller_kipppunkt(self, toleranz: float = 50.0) -> int | None:
         """Erste Krankheitskosten, ab denen die tiefste Franchise um mehr als `toleranz`
@@ -388,8 +403,14 @@ def display_results(
                     f"erst ab {spuerbar} CHF."
                 )
             print(
-                f"  Grösster Vorteil überhaupt: {e.max_vorteil:.0f} CHF pro Jahr. "
-                f"Die Wahl des Versicherers wiegt deutlich schwerer."
+                f"  Gegenüber der nächstbesten Stufe bringt sie höchstens "
+                f"{e.max_vorteil:.0f} CHF pro Jahr – benachbarte Franchisen liegen eng "
+                f"beieinander."
+            )
+            print(
+                f"  Die Franchisenwahl als solche wiegt aber schwer: zwischen bester und "
+                f"schlechtester Franchise liegen bis zu {e.max_spannweite:.0f} CHF pro "
+                f"Jahr (bei {e.spannweite.idxmax()} CHF Krankheitskosten)."
             )
             print()
             von = max(0, e.kipppunkt - umgebung)
