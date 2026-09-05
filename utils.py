@@ -1,98 +1,238 @@
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from pathlib import Path
+import json
+import urllib.request
+
+import numpy as np
 import pandas as pd
-from constants import praemien_url, hoechstgrenze_selbstbehalt, maximale_krankenkosten
+
+from constants import (
+    ALTERSKLASSEN,
+    CACHE_DIR,
+    KINDER_UNTERGRUPPEN_STANDARD,
+    VERSICHERER_DATEI,
+    hoechstgrenze_selbstbehalt,
+    maximale_krankenkosten,
+    praemien_sheet,
+    praemien_url,
+    selbstbehalt_anteil,
+)
+
+# admin.ch weist Anfragen ohne Browser-User-Agent ab.
+_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+)
 
 
-def get_data(kanton="ZH", region="PR-REG CH1"):
-    """
-    Lädt BAG-Prämiendaten und filtert nach Kanton, Region, Altersklasse und Unfalldeckung.
-    Für Kinder werden alle Altersuntergruppen berücksichtigt, außer K1 und K2.
-    """
-    df = pd.read_excel(praemien_url, sheet_name="Export")
+def lade_datei(url: str, dateiname: str, max_alter_tage: int = 7) -> Path:
+    """Lädt eine Datei und legt sie im Cache ab. Ein vorhandener Download wird
+    wiederverwendet, solange er jünger als `max_alter_tage` ist."""
+    CACHE_DIR.mkdir(exist_ok=True)
+    ziel = CACHE_DIR / dateiname
 
-    filtered = df[
-        (df["Kanton"] == kanton) &
-        (df["Region"] == region) &
-        (df["Altersklasse"].isin(["AKL-ERW", "AKL-KIN"])) &
-        (
-            ((df["Altersklasse"] == "AKL-ERW") & (df["Unfalleinschluss"] == "OHN-UNF")) |
-            ((df["Altersklasse"] == "AKL-KIN") &
-             (df["Unfalleinschluss"] == "MIT-UNF") &
-             # Nicht dokumentiert, aber durch Versuche soweit als korrekt belegt
-             (df["Altersuntergruppe"].isin(["K1", "K4"])))
-        ) &
-        (df["isBaseP"] == 0)
-    ]
+    if ziel.exists():
+        alter = datetime.now() - datetime.fromtimestamp(ziel.stat().st_mtime)
+        if alter < timedelta(days=max_alter_tage):
+            return ziel
 
-    return filtered[["Versicherer", "Altersklasse", "Unfalleinschluss", "Franchise", "Prämie", "Tarifbezeichnung"]]
+    anfrage = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
+    with urllib.request.urlopen(anfrage) as antwort:
+        inhalt = antwort.read()
+
+    temp = ziel.with_suffix(ziel.suffix + ".teil")
+    temp.write_bytes(inhalt)
+    temp.replace(ziel)
+    return ziel
 
 
-def beste_prämien(df):
-    """
-    Ermittelt die günstigste Prämie pro Franchise und Altersklasse.
-    Gibt ein Dictionary zurück: {Altersklasse: {Franchise: Prämie}}
-    """
-    df = df.copy()
-    df["Franchise"] = df["Franchise"].str.extract(r"FRA-(\d+)")[0].astype(int)
-    df["Prämie"] = df["Prämie"].astype(float)
-    df["Altersklasse"] = df["Altersklasse"].replace(
-        {"AKL-ERW": "Erwachsene", "AKL-KIN": "Kinder"}
+def versicherer_namen() -> dict[int, str]:
+    """Zuordnung BAG-Nummer -> Versicherername (siehe refresh_versicherer.py)."""
+    if not VERSICHERER_DATEI.exists():
+        return {}
+    roh = json.loads(VERSICHERER_DATEI.read_text(encoding="utf-8"))
+    return {int(nummer): name for nummer, name in roh.items()}
+
+
+def lade_praemien(max_alter_tage: int = 7) -> pd.DataFrame:
+    """Rohe BAG-Prämientabelle. Der Download ist rund 14 MB und wird gecacht."""
+    pfad = lade_datei(praemien_url, "gesamtbericht_ch.xlsx", max_alter_tage)
+    df = pd.read_excel(pfad, sheet_name=praemien_sheet)
+
+    # TAR-BASE-Zeilen sind doppelt vorhanden (isBaseP 0 und 1); 0 entspricht der
+    # vollständigen, doppelfreien Tabelle über alle Tariftypen.
+    return df[df["isBaseP"] == 0]
+
+
+def get_data(
+    df: pd.DataFrame,
+    kanton: str = "ZH",
+    region: str = "PR-REG CH1",
+    zielgruppen: tuple[str, ...] = ("Erwachsene", "Kinder"),
+    unfalldeckung: dict[str, str] | None = None,
+    kinder_untergruppen: tuple[str, ...] = KINDER_UNTERGRUPPEN_STANDARD,
+    tariftypen: tuple[str, ...] | None = None,
+) -> pd.DataFrame:
+    """Filtert die BAG-Prämiendaten auf Kanton, Region, Zielgruppen und Unfalldeckung
+    und normalisiert Franchise, Prämie und Altersklasse."""
+    unfalldeckung = unfalldeckung or {
+        "Erwachsene": "OHN-UNF",
+        "Jugendliche": "OHN-UNF",
+        "Kinder": "MIT-UNF",
+    }
+    akl_pro_zielgruppe = {name: akl for akl, name in ALTERSKLASSEN.items()}
+
+    basis = df[(df["Kanton"] == kanton) & (df["Region"] == region)]
+    if tariftypen:
+        basis = basis[basis["Tariftyp"].isin(tariftypen)]
+
+    teile = []
+    for zielgruppe in zielgruppen:
+        akl = akl_pro_zielgruppe[zielgruppe]
+        teil = basis[
+            (basis["Altersklasse"] == akl)
+            & (basis["Unfalleinschluss"] == unfalldeckung[zielgruppe])
+        ]
+        if zielgruppe == "Kinder" and kinder_untergruppen:
+            teil = teil[teil["Altersuntergruppe"].isin(kinder_untergruppen)]
+        teile.append(teil)
+
+    gefiltert = pd.concat(teile) if teile else basis.iloc[0:0]
+
+    ergebnis = gefiltert[
+        [
+            "Versicherer",
+            "Altersklasse",
+            "Altersuntergruppe",
+            "Unfalleinschluss",
+            "Tariftyp",
+            "Franchise",
+            "Prämie",
+            "Tarifbezeichnung",
+        ]
+    ].copy()
+    ergebnis["Franchise"] = (
+        ergebnis["Franchise"].str.extract(r"FRA-(\d+)")[0].astype(int)
+    )
+    ergebnis["Prämie"] = ergebnis["Prämie"].astype(float)
+    ergebnis["Zielgruppe"] = ergebnis["Altersklasse"].map(ALTERSKLASSEN)
+
+    namen = versicherer_namen()
+    ergebnis["Versicherername"] = (
+        ergebnis["Versicherer"].map(namen).fillna(ergebnis["Versicherer"].astype(str))
+    )
+    return ergebnis
+
+
+def beste_praemien(df: pd.DataFrame) -> pd.DataFrame:
+    """Günstigstes Angebot pro Zielgruppe und Franchise, inklusive Anbieter."""
+    if df.empty:
+        return df
+    idx = df.groupby(["Zielgruppe", "Franchise"])["Prämie"].idxmin()
+    return (
+        df.loc[idx]
+        .sort_values(["Zielgruppe", "Franchise"])
+        .reset_index(drop=True)
     )
 
-    grouped = df.groupby(["Altersklasse", "Franchise"]).agg(
-        {"Prämie": "min"}).reset_index()
-    merged = pd.merge(
-        grouped, df, on=["Altersklasse", "Franchise", "Prämie"], how="left")
 
-    print("\nBeste Prämien pro Franchise:")
-    print(merged[["Altersklasse", "Franchise", "Prämie", "Versicherer"]]
-          .sort_values(["Altersklasse", "Franchise"]).to_markdown())
+@dataclass
+class Ergebnis:
+    zielgruppe: str
+    praemien: dict[int, float]
+    anbieter: dict[int, str]
+    kosten: pd.DataFrame
+    optimal: pd.Series
+    segmente: pd.DataFrame
+    kipppunkt: int | None
+    tiefste_franchise: int
+    ersparnis_am_kipppunkt: float | None = None
 
-    return {
-        zielgruppe: dict(zip(gruppe["Franchise"], gruppe["Prämie"]))
-        for zielgruppe, gruppe in merged.groupby("Altersklasse")
-    }
+
+def _segmente(optimal: pd.Series) -> pd.DataFrame:
+    """Fasst zusammenhängende Bereiche gleicher optimaler Franchise zusammen."""
+    wechsel = optimal.ne(optimal.shift()).cumsum()
+    gruppen = optimal.groupby(wechsel)
+    return pd.DataFrame(
+        {
+            "Von": gruppen.apply(lambda g: g.index[0]).values,
+            "Bis": gruppen.apply(lambda g: g.index[-1]).values,
+            "Franchise": gruppen.first().values,
+        }
+    )
 
 
-def berechne_kipppunkt(praemien_dict, umweltabgabe):
-    """
-    Berechnet den Kipppunkt: ab welchen Krankheitskosten sich eine tiefere Franchise lohnt.
-    Exportiert die Kostenmatrix als CSV.
-    """
-    results = []
+def berechne_kipppunkt(
+    beste: pd.DataFrame,
+    umweltabgabe: float,
+    max_kosten: int = maximale_krankenkosten,
+) -> list[Ergebnis]:
+    """Berechnet für jede Zielgruppe die Jahreskosten je Franchise und daraus den
+    Kipppunkt: die tiefsten Krankheitskosten, ab denen die tiefste Franchise gewinnt."""
+    krankheitskosten = np.arange(max_kosten + 1)
+    ergebnisse = []
 
-    for zielgruppe, franchisen in praemien_dict.items():
-        franchisen = {f: p - umweltabgabe for f, p in franchisen.items()}
-        krankenkosten = list(range(maximale_krankenkosten + 1))
-        kosten_df = pd.DataFrame(index=krankenkosten)
+    for zielgruppe, gruppe in beste.groupby("Zielgruppe"):
+        praemien = dict(zip(gruppe["Franchise"], gruppe["Prämie"]))
+        anbieter = dict(zip(gruppe["Franchise"], gruppe["Versicherername"]))
+        obergrenze = hoechstgrenze_selbstbehalt[zielgruppe]
 
-        for f, p in franchisen.items():
-            kosten_df[f] = [
-                12 * p + min(k, f) + min(
-                    max(0, k - f) * 0.1,
-                    hoechstgrenze_selbstbehalt[zielgruppe]
-                )
-                for k in krankenkosten
-            ]
+        kosten = pd.DataFrame(index=pd.Index(krankheitskosten, name="Krankheitskosten"))
+        for franchise, praemie in sorted(praemien.items()):
+            selbstbehalt = np.minimum(
+                np.maximum(0, krankheitskosten - franchise) * selbstbehalt_anteil,
+                obergrenze,
+            )
+            kosten[franchise] = (
+                12 * (praemie - umweltabgabe)
+                + np.minimum(krankheitskosten, franchise)
+                + selbstbehalt
+            )
 
-        kosten_df["Min"] = kosten_df.idxmin(axis=1)
+        optimal = kosten.idxmin(axis=1)
+        tiefste = min(praemien)
+        treffer = optimal.index[optimal == tiefste]
+        kipppunkt = int(treffer[0]) if len(treffer) else None
 
-        kipppunkt = next(
-            (k for k in kosten_df.index[1:]
-             if kosten_df["Min"].iloc[k] != kosten_df["Min"].iloc[k - 1]),
-            None
+        ersparnis = None
+        if kipppunkt is not None:
+            zeile = kosten.loc[kipppunkt]
+            andere = zeile.drop(index=tiefste)
+            ersparnis = float(andere.min() - zeile[tiefste])
+
+        ergebnisse.append(
+            Ergebnis(
+                zielgruppe=zielgruppe,
+                praemien=praemien,
+                anbieter=anbieter,
+                kosten=kosten,
+                optimal=optimal,
+                segmente=_segmente(optimal),
+                kipppunkt=kipppunkt,
+                tiefste_franchise=tiefste,
+                ersparnis_am_kipppunkt=ersparnis,
+            )
         )
-
-        results.append({"ZG": zielgruppe, "GJ": kosten_df, "GW": kipppunkt})
-    return results
+    return ergebnisse
 
 
-def display_results(results):
-    """
-    Zeigt den Kipppunkt und die Kostenmatrix im Bereich ±3 CHF um den Kipppunkt.
-    """
-    for result in results:
-        print(
-            f"\nDie tiefste Franchise bei {result['ZG']} lohnt sich ab jährlichen Krankheitskosten von {result['GW']} CHF:\n"
-        )
-        print(result["GJ"].loc[result["GW"] -
-              3:result["GW"] + 3].to_markdown())
+def display_results(ergebnisse: list[Ergebnis], umgebung: int = 3) -> None:
+    """Textausgabe für den CLI-Lauf."""
+    for e in ergebnisse:
+        if e.kipppunkt is None:
+            print(
+                f"\n{e.zielgruppe}: Die tiefste Franchise ({e.tiefste_franchise} CHF) "
+                f"lohnt sich im untersuchten Bereich nie."
+            )
+        else:
+            print(
+                f"\nDie tiefste Franchise ({e.tiefste_franchise} CHF) bei {e.zielgruppe} "
+                f"lohnt sich ab jährlichen Krankheitskosten von {e.kipppunkt} CHF:\n"
+            )
+            von = max(0, e.kipppunkt - umgebung)
+            bis = min(e.kosten.index[-1], e.kipppunkt + umgebung)
+            print(e.kosten.loc[von:bis].round(2).to_markdown())
+
+        print(f"\nOptimale Franchise nach Krankheitskosten ({e.zielgruppe}):")
+        print(e.segmente.to_markdown(index=False))

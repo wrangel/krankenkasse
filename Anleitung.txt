@@ -1,23 +1,68 @@
-DIESE APP BERECHNET 
-A) DIE BILLIGSTEN PRÄMIEN FÜR DIE TIEFSTE UND HÖCHSTE FRANCHISE
-  - Kinder mit Unfalldeckung, Erwachsene ohne
-B) DIE GRENZE, AB WELCHER SICH DIE BILLIGSTE FRANCHISE LOHNT
-  - unter Einbezug der varierenden Umweltabgabe, welche pro Person und Monat von den Prämien abgezogen werden
+DIESE APP BERECHNET
+A) DIE BILLIGSTEN PRÄMIEN PRO FRANCHISE
+   - pro Kanton, Prämienregion und Zielgruppe (Erwachsene / Jugendliche / Kinder)
+   - inklusive Name des Versicherers und Tarifmodell
+B) DEN KIPPPUNKT, AB WELCHEM SICH DIE TIEFSTE FRANCHISE LOHNT
+   - unter Einbezug der Umweltabgabe, die pro Person und Monat von der Prämie abgezogen wird
 
 
-- Bereitmachen und laufen lassen:
+== EINRICHTEN ==
 
-Auf
-https://www.python.org/downloads/macos/
-neuesten Python-Interpreter runterladen, alten löschen
-(installiert Interpreter auf /usr/local/bin/python3, der Ordner in Programs sind Zusatzelemente)
+Python kommt von Homebrew (/opt/homebrew/bin/python3.14). Falls noch nicht installiert:
 
-Zweimal hintereinander im Programme/Python x.xx-Ordner "Install Certificates.command" ausführen
+    brew install python@3.14
 
-In constants.py die Umweltabgabe eintragen
-Module installieren: pip3 install pandas
-VSC ev. neu starten
+Die virtuelle Umgebung liegt bewusst AUSSERHALB des Projektordners, damit sie nicht über
+SynologyDrive synchronisiert wird. Sie benutzt denselben Homebrew-Interpreter – ein venv ist
+kein zweites Python, sondern nur ein eigener Ordner für die Pakete:
 
-Run-Symbol auf main.py drücken
+    /opt/homebrew/bin/python3.14 -m venv ~/.venvs/krankenkasse
+    ~/.venvs/krankenkasse/bin/pip install -r requirements.txt
 
--- Achtung!! Umweltabgabe in constants.py anpassen
+(Homebrew verbietet "pip3 install" direkt ins System – deshalb das venv. Bei einem
+"brew upgrade python" würden global installierte Pakete sonst verschwinden.)
+
+
+== GUI STARTEN (empfohlen) ==
+
+    ~/.venvs/krankenkasse/bin/streamlit run app.py
+
+Öffnet http://localhost:8501 im Browser. Kanton, Prämienregion, Umweltabgabe,
+Zielgruppen und die erwarteten Krankheitskosten werden direkt im Fenster eingestellt –
+constants.py muss dafür nicht mehr angepasst werden.
+
+
+== KOMMANDOZEILE ==
+
+    ~/.venvs/krankenkasse/bin/python main.py
+    ~/.venvs/krankenkasse/bin/python main.py --kanton BE --umweltabgabe 5.15
+
+
+== JÄHRLICHE PFLEGE ==
+
+- Umweltabgabe: in der GUI direkt eingeben, oder den Standardwert in constants.py
+  (umweltabgabe_standard) anpassen.
+
+- Versicherernamen: versicherer.json stammt aus dem BAG-Verzeichnis der zugelassenen
+  Krankenversicherer. Die Download-URL enthält einen jährlich wechselnden Hash. Neue URL auf
+  https://www.bag.admin.ch/de/verzeichnisse-der-zugelassenen-kranken-und-rueckversicherer
+  ablesen, in refresh_versicherer.py eintragen und ausführen:
+
+      ~/.venvs/krankenkasse/bin/python refresh_versicherer.py
+
+- Prämiendaten: werden automatisch von priminfo.admin.ch geladen und für 7 Tage im Ordner
+  .cache/ zwischengespeichert. In der GUI erzwingt "Prämiendaten neu laden" einen Neuabruf.
+
+
+== HINWEISE ZU DEN DATEN ==
+
+- Der Filter isBaseP == 0 entfernt Duplikate: Standardtarife (TAR-BASE) sind in der
+  BAG-Tabelle doppelt vorhanden. Es werden also alle Tarifmodelle berücksichtigt.
+
+- Kinder haben die Altersuntergruppen K1, K3, K4, K5. Diese sind nicht offiziell
+  dokumentiert. K1 ist der Normalfall, K3 und K5 enthalten Familienrabatte für weitere
+  Kinder. Standardauswahl ist K1 + K4; in der GUI unter "Feineinstellungen" änderbar.
+
+- Der Kipppunkt liegt sehr knapp: unmittelbar darüber beträgt der Vorteil oft weniger als
+  1 CHF pro Jahr. Für die praktische Wahl ist der Vergleich bei den tatsächlich erwarteten
+  Krankheitskosten aussagekräftiger (Regler in der GUI).
