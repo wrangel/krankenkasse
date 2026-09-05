@@ -1,22 +1,32 @@
 # Hohe oder tiefe Franchise?
 
-**Die Grundversicherung bietet Erwachsenen sechs Franchisen zur Auswahl – aber nur zwei
-davon sind je die günstigste.**
+**Die Grundversicherung bietet Erwachsenen sechs Franchisen zur Auswahl – in den Daten des
+Prämienjahres 2026 sind aber nur zwei davon je die günstigste.**
 
 Die Stufen 500, 1000, 1500 und 2000 sind bei *keinen* Krankheitskosten optimal: Es gibt
 immer entweder die Franchise 300 oder die Franchise 2500, die günstiger kommt. Bei Kindern
 dasselbe – nur 0 und 600 zählen, die fünf Stufen dazwischen nie. Geprüft für alle 42
 Kanton/Regionen-Kombinationen der Schweiz und, in Zürich Region 1, zusätzlich für jede der
 128 einzelnen Versicherer/Tarif-Kombinationen: kein einziger Fall, in dem eine mittlere
-Franchise gewinnt.
+Franchise gewinnt. Über mehrere Prämienjahre hinweg beobachtet, ist das Bild stabil.
 
-Der Grund ist die Regulierung selbst: Der Prämienrabatt pro Franchisenstufe ist linear
-geregelt, die Kostenbeteiligung greift aber erst ab der Franchise. Damit liegt das Optimum
-zwangsläufig an einem der beiden Enden. Die Wahl ist also nicht sechsfach, sondern binär –
-und die einzige Frage lautet: **erwarte ich viel oder wenig Krankheitskosten?**
+Die Wahl ist damit praktisch nicht sechsfach, sondern binär, und die eigentliche Frage
+lautet: **erwarte ich viel oder wenig Krankheitskosten?** Der *Kipppunkt* ist die Schwelle
+dazwischen – darunter gewinnt die höchste Franchise (tiefe Prämie), darüber die tiefste
+(hohe Prämie, dafür wenig Kostenbeteiligung).
 
-Der *Kipppunkt* ist die Schwelle dazwischen: Darunter gewinnt die höchste Franchise
-(tiefe Prämie), darüber die tiefste (hohe Prämie, dafür wenig Selbstbehalt).
+### Aber: das ist ein Befund, kein Gesetz
+
+Die Verordnung schreibt diese Struktur **nicht** vor. Sie deckelt die Prämienreduktion
+lediglich auf höchstens 70 Prozent des Risikos, das mit der höheren Franchise übernommen
+wird (Art. 95 Abs. 2<sup>bis</sup> KVV); die Höhe legen die Versicherer selbst fest
+„aufgrund versicherungsmässiger Erfordernisse" (Art. 95 Abs. 1<sup>bis</sup> KVV). Dass
+die mittleren Stufen trotzdem nirgends gewinnen, ist also Marktverhalten, nicht Rechtsfolge
+– und die Prämien werden **jedes Jahr neu festgesetzt**.
+
+Deshalb nimmt dieses Werkzeug den Befund nirgends an, sondern rechnet ihn bei jedem Lauf
+aus den aktuellen Daten neu aus. Sollte künftig eine mittlere Franchise irgendwo gewinnen,
+sagt die Oberfläche das von selbst.
 
 ---
 
@@ -159,8 +169,8 @@ Krankheitskosten schlägt Franchise 2 500 die Franchise 300 um eben diese 1 433 
 
 **Der Kipppunkt ist über die Jahre und Kantone erstaunlich stabil.** Für Erwachsene liegt
 er schweizweit zwischen 1 698 und 1 926 CHF, in 32 von 44 Fällen zwischen 1 700 und
-1 950 CHF (ZH Region 1: 1 892). Das ist kein Zufall, sondern Folge der bundesweit
-einheitlich geregelten Rabattstufen.
+1 950 CHF (ZH Region 1: 1 892) – und über mehrere Prämienjahre hinweg bewegt er sich kaum.
+Auch das ist Beobachtung, nicht Garantie: Er wird bei jedem Lauf neu berechnet.
 
 **Aber benachbarte Stufen liegen eng beieinander.** Gegenüber der *nächstbesten* Stufe
 bringt die tiefste Franchise höchstens rund 70 CHF pro Jahr (Erwachsene) beziehungsweise

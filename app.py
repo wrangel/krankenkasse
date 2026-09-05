@@ -60,6 +60,7 @@ def einzelperson_ansicht(
         return
 
     ergebnisse = berechne_kipppunkt(beste, umweltabgabe, max_kosten)
+    praemienjahr = int(roh["Geschäftsjahr"].max())
 
     for spalte, e in zip(st.columns(len(ergebnisse)), ergebnisse):
         with spalte:
@@ -103,19 +104,31 @@ def einzelperson_ansicht(
 
     for e in ergebnisse:
         if not e.nie_optimal:
+            st.warning(
+                f"**{e.zielgruppe}: Diesmal ist es anders.** In diesen Daten ist jede "
+                f"Franchisenstufe irgendwo die günstigste – die sonst übliche Regel "
+                f"«nur die höchste oder die tiefste zählt» trifft hier nicht zu."
+            )
             continue
         gewinner = sorted(set(e.optimal))
         st.success(
-            f"**{e.zielgruppe}: Sie haben nicht {len(e.kosten.columns)} Möglichkeiten, "
+            f"**{e.zielgruppe}: Es sind nicht {len(e.kosten.columns)} Möglichkeiten, "
             f"sondern {len(gewinner)}.** Nur die Franchisen "
-            f"**{' und '.join(f'{g} CHF' for g in gewinner)}** sind je die günstigste "
-            f"Wahl. Die Stufen "
+            f"**{' und '.join(f'{g} CHF' for g in gewinner)}** sind hier je die "
+            f"günstigste Wahl. Die Stufen "
             f"{', '.join(f'{f}' for f in e.nie_optimal)} CHF sind bei *keinen* "
-            f"Krankheitskosten optimal – sie kosten immer mehr als eine der beiden "
-            f"anderen. Das gilt in der ganzen Schweiz und bei jedem Versicherer: Der "
-            f"Prämienrabatt pro Stufe ist so geregelt, dass das Optimum immer an einem "
-            f"der beiden Enden liegt."
+            f"Krankheitskosten optimal – es gibt immer eine der beiden anderen, die "
+            f"günstiger kommt."
         )
+
+    st.caption(
+        f"Diese Aussage ist **kein Gesetz, sondern ein Befund aus den Daten** des "
+        f"Prämienjahres {praemienjahr}. Die Verordnung schreibt die Rabatte nicht vor: "
+        f"Sie deckelt sie nur (höchstens 70 % des übernommenen Risikos, Art. 95 "
+        f"Abs. 2bis KVV) – die Höhe legen die Versicherer selbst fest (Art. 95 "
+        f"Abs. 1bis KVV). Die Prämien werden jedes Jahr neu festgesetzt, deshalb rechnet "
+        f"diese App den Befund bei jedem Aufruf neu aus, statt ihn anzunehmen."
+    )
 
     if spannweiten:
         st.info(
@@ -452,10 +465,10 @@ with st.sidebar:
 
 st.title("Hohe oder tiefe Franchise?")
 st.caption(
-    "Die Grundversicherung bietet sechs Franchisen zur Auswahl – aber nur zwei davon "
-    "sind je die günstigste. Diese App zeigt, welche zwei das sind und ab welchen "
-    "jährlichen Krankheitskosten es von der einen zur anderen kippt. "
-    "Datenquelle: BAG-Prämienvergleich (priminfo.admin.ch)."
+    "Die Grundversicherung bietet sechs Franchisen zur Auswahl – in den aktuellen Daten "
+    "sind aber nur zwei davon je die günstigste. Diese App rechnet für deine Auswahl "
+    "nach, welche das sind und ab welchen jährlichen Krankheitskosten es von der einen "
+    "zur anderen kippt. Datenquelle: BAG-Prämienvergleich (priminfo.admin.ch)."
 )
 
 tab_person, tab_haushalt = st.tabs(["Einzelperson", "Haushalt"])

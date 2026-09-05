@@ -170,11 +170,12 @@ class Ergebnis:
     def nie_optimal(self) -> list[int]:
         """Franchisen, die über den ganzen Kostenbereich nie die günstigste sind.
 
-        In der Schweiz sind das faktisch alle mittleren Stufen: Weil der
-        Prämienrabatt je Franchisenstufe linear geregelt ist, die Kostenbeteiligung
-        aber erst ab der Franchise greift, liegt das Optimum immer an einem der
-        beiden Enden. Wer das nicht weiss, hält die Auswahl für eine Wahl unter
-        sechs Varianten – tatsächlich sind es zwei.
+        Empirisch sind das bisher alle mittleren Stufen – geprüft über sämtliche
+        Kanton/Region-Kombinationen und einzelne Versichererangebote. Das ist aber
+        ein Befund aus den Daten, keine Rechtsfolge: Die Verordnung deckelt den
+        Prämienrabatt nur (Art. 95 Abs. 2bis KVV), festgelegt wird er von den
+        Versicherern selbst (Abs. 1bis). Da die Prämien jedes Jahr neu bestimmt
+        werden, wird der Befund hier bei jedem Lauf neu berechnet statt angenommen.
         """
         gewinner = set(self.optimal)
         return [f for f in self.kosten.columns if f not in gewinner]
