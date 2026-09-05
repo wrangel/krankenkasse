@@ -1,4 +1,24 @@
-# Krankenkassen-Kipppunkt
+# Hohe oder tiefe Franchise?
+
+**Die Grundversicherung bietet Erwachsenen sechs Franchisen zur Auswahl – aber nur zwei
+davon sind je die günstigste.**
+
+Die Stufen 500, 1000, 1500 und 2000 sind bei *keinen* Krankheitskosten optimal: Es gibt
+immer entweder die Franchise 300 oder die Franchise 2500, die günstiger kommt. Bei Kindern
+dasselbe – nur 0 und 600 zählen, die fünf Stufen dazwischen nie. Geprüft für alle 42
+Kanton/Regionen-Kombinationen der Schweiz und, in Zürich Region 1, zusätzlich für jede der
+128 einzelnen Versicherer/Tarif-Kombinationen: kein einziger Fall, in dem eine mittlere
+Franchise gewinnt.
+
+Der Grund ist die Regulierung selbst: Der Prämienrabatt pro Franchisenstufe ist linear
+geregelt, die Kostenbeteiligung greift aber erst ab der Franchise. Damit liegt das Optimum
+zwangsläufig an einem der beiden Enden. Die Wahl ist also nicht sechsfach, sondern binär –
+und die einzige Frage lautet: **erwarte ich viel oder wenig Krankheitskosten?**
+
+Der *Kipppunkt* ist die Schwelle dazwischen: Darunter gewinnt die höchste Franchise
+(tiefe Prämie), darüber die tiefste (hohe Prämie, dafür wenig Selbstbehalt).
+
+---
 
 Ein kleines Werkzeug für die Schweizer Grundversicherung. Es beantwortet zwei Fragen:
 
@@ -132,10 +152,15 @@ Kurz: weniger ernst, als die Zahl aussieht. Das Werkzeug rechnet den Kipppunkt
 franken­genau aus, aber die Kostenkurven schneiden sich sehr flach. Drei Befunde, die man
 kennen sollte, bevor man auf den Wert etwas gibt:
 
-**Die Franchisenwahl selbst lohnt sich sehr wohl.** Wer seine Krankheitskosten realistisch
-einschätzt, spart mit der passenden Franchise gegenüber der schlechtesten Wahl bis zu
-1 433 CHF pro Jahr (Erwachsene, ZH Region 1) beziehungsweise 420 CHF (Kinder). Bei
-0 CHF Krankheitskosten schlägt Franchise 2 500 die Franchise 300 um eben diese 1 433 CHF.
+**Die Wahl zwischen den beiden lohnt sich sehr wohl.** Wer seine Krankheitskosten
+realistisch einschätzt, spart gegenüber der schlechteren der beiden bis zu 1 433 CHF pro
+Jahr (Erwachsene, ZH Region 1) beziehungsweise 420 CHF (Kinder). Bei 0 CHF
+Krankheitskosten schlägt Franchise 2 500 die Franchise 300 um eben diese 1 433 CHF.
+
+**Der Kipppunkt ist über die Jahre und Kantone erstaunlich stabil.** Für Erwachsene liegt
+er schweizweit zwischen 1 698 und 1 926 CHF, in 32 von 44 Fällen zwischen 1 700 und
+1 950 CHF (ZH Region 1: 1 892). Das ist kein Zufall, sondern Folge der bundesweit
+einheitlich geregelten Rabattstufen.
 
 **Aber benachbarte Stufen liegen eng beieinander.** Gegenüber der *nächstbesten* Stufe
 bringt die tiefste Franchise höchstens rund 70 CHF pro Jahr (Erwachsene) beziehungsweise

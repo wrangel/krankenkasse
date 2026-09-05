@@ -22,7 +22,7 @@ from utils import (
     lade_praemien,
 )
 
-st.set_page_config(page_title="Krankenkassen-Kipppunkt", page_icon="🏥", layout="wide")
+st.set_page_config(page_title="Hohe oder tiefe Franchise?", page_icon="🏥", layout="wide")
 
 FRANCHISEN_ERWACHSENE = [300, 500, 1000, 1500, 2000, 2500]
 FRANCHISEN_KINDER = [0, 100, 200, 300, 400, 500, 600]
@@ -100,16 +100,31 @@ def einzelperson_ansicht(
         if not gruppe.empty
     ]
     groesste_spannweite = max((e.max_spannweite for e in ergebnisse), default=0.0)
+
+    for e in ergebnisse:
+        if not e.nie_optimal:
+            continue
+        gewinner = sorted(set(e.optimal))
+        st.success(
+            f"**{e.zielgruppe}: Sie haben nicht {len(e.kosten.columns)} Möglichkeiten, "
+            f"sondern {len(gewinner)}.** Nur die Franchisen "
+            f"**{' und '.join(f'{g} CHF' for g in gewinner)}** sind je die günstigste "
+            f"Wahl. Die Stufen "
+            f"{', '.join(f'{f}' for f in e.nie_optimal)} CHF sind bei *keinen* "
+            f"Krankheitskosten optimal – sie kosten immer mehr als eine der beiden "
+            f"anderen. Das gilt in der ganzen Schweiz und bei jedem Versicherer: Der "
+            f"Prämienrabatt pro Stufe ist so geregelt, dass das Optimum immer an einem "
+            f"der beiden Enden liegt."
+        )
+
     if spannweiten:
         st.info(
-            f"**Die Franchisenwahl lohnt sich – aber nicht auf den Franken genau.** "
-            f"Wer seine Krankheitskosten realistisch einschätzt, spart mit der passenden "
-            f"Franchise bis zu **{chf(groesste_spannweite)} CHF pro Jahr** gegenüber der "
-            f"schlechtesten Wahl. *Benachbarte* Stufen liegen dagegen eng beieinander: "
-            f"gegenüber der nächstbesten Stufe bringt die tiefste Franchise höchstens "
-            f"{groesster:.0f} CHF. Deshalb ist der Kipppunkt selbst unscharf – rund um "
-            f"ihn geht es um Rappen. Zum Vergleich: zwischen günstigstem und teuerstem "
-            f"Versicherer liegen bei gleicher Franchise bis zu "
+            f"**Die Wahl zwischen den beiden lohnt sich – aber nicht auf den Franken "
+            f"genau.** Wer seine Krankheitskosten realistisch einschätzt, spart bis zu "
+            f"**{chf(groesste_spannweite)} CHF pro Jahr** gegenüber der schlechteren der "
+            f"beiden. Rund um den Kipppunkt selbst geht es dagegen um Rappen – dort ist "
+            f"die Entscheidung fast beliebig. Zum Vergleich: zwischen günstigstem und "
+            f"teuerstem Versicherer liegen bei gleicher Franchise bis zu "
             f"**{chf(max(spannweiten))} CHF pro Jahr**."
         )
 
@@ -119,6 +134,10 @@ def einzelperson_ansicht(
         kurven = e.kosten.reset_index().melt(
             id_vars="Krankheitskosten", var_name="Franchise", value_name="Jahreskosten"
         )
+        dominiert = set(e.nie_optimal)
+        kurven["Rolle"] = [
+            "nie optimal" if f in dominiert else "entscheidend" for f in kurven["Franchise"]
+        ]
         kurven["Franchise"] = kurven["Franchise"].astype(str)
 
         diagramm = (
@@ -132,10 +151,25 @@ def einzelperson_ansicht(
                     scale=alt.Scale(zero=False),
                 ),
                 color=alt.Color("Franchise:N", sort=None, title="Franchise"),
+                opacity=alt.Opacity(
+                    "Rolle:N",
+                    scale=alt.Scale(
+                        domain=["entscheidend", "nie optimal"], range=[1.0, 0.25]
+                    ),
+                    legend=alt.Legend(title="Rolle"),
+                ),
+                strokeWidth=alt.StrokeWidth(
+                    "Rolle:N",
+                    scale=alt.Scale(
+                        domain=["entscheidend", "nie optimal"], range=[3, 1]
+                    ),
+                    legend=None,
+                ),
                 tooltip=[
                     "Krankheitskosten",
                     "Franchise",
                     alt.Tooltip("Jahreskosten", format=".2f"),
+                    "Rolle",
                 ],
             )
             .properties(height=340)
@@ -166,6 +200,11 @@ def einzelperson_ansicht(
             vergleich["Jahreskosten"] - vergleich["Jahreskosten"].min()
         ).round(2)
         vergleich["Jahreskosten"] = vergleich["Jahreskosten"].round(2)
+        relevante = " oder ".join(f"{g}" for g in sorted(set(e.optimal)))
+        vergleich["Je optimal?"] = [
+            f"nie – immer schlechter als {relevante}" if f in dominiert else "ja"
+            for f in vergleich["Franchise"]
+        ]
         empfehlung = vergleich.iloc[0]
         st.markdown(
             f"Bei **{erwartete_kosten} CHF** Krankheitskosten ist für {e.zielgruppe} "
@@ -411,9 +450,11 @@ with st.sidebar:
             "Rabattstufen für weitere Kinder. Nur K1 führen alle Versicherer.",
         )
 
-st.title("Krankenkassen-Kipppunkt")
+st.title("Hohe oder tiefe Franchise?")
 st.caption(
-    "Ab welchen jährlichen Krankheitskosten lohnt sich die tiefste Franchise? "
+    "Die Grundversicherung bietet sechs Franchisen zur Auswahl – aber nur zwei davon "
+    "sind je die günstigste. Diese App zeigt, welche zwei das sind und ab welchen "
+    "jährlichen Krankheitskosten es von der einen zur anderen kippt. "
     "Datenquelle: BAG-Prämienvergleich (priminfo.admin.ch)."
 )
 

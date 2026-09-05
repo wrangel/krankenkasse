@@ -167,6 +167,19 @@ class Ergebnis:
         return float(self.vorteil_tiefste.max())
 
     @property
+    def nie_optimal(self) -> list[int]:
+        """Franchisen, die über den ganzen Kostenbereich nie die günstigste sind.
+
+        In der Schweiz sind das faktisch alle mittleren Stufen: Weil der
+        Prämienrabatt je Franchisenstufe linear geregelt ist, die Kostenbeteiligung
+        aber erst ab der Franchise greift, liegt das Optimum immer an einem der
+        beiden Enden. Wer das nicht weiss, hält die Auswahl für eine Wahl unter
+        sechs Varianten – tatsächlich sind es zwei.
+        """
+        gewinner = set(self.optimal)
+        return [f for f in self.kosten.columns if f not in gewinner]
+
+    @property
     def spannweite(self) -> pd.Series:
         """Differenz zwischen bester und schlechtester Franchise je Kostenbetrag –
         also der Preis eines Fehlgriffs bei bekannten Krankheitskosten."""
