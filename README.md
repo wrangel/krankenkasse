@@ -116,6 +116,26 @@ Kostenbeteiligung ausgewiesen.
 
 Optionen: `--kanton`, `--region`, `--umweltabgabe`, `--max-kosten`.
 
+## Abhängigkeiten und Tests
+
+`requirements.txt` pinnt die fünf direkten Abhängigkeiten exakt.
+[Dependabot](.github/dependabot.yml) schlägt monatlich Aktualisierungen vor – gruppiert,
+also ein Pull Request statt einer pro Paket, für pip und für die GitHub Actions selbst.
+
+Damit eine grüne Prüfung an so einem Pull Request etwas aussagt, rechnet
+`test_berechnung.py` mit erfundenen Prämien nach: Kostenformel, Kipppunkt, dominierte
+Franchisen, der Selbstbehalt-Deckel und die Familien-Höchstgrenze. Die Erwartungswerte
+sind von Hand gerechnet und im Test hergeleitet, nicht aus dem Code abgelesen.
+
+```bash
+python test_berechnung.py     # ohne Netz, ohne pytest
+```
+
+Das schliesst die Lücke, die Installations- und Kompilierprüfungen offenlassen: Die ganze
+App ist eine Rechenkette über pandas. Änderte sich das Verhalten von `groupby`, `idxmin`
+oder `str.extract`, käme klaglos ein falscher Kipppunkt heraus, ohne dass Installation
+oder Kompilierung etwas merken.
+
 ## Überwachung der Datenquellen
 
 Die beiden BAG-Quellen brechen auf unterschiedliche Weise, und die gefährlichere der
