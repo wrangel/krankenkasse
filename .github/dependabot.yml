@@ -1,0 +1,37 @@
+# Hält die Abhängigkeiten aktuell, ohne dass jemand daran denken muss.
+#
+# Monatlich und gruppiert: ein Pull Request pro Monat statt einer pro Paket.
+# Für ein Werkzeug, das sich im Jahresrhythmus ändert, ist das der richtige Takt -
+# wöchentliche Einzel-PRs wären nur Lärm.
+#
+# Achtung bei der Beurteilung solcher Pull Requests: Die CI prüft nur, dass sich
+# die Abhängigkeiten installieren lassen und jedes Modul kompiliert. Sie rechnet
+# nicht nach. Eine grüne Prüfung heisst also nicht, dass pandas & Co. dieselben
+# Zahlen liefern wie vorher.
+
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      python:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "deps"
+
+  # Auch die Actions selbst veralten - actions/checkout und setup-python werden
+  # sonst jahrelang auf einer alten Hauptversion stehen gelassen.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "ci"
