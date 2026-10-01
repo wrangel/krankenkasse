@@ -22,7 +22,7 @@ from utils import (
     lade_praemien,
 )
 
-st.set_page_config(page_title="Hohe oder tiefe Franchise?", page_icon="🏥", layout="wide")
+st.set_page_config(page_title="Welche Franchise lohnt sich?", page_icon="🏥", layout="wide")
 
 FRANCHISEN_ERWACHSENE = [300, 500, 1000, 1500, 2000, 2500]
 FRANCHISEN_KINDER = [0, 100, 200, 300, 400, 500, 600]
@@ -463,7 +463,7 @@ with st.sidebar:
             "Rabattstufen für weitere Kinder. Nur K1 führen alle Versicherer.",
         )
 
-st.title("Hohe oder tiefe Franchise?")
+st.title("Welche Franchise lohnt sich?")
 st.caption(
     "Die Grundversicherung bietet mehrere Franchisen zur Auswahl. Diese App rechnet für "
     "deine Auswahl nach, welche davon überhaupt je die günstigste sind und ab welchen "

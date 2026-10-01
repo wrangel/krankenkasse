@@ -1,36 +1,12 @@
-# Hohe oder tiefe Franchise?
+# Welche Franchise lohnt sich?
 
-**Die Grundversicherung bietet Erwachsenen sechs Franchisen zur Auswahl – in den Daten des
-Prämienjahres 2027 sind aber nur zwei davon je die günstigste.**
+Ein kleines Werkzeug für die Schweizer Grundversicherung. Es rechnet aus den offiziellen
+BAG-Prämiendaten für jede wählbare Franchise die Gesamtkosten eines Jahres aus – über den
+ganzen Bereich möglicher Krankheitskosten – und zeigt, welche davon wann die günstigste
+ist. Welche das sind und wie viele es sind, ergibt sich aus den Daten; vorausgesetzt wird
+nichts.
 
-Die Stufen 500, 1000, 1500 und 2000 sind bei *keinen* Krankheitskosten optimal: Es gibt
-immer entweder die Franchise 300 oder die Franchise 2500, die günstiger kommt. Bei Kindern
-dasselbe – nur 0 und 600 zählen, die fünf Stufen dazwischen nie. Geprüft für alle 42
-Kanton/Regionen-Kombinationen der Schweiz und, in Zürich Region 1, zusätzlich für jede der
-128 einzelnen Versicherer/Tarif-Kombinationen: kein einziger Fall, in dem eine mittlere
-Franchise gewinnt. Über mehrere Prämienjahre hinweg beobachtet, ist das Bild stabil.
-
-Die Wahl ist damit praktisch nicht sechsfach, sondern binär, und die eigentliche Frage
-lautet: **erwarte ich viel oder wenig Krankheitskosten?** Der *Kipppunkt* ist die Schwelle
-dazwischen – darunter gewinnt die höchste Franchise (tiefe Prämie), darüber die tiefste
-(hohe Prämie, dafür wenig Kostenbeteiligung).
-
-### Aber: das ist ein Befund, kein Gesetz
-
-Die Verordnung schreibt diese Struktur **nicht** vor. Sie deckelt die Prämienreduktion
-lediglich auf höchstens 70 Prozent des Risikos, das mit der höheren Franchise übernommen
-wird (Art. 95 Abs. 2<sup>bis</sup> KVV); die Höhe legen die Versicherer selbst fest
-„aufgrund versicherungsmässiger Erfordernisse" (Art. 95 Abs. 1<sup>bis</sup> KVV). Dass
-die mittleren Stufen trotzdem nirgends gewinnen, ist also Marktverhalten, nicht Rechtsfolge
-– und die Prämien werden **jedes Jahr neu festgesetzt**.
-
-Deshalb nimmt dieses Werkzeug den Befund nirgends an, sondern rechnet ihn bei jedem Lauf
-aus den aktuellen Daten neu aus. Sollte künftig eine mittlere Franchise irgendwo gewinnen,
-sagt die Oberfläche das von selbst.
-
----
-
-Ein kleines Werkzeug für die Schweizer Grundversicherung. Es beantwortet zwei Fragen:
+Es beantwortet drei Fragen:
 
 1. **Welche Kasse bietet pro Franchise die günstigste Prämie?** – für einen bestimmten
    Kanton, eine Prämienregion und eine Altersklasse.
@@ -249,21 +225,42 @@ erfundenen Prämien, bei denen von Hand nachgerechnet ist, welche Franchise domi
   Kipppunkt fällt deshalb in verschiedenen Kantonen oft auf denselben Betrag, obwohl die
   Prämien selbst deutlich abweichen.
 
+## Eine Beobachtung am Rande
+
+Dieser Abschnitt gehört nicht zum Werkzeug, sondern beschreibt, was bei seiner Benutzung
+bisher herausgekommen ist. Er ist Beobachtung, keine Annahme – gerechnet wird in jedem
+Fall aus den geladenen Daten.
+
+**Bisher gewannen nur die höchste und die tiefste Franchise.** Im Prämienjahr 2027 sind
+die Stufen 500, 1000, 1500 und 2000 bei *keinen* Krankheitskosten optimal; es kommt immer
+entweder die Franchise 300 oder die 2500 günstiger. Bei Kindern dasselbe – nur 0 und 600,
+die fünf Stufen dazwischen nie. Nachgerechnet für alle 42 Kanton/Regionen-Kombinationen
+und, in Zürich Region 1, zusätzlich für jede der 128 einzelnen
+Versicherer/Tarif-Kombinationen: kein Gegenbeispiel. Über mehrere Prämienjahre hinweg
+betrachtet ist das Bild stabil geblieben.
+
+**Die Verordnung schreibt das nicht vor.** Sie deckelt die Prämienreduktion lediglich auf
+höchstens 70 Prozent des Risikos, das mit der höheren Franchise übernommen wird
+(Art. 95 Abs. 2<sup>bis</sup> KVV); die Höhe legen die Versicherer selbst fest „aufgrund
+versicherungsmässiger Erfordernisse" (Art. 95 Abs. 1<sup>bis</sup> KVV). Dass die
+mittleren Stufen trotzdem nirgends gewinnen, ist Marktverhalten, nicht Rechtsfolge – und
+die Prämien werden jedes Jahr neu festgesetzt. Die Beobachtung kann also jederzeit
+aufhören zu gelten, ohne dass irgendetwas falsch gelaufen wäre.
+
+**Der Kipppunkt ist bisher erstaunlich stabil.** Für Erwachsene liegt er schweizweit
+zwischen 1 698 und 1 926 CHF, in 32 von 44 Fällen zwischen 1 700 und 1 950 CHF
+(ZH Region 1: 1 893 für 2027, 1 892 für 2026).
+
 ## Wie ernst der Kipppunkt zu nehmen ist
 
 Kurz: weniger ernst, als die Zahl aussieht. Das Werkzeug rechnet den Kipppunkt
-franken­genau aus, aber die Kostenkurven schneiden sich sehr flach. Drei Befunde, die man
+franken­genau aus, aber die Kostenkurven schneiden sich sehr flach. Zwei Dinge, die man
 kennen sollte, bevor man auf den Wert etwas gibt:
 
 **Die Wahl zwischen den beiden lohnt sich sehr wohl.** Wer seine Krankheitskosten
 realistisch einschätzt, spart gegenüber der schlechteren der beiden bis zu 1 433 CHF pro
 Jahr (Erwachsene, ZH Region 1) beziehungsweise 420 CHF (Kinder). Bei 0 CHF
 Krankheitskosten schlägt Franchise 2 500 die Franchise 300 um eben diese 1 433 CHF.
-
-**Der Kipppunkt ist über die Jahre und Kantone erstaunlich stabil.** Für Erwachsene liegt
-er schweizweit zwischen 1 698 und 1 926 CHF, in 32 von 44 Fällen zwischen 1 700 und
-1 950 CHF (ZH Region 1: 1 892) – und über mehrere Prämienjahre hinweg bewegt er sich kaum.
-Auch das ist Beobachtung, nicht Garantie: Er wird bei jedem Lauf neu berechnet.
 
 **Aber benachbarte Stufen liegen eng beieinander.** Gegenüber der *nächstbesten* Stufe
 bringt die tiefste Franchise höchstens rund 70 CHF pro Jahr (Erwachsene) beziehungsweise
