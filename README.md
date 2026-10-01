@@ -1,7 +1,7 @@
 # Hohe oder tiefe Franchise?
 
 **Die Grundversicherung bietet Erwachsenen sechs Franchisen zur Auswahl – in den Daten des
-Prämienjahres 2026 sind aber nur zwei davon je die günstigste.**
+Prämienjahres 2027 sind aber nur zwei davon je die günstigste.**
 
 Die Stufen 500, 1000, 1500 und 2000 sind bei *keinen* Krankheitskosten optimal: Es gibt
 immer entweder die Franchise 300 oder die Franchise 2500, die günstiger kommt. Bei Kindern
@@ -42,7 +42,9 @@ Ein kleines Werkzeug für die Schweizer Grundversicherung. Es beantwortet zwei F
    der Kostenbeteiligung.
 
 Die Daten stammen direkt aus dem offiziellen Prämienvergleich des Bundesamts für
-Gesundheit ([priminfo.admin.ch](https://www.priminfo.admin.ch)) und werden bei jedem Lauf
+Gesundheit, bezogen über
+[opendata.swiss](https://opendata.swiss/de/dataset/health-insurance-premiums), und
+werden bei jedem Lauf
 aktuell geladen.
 
 ## Wie gerechnet wird
@@ -138,16 +140,33 @@ oder Kompilierung etwas merken.
 
 ## Überwachung der Datenquellen
 
-Die beiden BAG-Quellen brechen auf unterschiedliche Weise, und die gefährlichere der
-beiden bricht *lautlos*:
+Beim Wechsel auf das Prämienjahr 2027 hat sich gezeigt, wie nötig das ist – und wie
+schlecht sich Vorhersagen darüber machen lassen, *wie* eine Quelle bricht. Erwartet worden
+war, dass der Prämienvergleich unter festem Pfad stillschweigend neue Inhalte bekommt und
+das Versichererverzeichnis auf einen 404 läuft. Eingetreten ist das Gegenteil: Der
+vermeintlich feste Pfad `priminfo.admin.ch/downloads/gesamtbericht_ch.xlsx` wurde
+abgeschaltet, das Verzeichnis blieb erreichbar. Zusätzlich änderte sich praktisch alles
+andere mit:
 
-| Quelle | URL | Verhalten beim Jahreswechsel |
-|--------|-----|------------------------------|
-| Prämienvergleich | fester Pfad | verschwindet nie – der Inhalt wird still ersetzt |
-| Versichererverzeichnis | Hash **und** Jahr im Pfad | läuft auf einen 404 |
+| | bis 2026 | ab 2027 |
+|---|---|---|
+| Ablage | priminfo.admin.ch | opendata.swiss |
+| Blattname | `Export` | `Sheet1` |
+| Region | `PR-REG CH1` | `PR_REG_1` |
+| Altersklasse | `AKL-ERW` | `AKA_03_ERW` |
+| Unfalleinschluss | `OHN-UNF` | `OHN_UNF` |
+| Franchise | `FRA-300` | `FRA_01_E_0300` |
+| Altersuntergruppe | bei Erwachsenen leer | `E1` / `J1` |
+| Tariftypen | `TAR-BASE`, `TAR-HAM`, `TAR-HMO`, `TAR-DIV` | `BASE`, `PRAXIS`, `FLEX`, `TEL_DIG`, `PHARM` |
+| `isBaseP` | markierte Dubletten (0 = doppelfreie Tabelle) | schlichtes Kennzeichen (1 = Base-Tarif) |
 
-Ein blosser Erreichbarkeitstest würde also ausgerechnet den Wechsel des Prämienjahres
-nicht bemerken. `pruefe_datenquellen.py` vergleicht deshalb gegen den in
+Die letzte Zeile war die gefährlichste: Der bisherige Filter `isBaseP == 0` hätte ab 2027
+sämtliche Standardtarife verworfen – klaglos, ohne Fehlermeldung, mit plausibel
+aussehenden Zahlen. `lade_praemien` entdoppelt deshalb neu über den fachlichen Schlüssel,
+und `_normalisiere_codes` führt die neuen Schreibweisen auf die bisherigen zurück, damit
+der übrige Code eine einzige Sprache spricht.
+
+`pruefe_datenquellen.py` vergleicht gegen den in
 `datenstand.json` festgehaltenen Stand: Erreichbarkeit, Prämienjahr, Spalten,
 Altersklassen, Altersuntergruppen, Franchisenstufen – und den zentralen Befund, dass nur
 die höchste und die tiefste Franchise je optimal sind.

@@ -468,7 +468,7 @@ st.caption(
     "Die Grundversicherung bietet sechs Franchisen zur Auswahl – in den aktuellen Daten "
     "sind aber nur zwei davon je die günstigste. Diese App rechnet für deine Auswahl "
     "nach, welche das sind und ab welchen jährlichen Krankheitskosten es von der einen "
-    "zur anderen kippt. Datenquelle: BAG-Prämienvergleich (priminfo.admin.ch)."
+    "zur anderen kippt. Datenquelle: BAG-Prämiendaten über opendata.swiss."
 )
 
 tab_person, tab_haushalt = st.tabs(["Einzelperson", "Haushalt"])

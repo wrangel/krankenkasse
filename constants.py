@@ -4,9 +4,25 @@ PROJEKT_DIR = Path(__file__).parent
 CACHE_DIR = PROJEKT_DIR / ".cache"
 VERSICHERER_DATEI = PROJEKT_DIR / "versicherer.json"
 
-# Datenquelle: BAG Prämienvergleich
-praemien_url = "https://www.priminfo.admin.ch/downloads/gesamtbericht_ch.xlsx"
-praemien_sheet = "Export"
+# Datenquelle: BAG-Prämiendaten über opendata.swiss.
+#
+# Bis zum Prämienjahr 2026 lag die Datei unter
+# priminfo.admin.ch/downloads/gesamtbericht_ch.xlsx. Mit der Umstellung auf 2027
+# wurde dieser Pfad abgeschaltet (404); priminfo verweist für die maschinen-
+# lesbaren Daten nur noch auf opendata.swiss. Der Pfad im Query-String ist
+# base64-kodiert und entspricht "/Praemien/Prämien_CH.xlsx".
+#
+# Die URL lässt sich jederzeit über die CKAN-Schnittstelle nachschlagen:
+#   https://opendata.swiss/api/3/action/package_show?id=health-insurance-premiums
+praemien_url = (
+    "https://opendata.bagnet.ch/?r=/download"
+    "&path=L1ByYWVtaWVuL1Byw6RtaWVuX0NILnhsc3g%3D"
+)
+
+# Die neue Datei führt genau ein Blatt, und es heisst "Sheet1" statt wie früher
+# "Export". Ist der Name nicht vorhanden, nimmt lade_praemien das erste Blatt -
+# eine weitere Umbenennung soll die App nicht lahmlegen.
+praemien_sheet = "Sheet1"
 
 # Umweltabgabe pro Person und Monat, wird von der Prämie abgezogen (JEDES JAHR NEU!!!)
 umweltabgabe_standard = 5.15
@@ -34,11 +50,16 @@ ALTERSKLASSEN = {
 # K3/K5 sind Familienrabatte für weitere Kinder. Empirisch bewährt: K1 + K4.
 KINDER_UNTERGRUPPEN_STANDARD = ("K1", "K4")
 
+# Tariftypen ab Prämienjahr 2027. Das ist keine blosse Umbenennung: Bis 2026 gab
+# es TAR-BASE, TAR-HAM, TAR-HMO und TAR-DIV, jetzt sind es fünf anders
+# geschnittene Kategorien (laut "Erläuterungen zu den Prämiendaten" des BAG).
+# Eine Zuordnung alt -> neu wäre geraten und unterbleibt deshalb.
 TARIFTYPEN = {
-    "TAR-BASE": "Standardmodell",
-    "TAR-HAM": "Hausarztmodell",
-    "TAR-HMO": "HMO",
-    "TAR-DIV": "Telmed / übrige",
+    "BASE": "Standardmodell (freie Arztwahl)",
+    "PRAXIS": "Praxis- und Hausarztmodelle",
+    "FLEX": "Flexible Modelle",
+    "TEL_DIG": "Telemedizin und digitale Modelle",
+    "PHARM": "Apothekenmodelle",
 }
 
 REGIONEN = {

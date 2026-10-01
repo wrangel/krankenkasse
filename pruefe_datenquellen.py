@@ -161,6 +161,25 @@ def main() -> int:
                 )
             probleme.append(f"{name} nicht erreichbar ({meldung}).{hinweis}")
 
+    # Ist eine Quelle nicht erreichbar, hier abbrechen. Vorher lief das Skript
+    # trotzdem weiter, lud die Datei und endete in einem Traceback - der Befund
+    # stand zwar oben im Protokoll, ging aber im Stapel unter.
+    if probleme:
+        print("\n" + "=" * 72)
+        print("DATENQUELLE NICHT ERREICHBAR")
+        print("=" * 72)
+        for problem in probleme:
+            print(f"\n* {problem}")
+        print(
+            "\nDie maschinenlesbaren Prämiendaten liegen auf opendata.swiss. Die "
+            "aktuelle Download-Adresse liefert:\n"
+            "    https://opendata.swiss/api/3/action/package_show"
+            "?id=health-insurance-premiums\n"
+            "Gesucht ist die Ressource /Praemien/Prämien_CH.xlsx; der Pfad steckt "
+            "base64-kodiert im Query-String."
+        )
+        return 1
+
     print("\nLade Prämiendaten und ermittle den aktuellen Stand…")
     gefunden = aktueller_stand()
     print(f"  Prämienjahr: {gefunden['praemienjahr']}")

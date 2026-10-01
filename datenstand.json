@@ -1,5 +1,5 @@
 {
-  "praemienjahr": 2026,
+  "praemienjahr": 2027,
   "spalten": [
     "Altersklasse",
     "Altersuntergruppe",
@@ -16,7 +16,6 @@
     "Tariftyp",
     "Unfalleinschluss",
     "Versicherer",
-    "befristet",
     "isBaseF",
     "isBaseP"
   ],
@@ -26,6 +25,8 @@
     "AKL-KIN"
   ],
   "altersuntergruppen": [
+    "E1",
+    "J1",
     "K1",
     "K3",
     "K4",

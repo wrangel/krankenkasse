@@ -55,14 +55,82 @@ def versicherer_namen() -> dict[int, str]:
     return {int(nummer): name for nummer, name in roh.items()}
 
 
+_ALTERSKLASSEN_AB_2027: dict[str, str] = {
+    "AKA_01_KIN": "AKL-KIN",
+    "AKA_02_JUG": "AKL-JUG",
+    "AKA_03_ERW": "AKL-ERW",
+}
+
+_UNFALL_AB_2027: dict[str, str] = {
+    "MIT_UNF": "MIT-UNF",
+    "OHN_UNF": "OHN-UNF",
+}
+
+
+def _normalisiere_codes(df: pd.DataFrame) -> pd.DataFrame:
+    """Übersetzt die Schlüssel der Prämiendatei in die hausinterne Schreibweise.
+
+    Mit dem Prämienjahr 2027 hat das BAG sämtliche Codes umgestellt:
+
+        Region            PR-REG CH1  ->  PR_REG_1
+        Altersklasse      AKL-ERW     ->  AKA_03_ERW
+        Unfalleinschluss  OHN-UNF     ->  OHN_UNF
+        Franchise         FRA-300     ->  FRA_01_E_0300   (neu mit Altersklasse)
+
+    Statt die neue Schreibweise durch das ganze Projekt zu ziehen, wird sie hier
+    einmal auf die bisherige zurückgeführt. Der Rest des Codes - und mit ihm die
+    Tests - spricht damit weiterhin eine einzige Sprache. Dateien in der alten
+    Schreibweise laufen unverändert durch.
+    """
+    df = df.copy()
+
+    if "Altersklasse" in df:
+        df["Altersklasse"] = df["Altersklasse"].replace(_ALTERSKLASSEN_AB_2027)
+    if "Unfalleinschluss" in df:
+        df["Unfalleinschluss"] = df["Unfalleinschluss"].replace(_UNFALL_AB_2027)
+
+    # PR_REG_1 -> PR-REG CH1
+    if "Region" in df:
+        df["Region"] = df["Region"].str.replace(
+            r"^PR_REG_(\d+)$", r"PR-REG CH\1", regex=True
+        )
+
+    # FRA_01_E_0300 -> FRA-300 (führende Nullen weg, Altersklassen-Buchstabe
+    # entfällt - die Altersklasse steht ohnehin in einer eigenen Spalte)
+    if "Franchise" in df:
+        neu = df["Franchise"].str.extract(r"^FRA_\d+_[EJK]_(\d+)$")[0]
+        df["Franchise"] = neu.where(neu.isna(), "FRA-" + neu.str.lstrip("0").replace("", "0")).fillna(
+            df["Franchise"]
+        )
+
+    return df
+
+
 def lade_praemien(max_alter_tage: int = 7) -> pd.DataFrame:
     """Rohe BAG-Prämientabelle. Der Download ist rund 14 MB und wird gecacht."""
-    pfad = lade_datei(praemien_url, "gesamtbericht_ch.xlsx", max_alter_tage)
-    df = pd.read_excel(pfad, sheet_name=praemien_sheet)
+    pfad = lade_datei(praemien_url, "praemien_ch.xlsx", max_alter_tage)
 
-    # TAR-BASE-Zeilen sind doppelt vorhanden (isBaseP 0 und 1); 0 entspricht der
-    # vollständigen, doppelfreien Tabelle über alle Tariftypen.
-    return df[df["isBaseP"] == 0]
+    # Das Blatt hiess schon "Export" und heisst jetzt "Sheet1". Fehlt der
+    # erwartete Name, wird das erste Blatt genommen, statt abzustürzen.
+    blaetter = pd.ExcelFile(pfad).sheet_names
+    blatt = praemien_sheet if praemien_sheet in blaetter else blaetter[0]
+    df = pd.read_excel(pfad, sheet_name=blatt)
+
+    # Früher stand hier ein Filter auf isBaseP == 0. Das war für die Datei bis
+    # 2026 richtig, weil die Standardtarife dort doppelt geführt wurden und die
+    # 0-Zeilen der doppelfreien Tabelle entsprachen. Ab 2027 ist isBaseP ein
+    # schlichtes Kennzeichen ("Tarif Base? 1 = Ja, 0 = Nein"), und es gibt gar
+    # keine Duplikate mehr - derselbe Filter hätte also sämtliche Standardtarife
+    # verworfen, ohne dass irgendwo ein Fehler aufgetreten wäre. Deshalb wird
+    # jetzt über den fachlichen Schlüssel entdoppelt: bis 2026 entfernt das die
+    # Dubletten, ab 2027 ist es wirkungslos.
+    schluessel = [
+        "Versicherer", "Kanton", "Region", "Altersklasse", "Altersuntergruppe",
+        "Unfalleinschluss", "Tarif", "Franchise",
+    ]
+    df = df.drop_duplicates(subset=[s for s in schluessel if s in df.columns])
+
+    return _normalisiere_codes(df)
 
 
 def get_data(
