@@ -1,5 +1,5 @@
-altair==6.2.2
+altair==6.3.0
 openpyxl==3.1.5
-pandas==3.0.2
-streamlit==1.63.0
+pandas==3.0.6
+streamlit==1.64.0
 tabulate==0.10.0
