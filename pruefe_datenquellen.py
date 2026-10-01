@@ -39,6 +39,7 @@ import os
 import sys
 import urllib.error
 import urllib.request
+from datetime import date
 from pathlib import Path
 
 from constants import praemien_url
@@ -46,6 +47,13 @@ from refresh_versicherer import VERZEICHNIS_URL
 from utils import beste_praemien, berechne_kipppunkt, get_data, lade_praemien
 
 STAND_DATEI = Path(__file__).parent / "datenstand.json"
+
+# Der Stand oben wird bei jedem Festhalten überschrieben - er beschreibt immer nur
+# das Jetzt. Die Historie daneben wird nur ergänzt: ein Eintrag pro Prämienjahr.
+# So entsteht über die Jahre eine Reihe, an der sich die Beobachtung "nur die
+# höchste und die tiefste Franchise gewinnen" tatsächlich prüfen lässt, statt sie
+# aus der Erinnerung zu behaupten.
+HISTORIE_DATEI = Path(__file__).parent / "befund_historie.json"
 _USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
 
 # Referenzauswahl für den Befundtest. Bewusst fix, damit der Vergleich über die
@@ -163,6 +171,65 @@ def befund_aenderungen(erwartet: dict, gefunden: dict) -> list[str]:
     return aenderungen
 
 
+def historie_ergaenzen(gefunden: dict) -> tuple[list[dict], bool]:
+    """Trägt den Befund des aktuellen Prämienjahres in die Historie ein.
+
+    Pro Prämienjahr ein Eintrag. Ein bereits vorhandenes Jahr wird aktualisiert
+    (etwa wenn mitten im Jahr nachkorrigiert wird), sonst hinten angefügt.
+    Gibt die vollständige Reihe zurück und ob sie um ein Jahr gewachsen ist.
+    """
+    historie: list[dict] = []
+    if HISTORIE_DATEI.exists():
+        historie = json.loads(HISTORIE_DATEI.read_text(encoding="utf-8"))
+
+    jahr = gefunden["praemienjahr"]
+    eintrag = {
+        "praemienjahr": jahr,
+        "erfasst_am": date.today().isoformat(),
+        "kanton": REFERENZ_KANTON,
+        "region": REFERENZ_REGION,
+    }
+    for zielgruppe in ("Erwachsene", "Kinder"):
+        befund = gefunden["befund_referenz"].get(zielgruppe)
+        if befund:
+            eintrag[zielgruppe] = {
+                "optimal": befund["optimal"],
+                "nie_optimal": befund["nie_optimal"],
+                "kipppunkt": befund["kipppunkt"],
+            }
+
+    vorhanden = next((e for e in historie if e.get("praemienjahr") == jahr), None)
+    neu = vorhanden is None
+    if vorhanden is not None:
+        historie[historie.index(vorhanden)] = eintrag
+    else:
+        historie.append(eintrag)
+    historie.sort(key=lambda e: e.get("praemienjahr", 0))
+
+    HISTORIE_DATEI.write_text(
+        json.dumps(historie, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+    return historie, neu
+
+
+def zeige_historie(historie: list[dict]) -> None:
+    """Druckt die Reihe über alle erfassten Prämienjahre."""
+    if not historie:
+        return
+    print(f"\nBefund über die erfassten Prämienjahre ({REFERENZ_KANTON} "
+          f"{REFERENZ_REGION}):")
+    print(f"  {'Jahr':<6} {'Erwachsene: optimal':<24} {'Kipp.':>6}   "
+          f"{'Kinder: optimal':<18} {'Kipp.':>6}")
+    for eintrag in historie:
+        erw = eintrag.get("Erwachsene", {})
+        kin = eintrag.get("Kinder", {})
+        print(
+            f"  {eintrag.get('praemienjahr', '?'):<6} "
+            f"{str(erw.get('optimal', '-')):<24} {str(erw.get('kipppunkt', '-')):>6}   "
+            f"{str(kin.get('optimal', '-')):<18} {str(kin.get('kipppunkt', '-')):>6}"
+        )
+
+
 def _melde_an_github(aenderungen: list[str], praemienjahr: int) -> None:
     """Hebt einen geänderten Befund im GitHub-Lauf hervor, ohne ihn scheitern zu lassen.
 
@@ -256,7 +323,17 @@ def main() -> int:
         STAND_DATEI.write_text(
             json.dumps(gefunden, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
         )
+        historie, ist_neues_jahr = historie_ergaenzen(gefunden)
         print(f"\nStand in {STAND_DATEI.name} festgehalten.")
+        if ist_neues_jahr:
+            print(
+                f"Prämienjahr {gefunden['praemienjahr']} neu in "
+                f"{HISTORIE_DATEI.name} aufgenommen ({len(historie)} Jahre erfasst)."
+            )
+        else:
+            print(f"Eintrag für {gefunden['praemienjahr']} in "
+                  f"{HISTORIE_DATEI.name} aktualisiert.")
+        zeige_historie(historie)
         return 0
 
     if not STAND_DATEI.exists():

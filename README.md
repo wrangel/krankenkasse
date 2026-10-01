@@ -183,6 +183,32 @@ Daten; ergibt sich etwas anderes, sagt die Oberfläche etwas anderes. Auch
 `test_berechnung.py` prüft nie die These selbst, sondern nur die Mechanik – mit
 erfundenen Prämien, bei denen von Hand nachgerechnet ist, welche Franchise dominiert.
 
+## Was beim Jahreswechsel zu tun ist
+
+Das BAG veröffentlicht die Prämien des Folgejahres Ende September. Die Überwachung läuft
+in diesen Wochen täglich und meldet sich von selbst. Der Ablauf:
+
+1. **Die Prüfung schlägt fehl** – neues Prämienjahr, oft zusammen mit geänderten URLs
+   oder Codes. Die Meldung sagt, was sich verschoben hat.
+2. **Nachführen**: Download-Adresse und Schreibweisen in `constants.py` bzw.
+   `_normalisiere_codes`, die Umweltabgabe für das neue Jahr, und ein Blick darauf, ob
+   `versicherer.json` noch alle Versicherer kennt.
+3. **Festhalten**:
+
+   ```bash
+   python pruefe_datenquellen.py --schreiben
+   ```
+
+   Das überschreibt `datenstand.json` (immer nur das Jetzt) und **ergänzt**
+   `befund_historie.json` um einen Eintrag für das neue Prämienjahr.
+
+`befund_historie.json` ist der einzige Teil, der wächst: ein Eintrag pro Jahr mit den je
+günstigsten Franchisen und dem Kipppunkt. Damit entsteht über die Jahre eine Reihe, an der
+sich die Beobachtung aus dem Abschnitt weiter unten tatsächlich prüfen lässt – statt sie
+aus der Erinnerung zu behaupten. Die Reihe beginnt beim Prämienjahr 2027; frühere Jahre
+sind bewusst nicht nachgetragen, weil sie aus einer anderen Quelle mit anderer
+Entdoppelung stammen und nicht vergleichbar wären.
+
 ## Jährliche Pflege
 
 - **Umweltabgabe** – die Rückerstattung ändert jedes Jahr (2027: 57.00 CHF pro Person und
@@ -230,6 +256,9 @@ erfundenen Prämien, bei denen von Hand nachgerechnet ist, welche Franchise domi
 Dieser Abschnitt gehört nicht zum Werkzeug, sondern beschreibt, was bei seiner Benutzung
 bisher herausgekommen ist. Er ist Beobachtung, keine Annahme – gerechnet wird in jedem
 Fall aus den geladenen Daten.
+
+Die laufend fortgeschriebene Reihe steht in
+[`befund_historie.json`](befund_historie.json) – ein Eintrag pro Prämienjahr, ab 2027.
 
 **Bisher gewannen nur die höchste und die tiefste Franchise.** Im Prämienjahr 2027 sind
 die Stufen 500, 1000, 1500 und 2000 bei *keinen* Krankheitskosten optimal; es kommt immer
