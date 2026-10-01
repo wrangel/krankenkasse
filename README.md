@@ -182,9 +182,30 @@ BAG die Prämien des Folgejahres. Schlägt der Lauf fehl, benachrichtigt GitHub 
 Repository-Besitzer. Damit meldet sich das Projekt von selbst, statt still falsche Zahlen
 zu zeigen.
 
-Besonders wichtig ist der Befundtest: Sollte künftig doch eine mittlere Franchise
-irgendwo gewinnen, ist die zentrale Aussage dieses README hinfällig – und der Workflow
-sagt es, bevor es jemand anders merkt.
+Dabei werden zwei Dinge streng auseinandergehalten:
+
+- **Handlungsbedarf an den Quellen** – tote URL, umbenannte Spalte, neues Prämienjahr,
+  verändertes Kennzeichen. Das macht das Werkzeug kaputt oder verfälscht es still. Die
+  Prüfung schlägt fehl, GitHub benachrichtigt.
+- **Ein anderer Befund** – welche Franchisen je die günstigsten sind, wo der Kipppunkt
+  liegt. Die Prüfung bleibt **grün**; der Befund erscheint als Warnung und in der
+  Zusammenfassung des Laufs.
+
+Der Unterschied ist kein Detail. Dass bisher nur die höchste und die tiefste Franchise je
+gewonnen haben, ist eine **Beobachtung über einzelne Prämienjahre, kein Sollwert**. Die
+Prämien werden jedes Jahr neu festgesetzt, und was sich lohnt, folgt aus ihnen – nicht
+umgekehrt. Ein Werkzeug, das ein verändertes Ergebnis als Fehlschlag meldet, würde eine
+Hypothese verteidigen, statt zu rechnen. Ändert sich der Befund, hat nichts versagt; dann
+ist bloss die Beschreibung in README und Oberfläche veraltet.
+
+`datenstand.json` ist deshalb ein Gedächtnis, kein Sollwert: Es hält fest, was zuletzt
+beobachtet wurde, damit Veränderung überhaupt auffällt.
+
+Aus demselben Grund steht in der Oberfläche nirgends fest verdrahtet, dass nur zwei
+Franchisen zählen. Die Meldung wird aus `nie_optimal` erzeugt, also aus den geladenen
+Daten; ergibt sich etwas anderes, sagt die Oberfläche etwas anderes. Auch
+`test_berechnung.py` prüft nie die These selbst, sondern nur die Mechanik – mit
+erfundenen Prämien, bei denen von Hand nachgerechnet ist, welche Franchise dominiert.
 
 ## Jährliche Pflege
 

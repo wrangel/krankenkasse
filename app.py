@@ -465,10 +465,10 @@ with st.sidebar:
 
 st.title("Hohe oder tiefe Franchise?")
 st.caption(
-    "Die Grundversicherung bietet sechs Franchisen zur Auswahl – in den aktuellen Daten "
-    "sind aber nur zwei davon je die günstigste. Diese App rechnet für deine Auswahl "
-    "nach, welche das sind und ab welchen jährlichen Krankheitskosten es von der einen "
-    "zur anderen kippt. Datenquelle: BAG-Prämiendaten über opendata.swiss."
+    "Die Grundversicherung bietet mehrere Franchisen zur Auswahl. Diese App rechnet für "
+    "deine Auswahl nach, welche davon überhaupt je die günstigste sind und ab welchen "
+    "jährlichen Krankheitskosten es von der einen zur anderen kippt. "
+    "Datenquelle: BAG-Prämiendaten über opendata.swiss."
 )
 
 tab_person, tab_haushalt = st.tabs(["Einzelperson", "Haushalt"])

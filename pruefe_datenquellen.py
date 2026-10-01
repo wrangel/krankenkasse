@@ -9,11 +9,23 @@ Hintergrund: Die beiden Quellen brechen auf ganz unterschiedliche Weise.
   (``…/wKeV97535ICf/Zugelassene Krankenversicherer_1.1.2026.xlsx``) und läuft
   jedes Jahr auf einen 404.
 
-Geprüft wird deshalb gegen den festgehaltenen Stand in ``datenstand.json``:
-Erreichbarkeit, Prämienjahr, Spalten, Wertebereiche und der zentrale Befund
-(nur die höchste und die tiefste Franchise sind je optimal). Weicht etwas ab,
-endet das Skript mit Exit-Code 1 – im GitHub-Workflow wird daraus eine
-fehlgeschlagene Prüfung samt Benachrichtigung.
+Geprüft wird gegen den zuletzt festgehaltenen Stand in ``datenstand.json``.
+
+Zwei Dinge werden dabei streng auseinandergehalten:
+
+* **Handlungsbedarf an den Quellen** – tote URL, umbenannte Spalte, neues
+  Prämienjahr, verändertes Kennzeichen. Das macht das Werkzeug kaputt oder
+  verfälscht es still. Exit-Code 1, im Workflow eine fehlgeschlagene Prüfung.
+* **Ein anderer Befund** – welche Franchisen je die günstigsten sind, wo der
+  Kipppunkt liegt. Das ist *kein* Sollwert. Die Prämien werden jedes Jahr neu
+  festgesetzt, und was sich lohnt, folgt aus ihnen; dass bisher nur die höchste
+  und die tiefste Franchise gewonnen haben, ist eine Beobachtung über einzelne
+  Jahre, keine Vorgabe. Ändert sie sich, hat nichts versagt – dann ist bloss die
+  Beschreibung in README und Oberfläche veraltet. Die Prüfung bleibt grün, der
+  Befund erscheint als Warnung und in der Zusammenfassung des Laufs.
+
+``datenstand.json`` ist entsprechend ein Gedächtnis, kein Sollwert: Es hält fest,
+was zuletzt beobachtet wurde, damit Veränderung überhaupt auffällt.
 
     python pruefe_datenquellen.py              # prüfen
     python pruefe_datenquellen.py --schreiben   # aktuellen Stand festhalten
@@ -23,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import urllib.error
 import urllib.request
@@ -112,26 +125,72 @@ def vergleiche(erwartet: dict, gefunden: dict) -> list[str]:
                 f"neu: {neu or 'keine'}."
             )
 
+    return abweichungen
+
+
+def befund_aenderungen(erwartet: dict, gefunden: dict) -> list[str]:
+    """Was die Daten heute anders erzählen als beim letzten Festhalten.
+
+    Bewusst getrennt von `vergleiche`: Dort geht es um Dinge, die das Werkzeug
+    kaputt machen – eine tote URL, eine umbenannte Spalte, ein gekipptes
+    Kennzeichen. Hier geht es um das Ergebnis der Rechnung selbst, und das ist
+    kein Sollwert. Dass bisher nur die höchste und die tiefste Franchise je
+    optimal waren, ist eine Beobachtung über die Prämien einzelner Jahre, keine
+    Vorgabe, an der sich neue Daten zu messen hätten. Ändert sie sich, hat nicht
+    die Rechnung versagt, sondern die Beschreibung in README und Oberfläche ist
+    veraltet.
+    """
+    aenderungen: list[str] = []
     alt_befund = erwartet.get("befund_referenz", {})
     neu_befund = gefunden.get("befund_referenz", {})
+
     for zielgruppe in ("Erwachsene", "Kinder"):
         alt = alt_befund.get(zielgruppe)
         neu = neu_befund.get(zielgruppe)
         if not alt or not neu:
             continue
         if alt["optimal"] != neu["optimal"]:
-            abweichungen.append(
-                f"BEFUND GEKIPPT ({zielgruppe}): Bisher waren nur die Franchisen "
-                f"{alt['optimal']} je optimal, jetzt sind es {neu['optimal']}. Die "
-                f"zentrale Aussage von README und Oberfläche stimmt so nicht mehr."
+            aenderungen.append(
+                f"{zielgruppe}: Je günstigste Franchisen zuletzt {alt['optimal']}, "
+                f"jetzt {neu['optimal']}."
             )
-        if not neu["nie_optimal"]:
-            abweichungen.append(
-                f"BEFUND GEKIPPT ({zielgruppe}): Es gibt keine dominierte Franchise "
-                f"mehr – jede Stufe ist irgendwo die günstigste."
+        if alt["kipppunkt"] != neu["kipppunkt"]:
+            aenderungen.append(
+                f"{zielgruppe}: Kipppunkt zuletzt {alt['kipppunkt']}, "
+                f"jetzt {neu['kipppunkt']}."
             )
 
-    return abweichungen
+    return aenderungen
+
+
+def _melde_an_github(aenderungen: list[str], praemienjahr: int) -> None:
+    """Hebt einen geänderten Befund im GitHub-Lauf hervor, ohne ihn scheitern zu lassen.
+
+    Ein veränderter Befund ist kein Fehlschlag - die Prüfung bleibt grün. Er soll
+    aber auch nicht im Protokoll untergehen, deshalb eine Warnungs-Annotation und
+    ein Eintrag in der Zusammenfassung des Laufs.
+    """
+    if not os.environ.get("GITHUB_ACTIONS"):
+        return
+
+    for aenderung in aenderungen:
+        print(f"::warning title=Befund geändert::{aenderung}")
+
+    pfad = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not pfad:
+        return
+    with open(pfad, "a", encoding="utf-8") as datei:
+        datei.write(f"### Befund Prämienjahr {praemienjahr}\n\n")
+        datei.write(
+            "Die Daten ergeben etwas anderes als beim letzten Festhalten. "
+            "Das ist ein Befund, kein Fehler:\n\n"
+        )
+        for aenderung in aenderungen:
+            datei.write(f"- {aenderung}\n")
+        datei.write(
+            "\nZu prüfen ist nur, ob die Beschreibung in README und Oberfläche "
+            "noch zu den Daten passt.\n"
+        )
 
 
 def main() -> int:
@@ -139,7 +198,7 @@ def main() -> int:
     zerleger.add_argument(
         "--schreiben",
         action="store_true",
-        help="Den aktuellen Zustand als neuen Sollstand in datenstand.json ablegen.",
+        help="Den aktuellen Zustand in datenstand.json festhalten.",
     )
     argumente = zerleger.parse_args()
 
@@ -197,7 +256,7 @@ def main() -> int:
         STAND_DATEI.write_text(
             json.dumps(gefunden, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
         )
-        print(f"\nSollstand nach {STAND_DATEI.name} geschrieben.")
+        print(f"\nStand in {STAND_DATEI.name} festgehalten.")
         return 0
 
     if not STAND_DATEI.exists():
@@ -209,13 +268,33 @@ def main() -> int:
 
     erwartet = json.loads(STAND_DATEI.read_text(encoding="utf-8"))
     probleme.extend(vergleiche(erwartet, gefunden))
+    aenderungen = befund_aenderungen(erwartet, gefunden)
+
+    # Zuerst das Ergebnis der Rechnung - es ist eine Beobachtung, kein Sollwert,
+    # und steht deshalb für sich, unabhängig vom Ausgang der Prüfung.
+    if aenderungen:
+        _melde_an_github(aenderungen, gefunden["praemienjahr"])
+        print("\n" + "-" * 72)
+        print("DIE DATEN ERGEBEN ETWAS ANDERES ALS BEIM LETZTEN FESTHALTEN")
+        print("-" * 72)
+        for aenderung in aenderungen:
+            print(f"  {aenderung}")
+        print(
+            "\n  Das ist ein Befund, kein Fehler: Die Prämien werden jedes Jahr neu\n"
+            "  festgesetzt, und welche Franchisen sich lohnen, folgt aus ihnen - nicht\n"
+            "  umgekehrt. Zu tun ist nur eines: nachsehen, ob die Beschreibung in\n"
+            "  README und Oberfläche noch zu den Daten passt."
+        )
 
     if not probleme:
-        print("\nAlles unverändert gegenüber dem festgehaltenen Stand.")
+        if not aenderungen:
+            print("\nDatenquellen unverändert, Befund wie zuletzt festgehalten.")
+        else:
+            print("\nDatenquellen in Ordnung; der Befund hat sich geändert (siehe oben).")
         return 0
 
     print("\n" + "=" * 72)
-    print("ABWEICHUNGEN GEFUNDEN")
+    print("HANDLUNGSBEDARF AN DEN DATENQUELLEN")
     print("=" * 72)
     for problem in probleme:
         print(f"\n* {problem}")
