@@ -113,7 +113,7 @@ Kostenbeteiligung ausgewiesen.
 
 ```bash
 ~/.venvs/krankenkasse/bin/python main.py
-~/.venvs/krankenkasse/bin/python main.py --kanton BE --umweltabgabe 5.15
+~/.venvs/krankenkasse/bin/python main.py --kanton BE --umweltabgabe 4.75
 ```
 
 Optionen: `--kanton`, `--region`, `--umweltabgabe`, `--max-kosten`.
@@ -188,8 +188,10 @@ sagt es, bevor es jemand anders merkt.
 
 ## Jährliche Pflege
 
-- **Umweltabgabe** – ändert jedes Jahr. In der Oberfläche direkt eingebbar, oder als
-  Standardwert `umweltabgabe_standard` in `constants.py`.
+- **Umweltabgabe** – die Rückerstattung ändert jedes Jahr (2027: 57.00 CHF pro Person und
+  Jahr, also 4.75 pro Monat; 2026 waren es 61.80 bzw. 5.15). In der Oberfläche direkt
+  eingebbar, oder als Standardwert `umweltabgabe_standard` in `constants.py`. Den
+  Kipppunkt verschiebt der Wert nicht, wohl aber alle absoluten Beträge.
 - **Versicherernamen** – `versicherer.json` stammt aus dem
   [BAG-Verzeichnis der zugelassenen Krankenversicherer](https://www.bag.admin.ch/de/verzeichnisse-der-zugelassenen-kranken-und-rueckversicherer).
   Die Download-URL enthält einen jährlich wechselnden Hash: neue URL ablesen, in

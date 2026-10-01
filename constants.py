@@ -24,8 +24,16 @@ praemien_url = (
 # eine weitere Umbenennung soll die App nicht lahmlegen.
 praemien_sheet = "Sheet1"
 
-# Umweltabgabe pro Person und Monat, wird von der Prämie abgezogen (JEDES JAHR NEU!!!)
-umweltabgabe_standard = 5.15
+# Rückerstattung der Umweltabgaben, pro Person und Monat. Sie wird von der Prämie
+# abgezogen und ändert jedes Jahr (JEDES JAHR NEU!!!).
+#
+#   2027: 57.00 CHF pro Jahr = 4.75 pro Monat
+#   2026: 61.80 CHF pro Jahr = 5.15 pro Monat
+#
+# Auf den Kipppunkt wirkt sich der Wert nicht aus - er entlastet jede Franchise
+# gleich und lässt die Reihenfolge unverändert. Er bestimmt aber sämtliche
+# absoluten Frankenbeträge.
+umweltabgabe_standard = 57.00 / 12
 
 # Gesetzliche Selbstbehalt-Obergrenze pro Jahr (Art. 103 KVV)
 hoechstgrenze_selbstbehalt = {
