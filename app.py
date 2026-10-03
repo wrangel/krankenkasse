@@ -278,47 +278,47 @@ def einzelperson_ansicht(
             st.session_state["_klick_kosten"] = neuer_wert
             st.rerun()
 
-    graue_linie = (
+    # Eine Bildunterschrift statt zweier: Beide erklärten dasselbe Bild - die
+    # senkrechten Linien und die blassen Kurven -, und zwei Absätze hintereinander
+    # lesen sich wie zwei Themen.
+    teile = [
         f"Die **rote Linie** steht bei deinen erwarteten Krankheitskosten "
-        f"({chf(erwartete_kosten)} CHF) – du kannst sie direkt im Diagramm anklicken "
-        f"oder den Betrag links eintragen. Fett gezeichnet ist die dort günstigste "
-        f"Franchise."
-    )
+        f"({chf(erwartete_kosten)} CHF); du kannst sie im Diagramm anklicken oder den "
+        f"Betrag links eintragen. Fett gezeichnet ist die dort günstigste Franchise."
+    ]
     if e.kipppunkt is None:
-        st.caption(
-            f"{graue_linie} Die tiefste Franchise ({e.tiefste_franchise} CHF) lohnt "
-            f"sich bis {chf(maximale_krankenkosten)} CHF Krankheitskosten nie."
+        teile.append(
+            f"Die tiefste Franchise ({e.tiefste_franchise} CHF) lohnt sich im "
+            f"gezeigten Bereich nie."
         )
     else:
-        darueber = (
-            " Oberhalb des Kipppunkts ändert sich die Empfehlung nicht mehr – egal "
-            "wie hoch die Kosten steigen."
-            if erwartete_kosten > e.kipppunkt
-            else ""
-        )
-        st.caption(
-            f"Die **grau gestrichelte Linie** ist der Kipppunkt: Ab Krankheitskosten "
-            f"von **{chf(e.kipppunkt)} CHF** lohnt sich die Franchise "
+        teile.append(
+            f"Die **grau gestrichelte Linie** ist der Kipppunkt: Ab "
+            f"**{chf(e.kipppunkt)} CHF** lohnt sich die Franchise "
             f"{e.tiefste_franchise} CHF, darunter die Franchise "
             f"{e.segmente.iloc[0]['Franchise']} CHF. Zwischen bester und schlechtester "
-            f"Franchise liegen bis zu **{chf(e.max_spannweite)} CHF pro Jahr**. "
-            f"{graue_linie}{darueber}"
+            f"Franchise liegen bis zu **{chf(e.max_spannweite)} CHF pro Jahr**."
         )
-
+        if erwartete_kosten > e.kipppunkt:
+            teile.append(
+                "Oberhalb des Kipppunkts ändert sich die Empfehlung nicht mehr – "
+                "egal wie hoch die Kosten steigen."
+            )
     if e.nie_optimal:
         gewinner = sorted(set(e.optimal))
-        st.caption(
-            f":green[Nur die Franchisen "
+        teile.append(
+            f"Nur die Franchisen "
             f"**{' und '.join(f'{g} CHF' for g in gewinner)}** sind hier je die "
-            f"günstigste Wahl. Die blass gezeichneten Stufen "
+            f"günstigste Wahl; die blass gezeichneten Stufen "
             f"{', '.join(str(f) for f in e.nie_optimal)} CHF sind bei *keinen* "
-            f"Krankheitskosten optimal.]"
+            f"Krankheitskosten optimal."
         )
     else:
-        st.warning(
-            "**Diesmal ist es anders.** In diesen Daten ist jede Franchisenstufe "
-            "irgendwo die günstigste."
+        teile.append(
+            "In diesen Daten ist jede Franchisenstufe irgendwo die günstigste – "
+            "sonst gewinnen nur die höchste und die tiefste."
         )
+    st.caption(" ".join(teile))
 
     # ------------------------------------------------------------------ Verlauf
     # ------------------------------------- Franchisenvergleich bei den Kosten
@@ -333,8 +333,8 @@ def einzelperson_ansicht(
     vergleich["Franchise"] = vergleich["Franchise"].astype(int)
     vergleich["Kosten/Jahr"] = vergleich["Kosten/Jahr"].round(0)
     vergleich = _mit_abstand(vergleich, "Kosten/Jahr", "Mehrkosten/Jahr")
-    vergleich["Kosten/Mt."] = (vergleich["Kosten/Jahr"] / 12).round(2)
-    vergleich = _mit_abstand(vergleich, "Kosten/Mt.", "Mehrkosten/Mt.")
+    vergleich["Kosten/Monat"] = (vergleich["Kosten/Jahr"] / 12).round(2)
+    vergleich = _mit_abstand(vergleich, "Kosten/Monat", "Mehrkosten/Monat")
     st.dataframe(
         vergleich,
         hide_index=True,
@@ -343,8 +343,8 @@ def einzelperson_ansicht(
             "Franchise": st.column_config.NumberColumn(format="%d", width="small"),
             "Kosten/Jahr": st.column_config.NumberColumn(format="%.0f", width="small"),
             "Mehrkosten/Jahr": st.column_config.NumberColumn(format="%.0f", width="small"),
-            "Kosten/Mt.": st.column_config.NumberColumn(format="%.2f", width="small"),
-            "Mehrkosten/Mt.": st.column_config.NumberColumn(format="%.2f", width="small"),
+            "Kosten/Monat": st.column_config.NumberColumn(format="%.2f", width="small"),
+            "Mehrkosten/Monat": st.column_config.NumberColumn(format="%.2f", width="small"),
         },
     )
 
@@ -376,10 +376,10 @@ def einzelperson_ansicht(
         # daneben, weil Policen und Vergleichsportale in Monaten rechnen.
         angebote["Prämie/Jahr"] = (angebote["Prämie"] * 12).round(0)
         angebote = _mit_abstand(angebote, "Prämie/Jahr", "Mehrkosten/Jahr")
-        angebote["Prämie/Mt."] = angebote["Prämie"].round(2)
+        angebote["Prämie/Monat"] = angebote["Prämie"].round(2)
         angebote["Typ"] = angebote["Typ"].map(TARIFTYPEN_KURZ)
         angebote = angebote[
-            ["Versicherer", "Tarif", "Typ", "Prämie/Jahr", "Mehrkosten/Jahr", "Prämie/Mt."]
+            ["Versicherer", "Tarif", "Typ", "Prämie/Jahr", "Mehrkosten/Jahr", "Prämie/Monat"]
         ]
 
         st.dataframe(
@@ -394,7 +394,7 @@ def einzelperson_ansicht(
                 "Mehrkosten/Jahr": st.column_config.NumberColumn(
                     format="%.0f", width="small"
                 ),
-                "Prämie/Mt.": st.column_config.NumberColumn(format="%.2f", width="small"),
+                "Prämie/Monat": st.column_config.NumberColumn(format="%.2f", width="small"),
             },
         )
         frei = zielgruppe_daten[
@@ -404,7 +404,7 @@ def einzelperson_ansicht(
         # angebote führt die Kurzform in der Spalte "Typ"; zielgruppe_daten hat
         # weiterhin den Rohwert in "Tariftyp".
         if not frei.empty and angebote["Typ"].iloc[0] != TARIFTYPEN_KURZ["BASE"]:
-            guenstigstes = float(angebote["Prämie/Mt."].iloc[0])
+            guenstigstes = float(angebote["Prämie/Monat"].iloc[0])
             frei_monat = float(frei["Prämie"].min())
             # Nur die Zahl bekommt den Schweizer Tausendertrenner - ein replace auf
             # dem ganzen Satz würde auch die Kommas im Text ersetzen.
