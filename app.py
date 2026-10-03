@@ -165,17 +165,19 @@ def einzelperson_ansicht(
         if unfalldeckung.get(zielgruppe) == "MIT-UNF"
         else "ohne Unfalldeckung"
     )
-    st.markdown(f"**{ort_text}** · {zielgruppe} · {unfall_text}")
+    # Alle Eingaben einmal an einer Stelle. Danach müssen Überschriften und
+    # Kennzahlen den Betrag nicht wiederholen.
+    st.markdown(
+        f"**{ort_text}** · {zielgruppe} · {unfall_text} · erwartete Krankheitskosten "
+        f"**{chf(erwartete_kosten)} CHF pro Jahr**"
+    )
 
     # Oben steht nur, was bei den angegebenen Kosten gilt. Der Kipppunkt selbst
     # erklärt die rote Linie im Diagramm und steht deshalb dort.
     bei_erwartung = e.kosten.loc[erwartete_kosten]
     beste_franchise = int(bei_erwartung.idxmin())
     links, rechts = st.columns(2)
-    links.metric(
-        f"Bei {chf(erwartete_kosten)} CHF Krankheitskosten am günstigsten",
-        f"Franchise {beste_franchise} CHF",
-    )
+    links.metric("Günstigste Franchise", f"{beste_franchise} CHF")
     rechts.metric(
         "Gesamtkosten pro Jahr",
         f"{chf(bei_erwartung.min())} CHF",
@@ -306,9 +308,7 @@ def einzelperson_ansicht(
 
     # ------------------------------------------------------------------ Verlauf
     # ------------------------------------- Franchisenvergleich bei den Kosten
-    st.subheader(
-        f"Jahreskosten pro Franchise bei {chf(erwartete_kosten)} CHF Krankheitskosten"
-    )
+    st.subheader("Jahreskosten pro Franchise")
     vergleich = (
         bei_erwartung.rename("Jahreskosten")
         .reset_index()
