@@ -547,29 +547,23 @@ with st.sidebar:
     zielgruppe = zielgruppe_fuer_alter(int(alter))
     st.caption(f"Altersklasse: **{zielgruppe}**")
 
-    # Unfalldeckung: Erwachsene sind in der Regel über den Arbeitgeber versichert
-    # und wählen OHN-UNF, Kinder brauchen sie. Nur bei jungen Erwachsenen hängt es
-    # davon ab, ob sie bereits erwerbstätig sind - also nur dort die Frage.
-    if zielgruppe == "Jugendliche":
-        unfall = st.radio(
-            "Unfalldeckung",
-            ["OHN-UNF", "MIT-UNF"],
-            index=0,
-            format_func=lambda u: (
-                "ohne – über den Arbeitgeber versichert"
-                if u == "OHN-UNF"
-                else "mit – nicht über den Arbeitgeber versichert"
-            ),
-            help="Wer mindestens acht Stunden pro Woche bei demselben Arbeitgeber "
-            "arbeitet, ist dort gegen Unfall versichert und braucht die Deckung in "
-            "der Grundversicherung nicht.",
-        )
-    elif zielgruppe == "Kinder":
-        unfall = "MIT-UNF"
-        st.caption("Unfalldeckung: **mit** (bei Kindern immer)")
-    else:
-        unfall = "OHN-UNF"
-        st.caption("Unfalldeckung: **ohne** (über den Arbeitgeber versichert)")
+    # Die Unfalldeckung wird immer gefragt, nie aus dem Alter abgeleitet: Ob jemand
+    # über einen Arbeitgeber versichert ist, weiss nur er selbst. Vorgewählt ist der
+    # Normalfall - bei Erwachsenen "ohne" (meist über den Arbeitgeber gedeckt), bei
+    # Kindern und jungen Erwachsenen "mit".
+    unfall = st.radio(
+        "Unfalldeckung",
+        ["MIT-UNF", "OHN-UNF"],
+        index=1 if zielgruppe == "Erwachsene" else 0,
+        format_func=lambda u: (
+            "mit – nicht über einen Arbeitgeber versichert"
+            if u == "MIT-UNF"
+            else "ohne – über einen Arbeitgeber versichert"
+        ),
+        help="Wer mindestens acht Stunden pro Woche bei demselben Arbeitgeber "
+        "arbeitet, ist dort gegen Unfall versichert und braucht die Deckung in der "
+        "Grundversicherung nicht. Sonst muss sie eingeschlossen sein.",
+    )
     unfalldeckung = {zielgruppe: unfall}
 
     st.session_state.setdefault("erwartete_kosten", 1000)
