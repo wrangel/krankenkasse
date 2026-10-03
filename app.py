@@ -117,7 +117,7 @@ def _mit_abstand(tabelle: pd.DataFrame, spalte: str, neue_spalte: str) -> pd.Dat
 
 def person_ansicht(
     roh, kanton, region, zielgruppe, unfalldeckung, tariftypen,
-    kinder_untergruppen, umweltabgabe, erwartete_kosten, schluessel,
+    kinder_untergruppen, umweltabgabe, erwartete_kosten, schluessel, jetzt=None,
 ):
     """Zeigt eine Person und gibt ihre Eckwerte für die Haushaltssumme zurück."""
     daten = get_data(
@@ -136,6 +136,7 @@ def person_ansicht(
 
     # Gerechnet wird immer über einen Bereich, der die eingegebenen Kosten
     # einschliesst - sonst fiele ein hoher Wert aus der Kostenmatrix.
+    praemienjahr = int(roh["Geschäftsjahr"].max())
     rechenbereich = max(maximale_krankenkosten, int(erwartete_kosten) + 2000)
     ergebnisse = berechne_kipppunkt(beste, umweltabgabe, rechenbereich)
     if not ergebnisse:
@@ -342,13 +343,33 @@ def person_ansicht(
         f"Das ist die Franchise, die bei {chf(erwartete_kosten)} CHF Krankheitskosten "
         f"am günstigsten kommt. Sortiert nach Prämie, die sieben günstigsten."
     )
-    angebote = (
+    # Vollständige Rangliste für diese Franchise - gezeigt werden die sieben
+    # günstigsten, aber der heutige Vertrag soll auch dann auftauchen, wenn er
+    # weiter hinten liegt. Sonst sieht man nur, was es gäbe, nie, wo man steht.
+    rangliste = (
         zielgruppe_daten[zielgruppe_daten["Franchise"] == beste_franchise]
-        .nsmallest(7, "Prämie")[
-            ["Versicherername", "Tarifbezeichnung", "Tariftyp", "Prämie"]
-        ]
+        .sort_values("Prämie")
         .reset_index(drop=True)
     )
+    rangliste["Rang"] = rangliste.index + 1
+
+    jetzt_zeile, jetzt_rang = None, None
+    if jetzt:
+        treffer = rangliste[
+            (rangliste["Versicherername"] == jetzt[0])
+            & (rangliste["Tarifbezeichnung"] == jetzt[1])
+        ]
+        if not treffer.empty:
+            jetzt_zeile = treffer.iloc[0]
+            jetzt_rang = int(jetzt_zeile["Rang"])
+
+    gezeigt = rangliste.head(7)
+    if jetzt_rang is not None and jetzt_rang > 7:
+        gezeigt = pd.concat([gezeigt, treffer], ignore_index=True)
+
+    angebote = gezeigt[
+        ["Rang", "Versicherername", "Tarifbezeichnung", "Tariftyp", "Prämie"]
+    ].reset_index(drop=True)
     if angebote.empty:
         st.info("Für diese Franchise gibt es keine Angebote.")
     else:
@@ -356,14 +377,19 @@ def person_ansicht(
             columns={"Versicherername": "Versicherer", "Tarifbezeichnung": "Tarif",
                      "Tariftyp": "Typ"}
         )
-        # Das Jahr ist der Massstab für die Entscheidung; die Monatsprämie steht
-        # daneben, weil Policen und Vergleichsportale in Monaten rechnen.
         angebote["Prämie/Jahr"] = (angebote["Prämie"] * 12).round(0)
         angebote = _mit_abstand(angebote, "Prämie/Jahr", "Mehrkosten/Jahr")
         angebote["Prämie/Monat"] = angebote["Prämie"].round(2)
         angebote["Typ"] = angebote["Typ"].map(TARIFTYPEN_KURZ)
+        angebote[""] = [
+            "◀ jetziger Versicherer"
+            if jetzt and v == jetzt[0] and ta == jetzt[1]
+            else ""
+            for v, ta in zip(gezeigt["Versicherername"], gezeigt["Tarifbezeichnung"])
+        ]
         angebote = angebote[
-            ["Versicherer", "Tarif", "Typ", "Prämie/Jahr", "Mehrkosten/Jahr", "Prämie/Monat"]
+            ["Rang", "Versicherer", "Tarif", "Typ", "Prämie/Jahr",
+             "Mehrkosten/Jahr", "Prämie/Monat", ""]
         ]
 
         st.dataframe(
@@ -371,6 +397,7 @@ def person_ansicht(
             hide_index=True,
             width="stretch",
             column_config={
+                "Rang": st.column_config.NumberColumn(format="%d", width="small"),
                 "Versicherer": st.column_config.TextColumn(width="medium"),
                 "Tarif": st.column_config.TextColumn(width="small"),
                 "Typ": st.column_config.TextColumn(width="small"),
@@ -378,9 +405,33 @@ def person_ansicht(
                 "Mehrkosten/Jahr": st.column_config.NumberColumn(
                     format="%.0f", width="small"
                 ),
-                "Prämie/Monat": st.column_config.NumberColumn(format="%.2f", width="small"),
+                "Prämie/Monat": st.column_config.NumberColumn(
+                    format="%.2f", width="small"
+                ),
+                "": st.column_config.TextColumn(width="medium"),
             },
         )
+
+        if jetzt and jetzt_rang is None:
+            st.caption(
+                f"**{jetzt[0]} – {jetzt[1]}** führt für die Franchise "
+                f"{beste_franchise} CHF kein Angebot, das zu den gewählten "
+                f"Tarifmodellen passt."
+            )
+        elif jetzt_rang == 1:
+            st.success(
+                f"Du hast auch {praemienjahr} den günstigsten Anbieter für dieses "
+                f"Szenario: **{jetzt[0]} – {jetzt[1]}**. Ein Wechsel würde nichts "
+                f"sparen."
+            )
+        elif jetzt_rang is not None:
+            mehr = (float(jetzt_zeile["Prämie"]) - float(rangliste.iloc[0]["Prämie"])) * 12
+            st.info(
+                f"Dein heutiger Vertrag **{jetzt[0]} – {jetzt[1]}** liegt auf Rang "
+                f"{jetzt_rang} von {len(rangliste)}. Der günstigste Anbieter für "
+                f"dieses Szenario kostet **{chf(mehr)} CHF pro Jahr weniger**."
+            )
+
         frei = zielgruppe_daten[
             (zielgruppe_daten["Tariftyp"] == "BASE")
             & (zielgruppe_daten["Franchise"] == beste_franchise)
@@ -420,7 +471,26 @@ def person_ansicht(
     }
 
 
-def person_formular(person: dict, anzahl_personen: int) -> dict | None:
+def anbieter_und_modelle(
+    roh, kanton: str, region: str, zielgruppe: str, unfall: str
+) -> dict[str, list[str]]:
+    """Versicherer am Wohnort und ihre Tarifbezeichnungen, für die Auswahl."""
+    daten = get_data(
+        roh, kanton=kanton, region=region, zielgruppen=(zielgruppe,),
+        unfalldeckung={zielgruppe: unfall},
+        kinder_untergruppen=tuple(KINDER_UNTERGRUPPEN),
+    )
+    if daten.empty:
+        return {}
+    gruppiert = (
+        daten.groupby("Versicherername")["Tarifbezeichnung"]
+        .apply(lambda s: sorted(s.unique()))
+        .to_dict()
+    )
+    return dict(sorted(gruppiert.items()))
+
+
+def person_formular(person: dict, anzahl_personen: int, roh) -> dict | None:
     """Alle Angaben einer Person. Gibt den aktualisierten Eintrag zurück.
 
     Wohnort und Tarifmodelle stehen hier statt in einer gemeinsamen Seitenleiste:
@@ -458,7 +528,7 @@ def person_formular(person: dict, anzahl_personen: int) -> dict | None:
         "Therapien – alles, was über die Grundversicherung läuft.",
     )
 
-    unten = st.columns([9, 1])
+    unten = st.columns([6, 1])
     tariftypen = unten[0].multiselect(
         "Tarifmodelle",
         list(TARIFTYPEN),
@@ -476,6 +546,29 @@ def person_formular(person: dict, anzahl_personen: int) -> dict | None:
             ]
             st.rerun()
 
+    # Der heutige Vertrag - damit die Auswertung sagen kann, ob sich ein Wechsel
+    # überhaupt lohnt, statt nur das theoretisch Günstigste zu zeigen.
+    jetzt_versicherer, jetzt_modell = None, None
+    if wohnort is not None:
+        angebot = anbieter_und_modelle(
+            roh, wohnort[0], wohnort[1], zielgruppe, unfall
+        )
+        if angebot:
+            heute = st.columns(2)
+            jetzt_versicherer = heute[0].selectbox(
+                "Jetziger Versicherer",
+                [None, *angebot],
+                format_func=lambda v: "– noch keiner / unbekannt –" if v is None else v,
+                key=f"jetzt_vers_{kennung}",
+                help="Optional. Damit zeigt die Tabelle unten, auf welchem Rang dein "
+                "heutiger Vertrag liegt.",
+            )
+            if jetzt_versicherer:
+                modelle = angebot[jetzt_versicherer]
+                jetzt_modell = heute[1].selectbox(
+                    "Jetziges Modell", modelle, key=f"jetzt_mod_{kennung}"
+                )
+
     if wohnort is None:
         st.warning("Ohne gültige Postleitzahl lässt sich für diese Person nichts rechnen.")
 
@@ -487,6 +580,7 @@ def person_formular(person: dict, anzahl_personen: int) -> dict | None:
         "wohnort": wohnort,
         "tariftypen": tariftypen,
         "zielgruppe": zielgruppe,
+        "jetzt": (jetzt_versicherer, jetzt_modell) if jetzt_versicherer else None,
     }
 
 
@@ -579,13 +673,13 @@ aktualisiert = []
 for nummer, person in enumerate(personen, start=1):
     with st.container(border=True):
         st.markdown(f"**{nummer}. Person**")
-        aktualisiert.append(person_formular(person, len(personen)))
+        aktualisiert.append(person_formular(person, len(personen), roh))
 st.session_state["personen"] = [
     {k: v for k, v in p.items() if k in {"id", "alter", "unfall", "kosten"}}
     for p in aktualisiert
 ]
 
-if st.button("➕ Weitere Person hinzufügen"):
+if st.button("➕ Weitere Person hinzufügen", type="primary", width="stretch"):
     naechste = max((p["id"] for p in aktualisiert), default=0) + 1
     st.session_state["personen"] = st.session_state["personen"] + [
         {"id": naechste, "alter": 8, "unfall": "MIT-UNF", "kosten": 500}
@@ -617,7 +711,7 @@ for nummer, person in enumerate(aktualisiert, start=1):
         ergebnis = person_ansicht(
             roh, person["wohnort"][0], person["wohnort"][1], zielgruppe,
             {zielgruppe: person["unfall"]}, person["tariftypen"], stufen,
-            umweltabgabe_standard, person["kosten"], person["id"],
+            umweltabgabe_standard, person["kosten"], person["id"], person["jetzt"],
         )
     if ergebnis:
         ergebnis["ort"] = person["wohnort"][2].split(" (")[0]
