@@ -158,15 +158,15 @@ def einzelperson_ansicht(
     )
 
     # Oben steht nur, was bei den angegebenen Kosten gilt. Der Kipppunkt selbst
-    # erklärt die rote Linie im Diagramm und steht deshalb dort.
+    # erklärt die gestrichelte Linie im Diagramm und steht deshalb dort.
     bei_erwartung = e.kosten.loc[erwartete_kosten]
     beste_franchise = int(bei_erwartung.idxmin())
     links, rechts = st.columns(2)
     links.metric("Günstigste Franchise", f"{beste_franchise} CHF")
-    rechts.metric(
-        "Gesamtkosten pro Jahr",
-        f"{chf(bei_erwartung.min())} CHF",
-        help="Prämien plus Franchise und Selbstbehalt.",
+    rechts.metric("Gesamtkosten pro Jahr", f"{chf(bei_erwartung.min())} CHF")
+    st.caption(
+        "Prämien plus Franchise und Selbstbehalt, beim **günstigsten verfügbaren "
+        "Angebot** – die Übersicht dazu steht weiter unten."
     )
 
     st.subheader("Kostenverlauf")
@@ -218,13 +218,20 @@ def einzelperson_ansicht(
     if e.kipppunkt is not None:
         diagramm += (
             alt.Chart(pd.DataFrame({"k": [e.kipppunkt]}))
-            .mark_rule(strokeDash=[6, 4], color="crimson", size=2)
+            .mark_rule(strokeDash=[6, 4], color="#9aa0a6", size=2)
             .encode(x="k:Q")
         )
+    hier = pd.DataFrame({"k": [erwartete_kosten], "beschriftung": ["du bist hier"]})
     diagramm += (
-        alt.Chart(pd.DataFrame({"k": [erwartete_kosten]}))
-        .mark_rule(color="#9aa0a6", size=3, opacity=0.9)
-        .encode(x="k:Q")
+        alt.Chart(hier).mark_rule(color="#ff4b4b", size=3).encode(x="k:Q")
+    )
+    diagramm += (
+        alt.Chart(hier)
+        .mark_text(
+            align="left", dx=6, dy=-6, baseline="top", color="#ff4b4b",
+            fontSize=12, fontWeight="bold",
+        )
+        .encode(x="k:Q", y=alt.value(0), text="beschriftung:N")
     )
 
     # Klick ins Diagramm verschiebt die graue Linie. Der Regler in der Seitenleiste
@@ -255,7 +262,7 @@ def einzelperson_ansicht(
             st.rerun()
 
     graue_linie = (
-        f"Die **graue Linie** steht bei deinen erwarteten Krankheitskosten "
+        f"Die **rote Linie** steht bei deinen erwarteten Krankheitskosten "
         f"({chf(erwartete_kosten)} CHF) – du kannst sie direkt im Diagramm anklicken "
         f"oder links am Regler ziehen. Fett gezeichnet ist die dort günstigste "
         f"Franchise."
@@ -267,7 +274,7 @@ def einzelperson_ansicht(
         )
     else:
         st.caption(
-            f"Die **rot gestrichelte Linie** ist der Kipppunkt: Ab Krankheitskosten "
+            f"Die **grau gestrichelte Linie** ist der Kipppunkt: Ab Krankheitskosten "
             f"von **{chf(e.kipppunkt)} CHF** lohnt sich die Franchise "
             f"{e.tiefste_franchise} CHF, darunter die Franchise "
             f"{e.segmente.iloc[0]['Franchise']} CHF. Zwischen bester und schlechtester "
