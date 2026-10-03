@@ -219,7 +219,7 @@ def einzelperson_ansicht(
             opacity=alt.Opacity(
                 "Rolle:N",
                 scale=alt.Scale(domain=["kommt in Frage", "nie optimal"], range=[1.0, 0.3]),
-                legend=alt.Legend(title="überhaupt je optimal?"),
+                legend=None,
             ),
             tooltip=[
                 "Krankheitskosten",
@@ -292,13 +292,12 @@ def einzelperson_ansicht(
 
     if e.nie_optimal:
         gewinner = sorted(set(e.optimal))
-        st.success(
-            f"**Es sind nicht {len(e.kosten.columns)} Möglichkeiten, sondern "
-            f"{len(gewinner)}.** Nur die Franchisen "
+        st.caption(
+            f":green[Nur die Franchisen "
             f"**{' und '.join(f'{g} CHF' for g in gewinner)}** sind hier je die "
-            f"günstigste Wahl. Die Stufen "
+            f"günstigste Wahl. Die blass gezeichneten Stufen "
             f"{', '.join(str(f) for f in e.nie_optimal)} CHF sind bei *keinen* "
-            f"Krankheitskosten optimal."
+            f"Krankheitskosten optimal.]"
         )
     else:
         st.warning(
@@ -370,11 +369,6 @@ def einzelperson_ansicht(
                 "Prämie/Mt.": st.column_config.NumberColumn(format="%.2f", width="small"),
             },
         )
-        st.caption(
-            f"Gelb unterlegt: weniger als {KNAPP_CHF_PRO_JAHR:.0f} CHF pro Jahr teurer "
-            f"als das günstigste Angebot – praktisch gleichauf."
-        )
-
         frei = zielgruppe_daten[
             (zielgruppe_daten["Tariftyp"] == "BASE")
             & (zielgruppe_daten["Franchise"] == beste_franchise)
