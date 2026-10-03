@@ -27,9 +27,6 @@ st.set_page_config(page_title="Welche Franchise lohnt sich?", page_icon="🏥", 
 FRANCHISEN_ERWACHSENE = [300, 500, 1000, 1500, 2000, 2500]
 FRANCHISEN_KINDER = [0, 100, 200, 300, 400, 500, 600]
 
-# Unter diesem monatlichen Abstand ist eine Rangfolge keine Entscheidung mehr,
-# sondern eine Rundungsdifferenz. Wird in den Tabellen farblich markiert.
-KNAPP_CHF_PRO_JAHR = 12.00
 
 
 @st.cache_data(show_spinner="Lade BAG-Prämiendaten…")
@@ -122,18 +119,6 @@ def _mit_abstand(tabelle: pd.DataFrame, spalte: str, neue_spalte: str) -> pd.Dat
         (werte - werte.min()).round(2),
     )
     return tabelle
-
-
-def _knapp_markieren(zeile: pd.Series) -> list[str]:
-    """Hebt Angebote hervor, die praktisch gleichauf mit dem günstigsten liegen.
-
-    Eine Rangfolge suggeriert eine Entscheidung. Liegen zwischen Platz eins und
-    zwei zehn Rappen, ist sie keine - das soll man sehen, ohne eine Fussnote zu
-    lesen.
-    """
-    knapp = 0 < zeile.get("Mehrkosten/Jahr", 0) < KNAPP_CHF_PRO_JAHR
-    farbe = "background-color: rgba(250, 204, 21, 0.18)" if knapp else ""
-    return [farbe] * len(zeile)
 
 
 def einzelperson_ansicht(
@@ -355,7 +340,7 @@ def einzelperson_ansicht(
         ]
 
         st.dataframe(
-            angebote.style.apply(_knapp_markieren, axis=1),
+            angebote,
             hide_index=True,
             use_container_width=True,
             column_config={
