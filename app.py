@@ -232,11 +232,55 @@ def einzelperson_ansicht(
             tabelle = beste[beste["Zielgruppe"] == e.zielgruppe][
                 ["Franchise", "Prämie", "Versicherername", "Tarifbezeichnung", "Tariftyp"]
             ].copy()
+
+            # Der Abstand zum zweitgünstigsten Anbieter. Ohne ihn liest sich ein
+            # Vorsprung von zehn Rappen wie eine klare Entscheidung.
+            zielgruppe_daten = daten[daten["Zielgruppe"] == e.zielgruppe]
+            abstaende = []
+            for franchise in tabelle["Franchise"]:
+                preise = zielgruppe_daten.loc[
+                    zielgruppe_daten["Franchise"] == franchise, "Prämie"
+                ].nsmallest(2)
+                abstaende.append(
+                    round(float(preise.iloc[1] - preise.iloc[0]), 2)
+                    if len(preise) > 1
+                    else None
+                )
+            tabelle["Abstand zum Zweiten"] = abstaende
             tabelle["Prämie abzgl. Umweltabgabe"] = (
                 tabelle["Prämie"] - umweltabgabe
             ).round(2)
             tabelle["Tariftyp"] = tabelle["Tariftyp"].map(TARIFTYPEN)
             st.dataframe(tabelle, hide_index=True, use_container_width=True)
+
+            knapp = [a for a in abstaende if a is not None and a < 1.0]
+            if knapp:
+                st.caption(
+                    f"⚠️ Bei {len(knapp)} von {len(abstaende)} Franchisen trennen den "
+                    f"Sieger weniger als 1 CHF pro Monat vom Zweitplatzierten – "
+                    f"kleinster Abstand {min(knapp):.2f} CHF. Die Rangfolge ist dort "
+                    f"eine Momentaufnahme, keine klare Entscheidung."
+                )
+
+            # Das günstigste Angebot ist oft ein Modell mit eingeschränkter Arztwahl.
+            # Was die freie Arztwahl kostet, gehört danebengestellt.
+            frei = zielgruppe_daten[zielgruppe_daten["Tariftyp"] == "BASE"]
+            if not frei.empty and (tabelle["Tariftyp"] != TARIFTYPEN["BASE"]).any():
+                guenstigste_franchise = int(tabelle["Franchise"].iloc[0])
+                frei_f = frei[frei["Franchise"] == guenstigste_franchise]
+                best_f = tabelle[tabelle["Franchise"] == guenstigste_franchise]
+                if not frei_f.empty and not best_f.empty:
+                    aufpreis = float(frei_f["Prämie"].min()) - float(
+                        best_f["Prämie"].iloc[0]
+                    )
+                    st.caption(
+                        f"Die günstigsten Angebote sind Modelle mit **eingeschränkter "
+                        f"Arztwahl**. Bei Franchise {guenstigste_franchise} CHF kostet "
+                        f"das günstigste Standardmodell mit freier Arztwahl "
+                        f"{frei_f['Prämie'].min():.2f} CHF, also **{aufpreis:.2f} CHF "
+                        f"mehr pro Monat** ({aufpreis * 12:.0f} CHF pro Jahr). Ob die "
+                        f"Einschränkung das wert ist, bewertet dieses Werkzeug nicht."
+                    )
         with rechts:
             st.markdown("**Optimale Franchise nach Krankheitskosten**")
             st.dataframe(e.segmente, hide_index=True, use_container_width=True)
@@ -428,13 +472,15 @@ with st.sidebar:
         help="Für den direkten Franchisenvergleich.",
     )
     toleranz = st.slider(
-        "Spürbarkeitsschwelle (CHF pro Jahr)",
+        "Ab welchem Unterschied lohnt es sich für dich? (CHF pro Jahr)",
         10,
         200,
         50,
         step=10,
-        help="Ab welchem jährlichen Unterschied ein Franchisenwechsel für dich "
-        "überhaupt der Rede wert ist.",
+        help="Der Kipppunkt ist auf den Franken genau, aber dort geht es um Rappen. "
+        "Dieser Wert sagt, wie gross der jährliche Unterschied sein muss, damit du "
+        "ihn überhaupt beachten würdest. Die App nennt dann zusätzlich, ab welchen "
+        "Krankheitskosten die tiefste Franchise um mindestens so viel vorne liegt.",
     )
 
     with st.expander("Feineinstellungen"):
@@ -456,11 +502,16 @@ with st.sidebar:
             format_func=lambda t: TARIFTYPEN[t],
         )
         kinder_untergruppen = st.multiselect(
-            "Altersuntergruppen Kinder (Einzelperson)",
+            "Tarifstufen der Kinder – gilt nur im Register «Einzelperson»",
             ["K1", "K3", "K4", "K5"],
             default=list(KINDER_UNTERGRUPPEN_STANDARD),
-            help="Nicht offiziell dokumentiert. K1 ist der Normaltarif, K3/K5 sind "
-            "Rabattstufen für weitere Kinder. Nur K1 führen alle Versicherer.",
+            help="Geschwisterrabatte. Versicherer führen für Kinder mehrere "
+            "Prämienstufen: K1 ist der Normaltarif, den alle anbieten; K3, K4 und K5 "
+            "sind günstigere Stufen für weitere Kinder derselben Familie. Welche "
+            "Stufe für dein Kind gilt, steht in der Police. Hier wird festgelegt, "
+            "welche Stufen bei der Suche nach der günstigsten Kinderprämie "
+            "berücksichtigt werden – im Register «Haushalt» wählst du sie statt "
+            "dessen pro Kind einzeln.",
         )
 
 st.title("Welche Franchise lohnt sich?")
