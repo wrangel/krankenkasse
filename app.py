@@ -379,17 +379,20 @@ def einzelperson_ansicht(
             (zielgruppe_daten["Tariftyp"] == "BASE")
             & (zielgruppe_daten["Franchise"] == beste_franchise)
         ]
-        if not frei.empty and angebote["Tariftyp"].iloc[0] != TARIFTYPEN["BASE"]:
-            aufpreis_monat = float(frei["Prämie"].min()) - float(
-                angebote["Prämie/Mt."].iloc[0]
-            )
+        # angebote führt die Kurzform in der Spalte "Typ"; zielgruppe_daten hat
+        # weiterhin den Rohwert in "Tariftyp".
+        if not frei.empty and angebote["Typ"].iloc[0] != TARIFTYPEN_KURZ["BASE"]:
+            guenstigstes = float(angebote["Prämie/Mt."].iloc[0])
+            frei_monat = float(frei["Prämie"].min())
+            # Nur die Zahl bekommt den Schweizer Tausendertrenner - ein replace auf
+            # dem ganzen Satz würde auch die Kommas im Text ersetzen.
+            aufpreis_jahr = chf((frei_monat - guenstigstes) * 12)
             st.caption(
                 f"Das günstigste Angebot ist ein Modell mit **eingeschränkter "
                 f"Arztwahl**. Das günstigste Standardmodell mit freier Arztwahl kostet "
-                f"**{aufpreis_monat * 12:,.0f} CHF pro Jahr mehr** "
-                f"({frei['Prämie'].min():.2f} statt {angebote['Prämie/Mt.'].iloc[0]:.2f} "
-                f"CHF im Monat). Ob die Einschränkung das wert ist, bewertet dieses "
-                f"Werkzeug nicht.".replace(",", "'")
+                f"**{aufpreis_jahr} CHF pro Jahr mehr** ({frei_monat:.2f} statt "
+                f"{guenstigstes:.2f} CHF im Monat). Ob die Einschränkung das wert ist, "
+                f"bewertet dieses Werkzeug nicht."
             )
 
     st.download_button(
