@@ -139,7 +139,10 @@ def einzelperson_ansicht(
         st.warning("Für diese Auswahl gibt es keine Prämien.")
         return
 
-    ergebnisse = berechne_kipppunkt(beste, umweltabgabe, maximale_krankenkosten)
+    # Gerechnet wird immer über einen Bereich, der die eingegebenen Kosten
+    # einschliesst - sonst fiele ein hoher Wert aus der Kostenmatrix.
+    rechenbereich = max(maximale_krankenkosten, int(erwartete_kosten) + 2000)
+    ergebnisse = berechne_kipppunkt(beste, umweltabgabe, rechenbereich)
     if not ergebnisse:
         st.warning("Für diese Auswahl lässt sich nichts berechnen.")
         return
@@ -184,6 +187,20 @@ def einzelperson_ansicht(
         for f in kurven["Franchise"]
     ]
     kurven["Franchise"] = kurven["Franchise"].astype(str)
+
+    # Ausschnitt statt ganzer Bereich: Gezeigt wird die Umgebung der beiden
+    # senkrechten Linien. Ein fester Rand nur um die eigenen Kosten würde den
+    # Kipppunkt aus dem Bild schieben, sobald beide weit auseinander liegen -
+    # und damit genau die Orientierung nehmen, die er geben soll.
+    rand = 2000
+    bezugspunkte = [erwartete_kosten] + (
+        [e.kipppunkt] if e.kipppunkt is not None else []
+    )
+    fenster_von = max(0, min(bezugspunkte) - rand)
+    fenster_bis = min(rechenbereich, max(bezugspunkte) + rand)
+    kurven = kurven[
+        kurven["Krankheitskosten"].between(fenster_von, fenster_bis)
+    ]
 
     diagramm = (
         alt.Chart(kurven)
@@ -264,7 +281,7 @@ def einzelperson_ansicht(
     graue_linie = (
         f"Die **rote Linie** steht bei deinen erwarteten Krankheitskosten "
         f"({chf(erwartete_kosten)} CHF) – du kannst sie direkt im Diagramm anklicken "
-        f"oder links am Regler ziehen. Fett gezeichnet ist die dort günstigste "
+        f"oder den Betrag links eintragen. Fett gezeichnet ist die dort günstigste "
         f"Franchise."
     )
     if e.kipppunkt is None:
@@ -273,13 +290,19 @@ def einzelperson_ansicht(
             f"sich bis {chf(maximale_krankenkosten)} CHF Krankheitskosten nie."
         )
     else:
+        darueber = (
+            " Oberhalb des Kipppunkts ändert sich die Empfehlung nicht mehr – egal "
+            "wie hoch die Kosten steigen."
+            if erwartete_kosten > e.kipppunkt
+            else ""
+        )
         st.caption(
             f"Die **grau gestrichelte Linie** ist der Kipppunkt: Ab Krankheitskosten "
             f"von **{chf(e.kipppunkt)} CHF** lohnt sich die Franchise "
             f"{e.tiefste_franchise} CHF, darunter die Franchise "
             f"{e.segmente.iloc[0]['Franchise']} CHF. Zwischen bester und schlechtester "
             f"Franchise liegen bis zu **{chf(e.max_spannweite)} CHF pro Jahr**. "
-            f"{graue_linie}"
+            f"{graue_linie}{darueber}"
         )
 
     if e.nie_optimal:
@@ -299,18 +322,31 @@ def einzelperson_ansicht(
 
     # ------------------------------------------------------------------ Verlauf
     # ------------------------------------- Franchisenvergleich bei den Kosten
-    st.subheader("Jahreskosten pro Franchise")
+    st.subheader("Kosten pro Franchise")
     vergleich = (
-        bei_erwartung.rename("Jahreskosten")
+        bei_erwartung.rename("Kosten/Jahr")
         .reset_index()
         .rename(columns={"index": "Franchise"})
-        .sort_values("Jahreskosten")
+        .sort_values("Kosten/Jahr")
         .reset_index(drop=True)
     )
     vergleich["Franchise"] = vergleich["Franchise"].astype(int)
-    vergleich["Jahreskosten"] = vergleich["Jahreskosten"].round(2)
-    vergleich = _mit_abstand(vergleich, "Jahreskosten", "Mehrkosten")
-    st.dataframe(vergleich, hide_index=True, use_container_width=True)
+    vergleich["Kosten/Jahr"] = vergleich["Kosten/Jahr"].round(0)
+    vergleich = _mit_abstand(vergleich, "Kosten/Jahr", "Mehrkosten/Jahr")
+    vergleich["Kosten/Mt."] = (vergleich["Kosten/Jahr"] / 12).round(2)
+    vergleich = _mit_abstand(vergleich, "Kosten/Mt.", "Mehrkosten/Mt.")
+    st.dataframe(
+        vergleich,
+        hide_index=True,
+        use_container_width=True,
+        column_config={
+            "Franchise": st.column_config.NumberColumn(format="%d", width="small"),
+            "Kosten/Jahr": st.column_config.NumberColumn(format="%.0f", width="small"),
+            "Mehrkosten/Jahr": st.column_config.NumberColumn(format="%.0f", width="small"),
+            "Kosten/Mt.": st.column_config.NumberColumn(format="%.2f", width="small"),
+            "Mehrkosten/Mt.": st.column_config.NumberColumn(format="%.2f", width="small"),
+        },
+    )
 
     zielgruppe_daten = daten[daten["Zielgruppe"] == zielgruppe]
 
@@ -567,14 +603,15 @@ with st.sidebar:
     unfalldeckung = {zielgruppe: unfall}
 
     st.session_state.setdefault("erwartete_kosten", 1000)
-    erwartete_kosten = st.slider(
+    erwartete_kosten = st.number_input(
         "Erwartete Krankheitskosten pro Jahr (CHF)",
-        0,
-        maximale_krankenkosten,
-        step=50,
+        min_value=0,
+        step=100,
         key="erwartete_kosten",
         help="Der wichtigste Wert neben dem Alter. Arztbesuche, Medikamente, "
-        "Therapien – alles, was über die Grundversicherung abgerechnet wird.",
+        "Therapien – alles, was über die Grundversicherung abgerechnet wird. "
+        "Nach oben offen; oberhalb des Kipppunkts ändert sich die Empfehlung "
+        "allerdings nicht mehr.",
     )
 
     # Die Rückerstattung der Umweltabgaben ist für alle gleich hoch und ändert
