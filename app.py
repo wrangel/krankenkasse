@@ -53,7 +53,7 @@ def zielgruppe_fuer_alter(alter: int) -> str:
     return "Erwachsene"
 
 
-def wohnort_waehlen() -> tuple[str, str, str] | None:
+def wohnort_waehlen(schluessel: int, spalte=None) -> tuple[str, str, str] | None:
     """Fragt die Postleitzahl ab und schlägt Kanton und Prämienregion nach.
 
     Die Prämienregion bestimmt die Prämie mit, aber kaum jemand weiss, in welcher
@@ -63,39 +63,35 @@ def wohnort_waehlen() -> tuple[str, str, str] | None:
 
     Gibt (Kanton, Region, Beschriftung) zurück oder None, wenn nichts passt.
     """
+    ziel = spalte if spalte is not None else st
     zuordnung = regionen_nach_plz()
     if not zuordnung:
-        st.error(
+        ziel.error(
             "Die Zuordnung der Postleitzahlen fehlt. Einmalig erzeugen mit "
             "`python refresh_regionen.py`."
         )
         return None
 
-    plz = st.text_input("Postleitzahl", value="8001", max_chars=4).strip()
+    plz = ziel.text_input(
+        "Postleitzahl", value="8001", max_chars=4, key=f"plz_{schluessel}"
+    ).strip()
     eintraege = zuordnung.get(plz)
     if not eintraege:
         if plz:
-            st.warning(f"Zur Postleitzahl {plz} ist keine Prämienregion bekannt.")
+            ziel.warning(f"Zur PLZ {plz} ist keine Prämienregion bekannt.")
         return None
 
     varianten = {(e["kanton"], e["region"]) for e in eintraege}
     if len(varianten) > 1:
-        st.caption(
-            f"Die Postleitzahl {plz} liegt in mehreren Prämienregionen – bitte die "
-            f"Ortschaft wählen."
-        )
-        gewaehlt = st.selectbox(
+        gewaehlt = ziel.selectbox(
             "Ortschaft",
             eintraege,
             format_func=lambda e: f"{e['ort']} ({e['kanton']}, Region {e['region']})",
+            key=f"ort_{schluessel}",
+            help="Diese Postleitzahl liegt in mehreren Prämienregionen.",
         )
     else:
         gewaehlt = eintraege[0]
-        orte = sorted({e["ort"] for e in eintraege})
-        st.caption(
-            f"{', '.join(orte[:3])}{' …' if len(orte) > 3 else ''} – "
-            f"{gewaehlt['kanton']}, Prämienregion {gewaehlt['region']}"
-        )
 
     return (
         gewaehlt["kanton"],
@@ -252,7 +248,7 @@ def person_ansicht(
         .add_params(auswahlpunkt)
     )
     ereignis = st.altair_chart(
-        diagramm + treffer, use_container_width=True, on_select="rerun",
+        diagramm + treffer, width="stretch", on_select="rerun",
         key=f"diagramm_{schluessel}",
     )
 
@@ -326,7 +322,7 @@ def person_ansicht(
     st.dataframe(
         vergleich,
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
         column_config={
             "Franchise": st.column_config.NumberColumn(format="%d", width="small"),
             "Kosten/Jahr": st.column_config.NumberColumn(format="%.0f", width="small"),
@@ -373,7 +369,7 @@ def person_ansicht(
         st.dataframe(
             angebote,
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
             column_config={
                 "Versicherer": st.column_config.TextColumn(width="medium"),
                 "Tarif": st.column_config.TextColumn(width="small"),
@@ -424,49 +420,74 @@ def person_ansicht(
     }
 
 
-def person_formular(nummer: int, person: dict, anzahl_personen: int) -> dict:
-    """Eingaben einer Person. Gibt den aktualisierten Eintrag zurück."""
-    kopf = st.columns([2, 3, 3, 1])
-    alter = kopf[0].number_input(
-        "Alter",
-        min_value=0,
-        max_value=120,
-        value=int(person["alter"]),
-        step=1,
-        key=f"alter_{person['id']}",
+def person_formular(person: dict, anzahl_personen: int) -> dict | None:
+    """Alle Angaben einer Person. Gibt den aktualisierten Eintrag zurück.
+
+    Wohnort und Tarifmodelle stehen hier statt in einer gemeinsamen Seitenleiste:
+    Ein Haushalt kann über Gemeindegrenzen verteilt sein, und wer für sich die
+    freie Arztwahl will, will sie nicht zwingend auch für alle anderen.
+    """
+    kennung = person["id"]
+    oben = st.columns([3, 2, 3, 3])
+
+    wohnort = wohnort_waehlen(kennung, oben[0])
+
+    alter = oben[1].number_input(
+        "Alter", min_value=0, max_value=120, value=int(person["alter"]), step=1,
+        key=f"alter_{kennung}",
     )
     zielgruppe = zielgruppe_fuer_alter(int(alter))
 
-    unfall = kopf[1].radio(
+    unfall = oben[2].radio(
         "Unfalldeckung",
         ["MIT-UNF", "OHN-UNF"],
         index=1 if zielgruppe == "Erwachsene" else 0,
         format_func=lambda u: "mit" if u == "MIT-UNF" else "ohne",
         horizontal=True,
-        key=f"unfall_{person['id']}",
+        key=f"unfall_{kennung}",
         help="Wer mindestens acht Stunden pro Woche bei demselben Arbeitgeber "
         "arbeitet, ist dort gegen Unfall versichert.",
     )
 
-    schluessel = f"kosten_{person['id']}"
+    schluessel = f"kosten_{kennung}"
     st.session_state.setdefault(schluessel, int(person["kosten"]))
-    kosten = kopf[2].number_input(
+    kosten = oben[3].number_input(
         "Erwartete Krankheitskosten pro Jahr (CHF)",
-        min_value=0,
-        step=100,
-        key=schluessel,
+        min_value=0, step=100, key=schluessel,
+        help="Der wichtigste Wert neben dem Alter. Arztbesuche, Medikamente, "
+        "Therapien – alles, was über die Grundversicherung läuft.",
     )
 
-    # Die erste Person lässt sich nicht entfernen - ohne sie gäbe es nichts zu zeigen.
+    unten = st.columns([9, 1])
+    tariftypen = unten[0].multiselect(
+        "Tarifmodelle",
+        list(TARIFTYPEN),
+        default=list(TARIFTYPEN),
+        format_func=lambda m: TARIFTYPEN[m],
+        key=f"modelle_{kennung}",
+        help="Das Standardmodell lässt die Arztwahl frei; die übrigen schränken sie "
+        "ein und sind dafür günstiger.",
+    )
     if anzahl_personen > 1:
-        kopf[3].markdown("<div style='height:1.8rem'></div>", unsafe_allow_html=True)
-        if kopf[3].button("Entfernen", key=f"weg_{person['id']}"):
+        unten[1].markdown("<div style='height:1.8rem'></div>", unsafe_allow_html=True)
+        if unten[1].button("Entfernen", key=f"weg_{kennung}"):
             st.session_state["personen"] = [
-                p for p in st.session_state["personen"] if p["id"] != person["id"]
+                e for e in st.session_state["personen"] if e["id"] != kennung
             ]
             st.rerun()
 
-    return {"id": person["id"], "alter": int(alter), "unfall": unfall, "kosten": int(kosten)}
+    if wohnort is None:
+        st.warning("Ohne gültige Postleitzahl lässt sich für diese Person nichts rechnen.")
+
+    return {
+        "id": kennung,
+        "alter": int(alter),
+        "unfall": unfall,
+        "kosten": int(kosten),
+        "wohnort": wohnort,
+        "tariftypen": tariftypen,
+        "zielgruppe": zielgruppe,
+    }
 
 
 def haushalt_summe(ergebnisse: list[dict], anzahl_kinder: int) -> None:
@@ -494,6 +515,7 @@ def haushalt_summe(ergebnisse: list[dict], anzahl_kinder: int) -> None:
         [
             {
                 "Person": f"{i}. {e['zielgruppe']}",
+                "Ort": e["ort"],
                 "Franchise": e["franchise"],
                 "Versicherer": e["versicherer"],
                 "Tarif": e["tarif"],
@@ -506,7 +528,7 @@ def haushalt_summe(ergebnisse: list[dict], anzahl_kinder: int) -> None:
     st.dataframe(
         uebersicht,
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
         column_config={
             "Franchise": st.column_config.NumberColumn(format="%d", width="small"),
             "Kosten/Jahr": st.column_config.NumberColumn(format="%.0f", width="small"),
@@ -535,72 +557,47 @@ st.session_state.setdefault(
     "personen", [{"id": 1, "alter": 40, "unfall": "OHN-UNF", "kosten": 1000}]
 )
 
-with st.sidebar:
-    st.header("Wohnort und Modelle")
-
-    if st.button("Prämiendaten neu laden"):
-        st.cache_data.clear()
-        praemien(0)
-        st.rerun()
-
-    roh = praemien(7)
-    wohnort = wohnort_waehlen()
-
-    # Der Tariftyp entscheidet über die freie Arztwahl und kostet schnell mehr als
-    # die ganze Franchisenfrage - er gehört nicht in eine eingeklappte Schublade.
-    tariftypen = st.multiselect(
-        "Tarifmodelle",
-        list(TARIFTYPEN),
-        default=list(TARIFTYPEN),
-        format_func=lambda t: TARIFTYPEN[t],
-        help="Das Standardmodell lässt die Arztwahl frei; die übrigen schränken sie "
-        "ein und sind dafür günstiger. Abwählen, was für dich nicht in Frage kommt.",
-    )
-    if not tariftypen:
-        st.caption("Ohne Tarifmodell gibt es nichts zu vergleichen.")
-
-    umweltabgabe = umweltabgabe_standard
-    st.caption(
-        f"Rückerstattung Umweltabgaben: **{umweltabgabe * 12:.2f} CHF pro Jahr** "
-        f"({umweltabgabe:.2f} pro Monat). Wird von der Prämie abgezogen und ist für "
-        f"alle Versicherten gleich."
-    )
+roh = praemien(7)
 
 st.title("Welche Franchise lohnt sich?")
 st.caption(
-    "Die Grundversicherung bietet mehrere Franchisen zur Auswahl. Diese App rechnet für "
-    "jede Person nach, welche davon überhaupt je die günstigste ist und ab welchen "
-    "jährlichen Krankheitskosten es von der einen zur anderen kippt. "
-    "Datenquelle: BAG-Prämiendaten über opendata.swiss."
+    "Die Grundversicherung bietet mehrere Franchisen zur Auswahl. Diese App rechnet "
+    "für jede Person nach, welche davon überhaupt je die günstigste ist und ab welchen "
+    "jährlichen Krankheitskosten es von der einen zur anderen kippt."
+)
+st.info(
+    f"**Prämienjahr {int(roh['Geschäftsjahr'].max())}** · Datenquelle: BAG-Prämiendaten "
+    f"über opendata.swiss · Rückerstattung Umweltabgaben "
+    f"**{umweltabgabe_standard * 12:.2f} CHF pro Jahr** "
+    f"({umweltabgabe_standard:.2f} pro Monat), für alle Versicherten gleich und bereits "
+    f"von den Prämien abgezogen.",
+    icon="ℹ️",
 )
 
-if wohnort is None:
-    st.info("Bitte links eine gültige Postleitzahl eingeben.")
-    st.stop()
-
-st.markdown(f"**{wohnort[2]}**")
-
-# Erst alle Formulare, dann rechnen: Die Tarifstufe eines Kindes hängt davon ab,
-# wie viele Kinder insgesamt im Haushalt leben.
 personen = st.session_state["personen"]
 aktualisiert = []
 for nummer, person in enumerate(personen, start=1):
     with st.container(border=True):
         st.markdown(f"**{nummer}. Person**")
-        aktualisiert.append(person_formular(nummer, person, len(personen)))
-st.session_state["personen"] = aktualisiert
+        aktualisiert.append(person_formular(person, len(personen)))
+st.session_state["personen"] = [
+    {k: v for k, v in p.items() if k in {"id", "alter", "unfall", "kosten"}}
+    for p in aktualisiert
+]
 
 if st.button("➕ Weitere Person hinzufügen"):
     naechste = max((p["id"] for p in aktualisiert), default=0) + 1
-    st.session_state["personen"] = aktualisiert + [
+    st.session_state["personen"] = st.session_state["personen"] + [
         {"id": naechste, "alter": 8, "unfall": "MIT-UNF", "kosten": 500}
     ]
     st.rerun()
 
-kinder = [p for p in aktualisiert if zielgruppe_fuer_alter(p["alter"]) == "Kinder"]
+kinder = [p for p in aktualisiert if p["zielgruppe"] == "Kinder"]
 ergebnisse = []
 for nummer, person in enumerate(aktualisiert, start=1):
-    zielgruppe = zielgruppe_fuer_alter(person["alter"])
+    if person["wohnort"] is None:
+        continue
+    zielgruppe = person["zielgruppe"]
     if zielgruppe == "Kinder":
         position = kinder.index(person) + 1
         stufen = erlaubte_kinderstufen(position, len(kinder))
@@ -609,7 +606,7 @@ for nummer, person in enumerate(aktualisiert, start=1):
 
     with st.expander(
         f"{nummer}. {zielgruppe}, {person['alter']} Jahre – "
-        f"{chf(person['kosten'])} CHF Krankheitskosten",
+        f"{chf(person['kosten'])} CHF Krankheitskosten – {person['wohnort'][2]}",
         expanded=len(aktualisiert) == 1,
     ):
         if zielgruppe == "Kinder" and len(kinder) > 1:
@@ -618,10 +615,23 @@ for nummer, person in enumerate(aktualisiert, start=1):
                 f"{', '.join(f'{s} ({KINDER_UNTERGRUPPEN[s]})' for s in stufen)}."
             )
         ergebnis = person_ansicht(
-            roh, wohnort[0], wohnort[1], zielgruppe, {zielgruppe: person["unfall"]},
-            tariftypen, stufen, umweltabgabe, person["kosten"], person["id"],
+            roh, person["wohnort"][0], person["wohnort"][1], zielgruppe,
+            {zielgruppe: person["unfall"]}, person["tariftypen"], stufen,
+            umweltabgabe_standard, person["kosten"], person["id"],
         )
     if ergebnis:
+        ergebnis["ort"] = person["wohnort"][2].split(" (")[0]
         ergebnisse.append(ergebnis)
 
 haushalt_summe(ergebnisse, len(kinder))
+
+st.markdown("---")
+spalte_links, spalte_rechts = st.columns([3, 1])
+spalte_links.caption(
+    "Die Prämiendaten werden beim ersten Aufruf geladen und sieben Tage "
+    "zwischengespeichert."
+)
+if spalte_rechts.button("Prämiendaten neu laden"):
+    st.cache_data.clear()
+    praemien(0)
+    st.rerun()
