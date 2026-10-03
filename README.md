@@ -227,22 +227,22 @@ Entdoppelung stammen und nicht vergleichbar wären.
 - Der Filter `isBaseP == 0` entfernt **Duplikate**: Standardtarife (`TAR-BASE`) sind in der
   BAG-Tabelle doppelt vorhanden. Es werden also alle Tarifmodelle berücksichtigt, nicht nur
   die alternativen.
-- Kinder haben die Altersuntergruppen `K1`, `K3`, `K4`, `K5` – **Geschwisterrabatte**,
-  die das BAG nicht dokumentiert. Gemessen an `K1` (ZH, Region 1, Median über alle Tarife
-  und Franchisen):
+- Kinder haben die Altersuntergruppen `K1`, `K3`, `K4`, `K5` – **Geschwisterrabatte**.
+  Ihre Bedeutung steht in der Tarifliste des BAG (`Tarife.xlsx` auf opendata.swiss,
+  Kategorie `ALT`):
 
-  | Stufe | Versicherer | Rabatt gegenüber `K1` | Spannweite |
-  |-------|------------:|----------------------:|-----------:|
-  | `K1`  | 26 (alle)   | – (Normaltarif)       | – |
-  | `K3`  | 13          | 60 %                  | 10–72 % |
-  | `K5`  | 4           | 25 %                  | 3–25 % |
-  | `K4`  | 1 (Assura)  | 1.6 %                 | 1.3–1.9 % |
+  | Stufe | Bedeutung laut BAG | Versicherer | Rabatt gegenüber `K1` |
+  |-------|--------------------|------------:|----------------------:|
+  | `K1`  | ohne zusätzlichen Rabatt | 26 (alle) | – (Normaltarif) |
+  | `K3`  | Rabatt ab dem 3. Kind | 13 | 60 % |
+  | `K4`  | Rabatt ab dem **2.** Kind, gültig für alle Kinder | 1 | 1.6 % |
+  | `K5`  | Rabatt ab dem 3. Kind, gültig für alle Kinder | 4 | 25 % |
 
-  Welche Stufe für welches Kind gilt, lässt sich aus den Daten **nicht** ableiten: Jeder
-  Versicherer führt sein eigenes Schema, und ein `K2` existiert schweizweit gar nicht. Ein
-  einfaches „K3 = drittes Kind" wäre also geraten. Im Haushalt-Register wird die Stufe
-  deshalb pro Kind von Hand gewählt – sie steht in der Police. Nur `K1` führen alle
-  Versicherer bedingungslos.
+  Die Rabattwerte sind Mediane über alle Tarife und Franchisen in ZH Region 1. Beachte,
+  dass `K4` den Rabatt ab dem **zweiten** Kind meint, nicht ab dem vierten – die Zahl im
+  Code ist eine Stufennummer, keine Kinderzahl. Ein `K2` existiert schweizweit nicht.
+  Welche Stufe gilt, hängt vom Versicherer und der Zahl der Kinder derselben Familie ab
+  und steht in der Police; nur `K1` führen alle Versicherer bedingungslos.
 
 - Die Kinder-**Grundversicherung** (Standardmodell) wird ausschliesslich *ohne*
   Unfalldeckung angeboten. Wer für Kinder `MIT-UNF` filtert – die Voreinstellung –

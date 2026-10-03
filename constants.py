@@ -3,6 +3,8 @@ from pathlib import Path
 PROJEKT_DIR = Path(__file__).parent
 CACHE_DIR = PROJEKT_DIR / ".cache"
 VERSICHERER_DATEI = PROJEKT_DIR / "versicherer.json"
+# Postleitzahl -> Kanton und Prämienregion, erzeugt von refresh_regionen.py
+REGIONEN_DATEI = PROJEKT_DIR / "praemienregionen.json"
 
 # Datenquelle: BAG-Prämiendaten über opendata.swiss.
 #
@@ -54,9 +56,19 @@ ALTERSKLASSEN = {
     "AKL-KIN": "Kinder",
 }
 
-# Altersuntergruppen der Kinder. Nicht offiziell dokumentiert; K1 ist der Normalfall,
-# K3/K5 sind Familienrabatte für weitere Kinder. Empirisch bewährt: K1 + K4.
-KINDER_UNTERGRUPPEN_STANDARD = ("K1", "K4")
+# Altersuntergruppen der Kinder - die Geschwisterrabatte. Die Bezeichnungen
+# stammen aus der Tarifliste des BAG (Tarife.xlsx auf opendata.swiss, Kategorie
+# ALT); sie sind damit amtlich belegt und nicht geraten. Beachte, dass K4 den
+# Rabatt ab dem ZWEITEN Kind meint, nicht ab dem vierten.
+KINDER_UNTERGRUPPEN = {
+    "K1": "ohne zusätzlichen Rabatt",
+    "K3": "Rabatt ab dem 3. Kind",
+    "K4": "Rabatt ab dem 2. Kind, gültig für alle Kinder",
+    "K5": "Rabatt ab dem 3. Kind, gültig für alle Kinder",
+}
+
+# Voreinstellung: nur der Normaltarif, den jeder Versicherer bedingungslos führt.
+KINDER_UNTERGRUPPEN_STANDARD = ("K1",)
 
 # Tariftypen ab Prämienjahr 2027. Das ist keine blosse Umbenennung: Bis 2026 gab
 # es TAR-BASE, TAR-HAM, TAR-HMO und TAR-DIV, jetzt sind es fünf anders
@@ -68,6 +80,15 @@ TARIFTYPEN = {
     "FLEX": "Flexible Modelle",
     "TEL_DIG": "Telemedizin und digitale Modelle",
     "PHARM": "Apothekenmodelle",
+}
+
+# Kurzformen für Tabellen, wo die ausgeschriebenen Namen zu breit sind.
+TARIFTYPEN_KURZ = {
+    "BASE": "Standard",
+    "PRAXIS": "Praxis",
+    "FLEX": "Flex",
+    "TEL_DIG": "Telemed",
+    "PHARM": "Apotheke",
 }
 
 REGIONEN = {
