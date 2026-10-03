@@ -21,7 +21,9 @@ from utils import (
     beste_praemien,
     berechne_kipppunkt,
     get_data,
+    guenstigste_kinder_kombination,
     kinder_kostenbeteiligung,
+    kinder_stufen_verteilung,
 )
 
 # --------------------------------------------------------------------------
@@ -167,6 +169,41 @@ def test_kinder_haben_den_tieferen_selbstbehalt_deckel():
     e = berechne_kipppunkt(beste_praemien(daten), 0.0, 10000)[0]
     # k = 10000, Franchise 0: 12 · 120 + 0 + min(1000, 350) = 1440 + 350
     assert e.kosten.loc[10000, 0] == 12 * 120.00 + 350
+
+
+def test_kinder_stufen_folgen_den_amtlichen_bedingungen():
+    """K3 ab dem 3. Kind, K4 ab dem 2. für alle, K5 ab dem 3. für alle."""
+    alle = {"K1", "K3", "K4", "K5"}
+
+    # Ein Kind: kein Rabatt erreichbar, egal was der Versicherer führt.
+    assert kinder_stufen_verteilung(1, alle) == [["K1"]]
+
+    # Zwei Kinder: nur K4 greift, und dann für beide.
+    assert ["K4", "K4"] in kinder_stufen_verteilung(2, alle)
+    assert not any("K3" in v or "K5" in v for v in kinder_stufen_verteilung(2, alle))
+
+    # Drei Kinder: K3 nur für das dritte, K5 für alle drei.
+    verteilungen = kinder_stufen_verteilung(3, alle)
+    assert ["K1", "K1", "K3"] in verteilungen
+    assert ["K5", "K5", "K5"] in verteilungen
+
+    # Führt ein Versicherer eine Stufe nicht, kommt sie nicht vor.
+    assert kinder_stufen_verteilung(3, {"K1"}) == [["K1", "K1", "K1"]]
+
+
+def test_guenstigste_kinder_kombination_waehlt_die_billigste():
+    """Welche Stufe gewinnt, hängt von den Prämien ab, nicht von der Stufennummer."""
+    # K4 ist hier kaum günstiger, K5 deutlich: ab drei Kindern gewinnt K5.
+    praemien = {"K1": 120.0, "K3": 48.0, "K4": 118.0, "K5": 90.0}
+    assert guenstigste_kinder_kombination(praemien, 1) == (120.0, ["K1"])
+    assert guenstigste_kinder_kombination(praemien, 2) == (236.0, ["K4", "K4"])
+    assert guenstigste_kinder_kombination(praemien, 3) == (270.0, ["K5", "K5", "K5"])
+
+    # Ohne Rabattstufen bleibt es beim Normaltarif.
+    assert guenstigste_kinder_kombination({"K1": 100.0}, 3) == (300.0, ["K1"] * 3)
+
+    # Keine Kinder, keine Kosten.
+    assert guenstigste_kinder_kombination(praemien, 0) == (0.0, [])
 
 
 def main() -> int:

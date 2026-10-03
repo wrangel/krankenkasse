@@ -13,12 +13,10 @@ from constants import (
     umweltabgabe_standard,
 )
 from utils import (
-    Haushalt,
     beste_praemien,
     berechne_kipppunkt,
+    erlaubte_kinderstufen,
     get_data,
-    haushalt_angebote,
-    kinder_kostenbeteiligung,
     lade_praemien,
 )
 
@@ -121,10 +119,11 @@ def _mit_abstand(tabelle: pd.DataFrame, spalte: str, neue_spalte: str) -> pd.Dat
     return tabelle
 
 
-def einzelperson_ansicht(
-    roh, kanton, region, ort_text, zielgruppe, unfalldeckung, tariftypen,
-    kinder_untergruppen, umweltabgabe, erwartete_kosten,
+def person_ansicht(
+    roh, kanton, region, zielgruppe, unfalldeckung, tariftypen,
+    kinder_untergruppen, umweltabgabe, erwartete_kosten, schluessel,
 ):
+    """Zeigt eine Person und gibt ihre Eckwerte für die Haushaltssumme zurück."""
     daten = get_data(
         roh,
         kanton=kanton,
@@ -137,7 +136,7 @@ def einzelperson_ansicht(
     beste = beste_praemien(daten)
     if beste.empty:
         st.warning("Für diese Auswahl gibt es keine Prämien.")
-        return
+        return None
 
     # Gerechnet wird immer über einen Bereich, der die eingegebenen Kosten
     # einschliesst - sonst fiele ein hoher Wert aus der Kostenmatrix.
@@ -145,20 +144,8 @@ def einzelperson_ansicht(
     ergebnisse = berechne_kipppunkt(beste, umweltabgabe, rechenbereich)
     if not ergebnisse:
         st.warning("Für diese Auswahl lässt sich nichts berechnen.")
-        return
+        return None
     e = ergebnisse[0]
-
-    unfall_text = (
-        "mit Unfalldeckung"
-        if unfalldeckung.get(zielgruppe) == "MIT-UNF"
-        else "ohne Unfalldeckung"
-    )
-    # Alle Eingaben einmal an einer Stelle. Danach müssen Überschriften und
-    # Kennzahlen den Betrag nicht wiederholen.
-    st.markdown(
-        f"**{ort_text}** · {zielgruppe} · {unfall_text} · erwartete Krankheitskosten "
-        f"**{chf(erwartete_kosten)} CHF pro Jahr**"
-    )
 
     # Oben steht nur, was bei den angegebenen Kosten gilt. Der Kipppunkt selbst
     # erklärt die gestrichelte Linie im Diagramm und steht deshalb dort.
@@ -265,7 +252,8 @@ def einzelperson_ansicht(
         .add_params(auswahlpunkt)
     )
     ereignis = st.altair_chart(
-        diagramm + treffer, use_container_width=True, on_select="rerun"
+        diagramm + treffer, use_container_width=True, on_select="rerun",
+        key=f"diagramm_{schluessel}",
     )
 
     gewaehlt = (ereignis.selection or {}).get("punkt") if ereignis else None
@@ -275,7 +263,7 @@ def einzelperson_ansicht(
         if neuer_wert != erwartete_kosten:
             # Nicht direkt den Reglerschlüssel setzen - der ist in diesem Lauf schon
             # instanziert. Stattdessen vormerken und beim nächsten Lauf anwenden.
-            st.session_state["_klick_kosten"] = neuer_wert
+            st.session_state["_klick_kosten"] = (schluessel, neuer_wert)
             st.rerun()
 
     # Eine Bildunterschrift statt zweier: Beide erklärten dasselbe Bild - die
@@ -422,145 +410,133 @@ def einzelperson_ansicht(
         e.kosten.to_csv().encode("utf-8"),
         file_name=f"kostenmatrix_{zielgruppe.lower()}_{kanton}.csv",
         mime="text/csv",
+        key=f"csv_{schluessel}",
     )
 
+    guenstigstes = angebote.iloc[0] if not angebote.empty else None
+    return {
+        "zielgruppe": zielgruppe,
+        "franchise": beste_franchise,
+        "jahreskosten": float(bei_erwartung.min()),
+        "versicherer": guenstigstes["Versicherer"] if guenstigstes is not None else "—",
+        "tarif": guenstigstes["Tarif"] if guenstigstes is not None else "—",
+        "praemie_jahr": float(guenstigstes["Prämie/Jahr"]) if guenstigstes is not None else 0.0,
+    }
 
-def haushalt_ansicht(roh, kanton, region, unfalldeckung):
-    st.markdown(
-        "Vergleicht die **Jahresprämie des ganzen Haushalts** pro Versicherer. "
-        "Ein Anbieter mit günstigen Erwachsenenprämien, aber ohne Geschwisterrabatt, "
-        "kann für eine Familie teurer sein als einer mit Rabatt."
+
+def person_formular(nummer: int, person: dict, anzahl_personen: int) -> dict:
+    """Eingaben einer Person. Gibt den aktualisierten Eintrag zurück."""
+    kopf = st.columns([2, 3, 3, 1])
+    alter = kopf[0].number_input(
+        "Alter",
+        min_value=0,
+        max_value=120,
+        value=int(person["alter"]),
+        step=1,
+        key=f"alter_{person['id']}",
+    )
+    zielgruppe = zielgruppe_fuer_alter(int(alter))
+
+    unfall = kopf[1].radio(
+        "Unfalldeckung",
+        ["MIT-UNF", "OHN-UNF"],
+        index=1 if zielgruppe == "Erwachsene" else 0,
+        format_func=lambda u: "mit" if u == "MIT-UNF" else "ohne",
+        horizontal=True,
+        key=f"unfall_{person['id']}",
+        help="Wer mindestens acht Stunden pro Woche bei demselben Arbeitgeber "
+        "arbeitet, ist dort gegen Unfall versichert.",
     )
 
-    kopf = st.columns(4)
-    anzahl_erw = kopf[0].number_input("Erwachsene (ab 26)", 0, 6, 2)
-    anzahl_jug = kopf[1].number_input("Jugendliche (19–25)", 0, 6, 0)
-    anzahl_kin = kopf[2].number_input("Kinder (0–18)", 0, 8, 2)
-    franchise_erw = kopf[3].selectbox(
-        "Franchise Erwachsene / Jugendliche", FRANCHISEN_ERWACHSENE, index=5
+    schluessel = f"kosten_{person['id']}"
+    st.session_state.setdefault(schluessel, int(person["kosten"]))
+    kosten = kopf[2].number_input(
+        "Erwartete Krankheitskosten pro Jahr (CHF)",
+        min_value=0,
+        step=100,
+        key=schluessel,
     )
 
-    untergruppen: list[str] = []
-    if anzahl_kin:
-        franchise_kin = st.selectbox(
-            "Franchise Kinder", FRANCHISEN_KINDER, index=len(FRANCHISEN_KINDER) - 1
-        )
-        st.markdown(
-            "**Tarifstufe je Kind** – welche Stufe ein Kind bekommt, hängt vom "
-            "Versicherer und der Familiensituation ab und steht in der Police. "
-            "`K1` ist der Normaltarif, `K3`/`K5` sind Rabattstufen für weitere Kinder."
-        )
-        for zeile in range(0, anzahl_kin, 4):
-            for spalte, i in zip(st.columns(4), range(zeile, min(zeile + 4, anzahl_kin))):
-                untergruppen.append(
-                    spalte.selectbox(
-                        f"Kind {i + 1}", ["K1", "K3", "K4", "K5"], key=f"kind_{i}"
-                    )
-                )
-    else:
-        franchise_kin = FRANCHISEN_KINDER[-1]
+    # Die erste Person lässt sich nicht entfernen - ohne sie gäbe es nichts zu zeigen.
+    if anzahl_personen > 1:
+        kopf[3].markdown("<div style='height:1.8rem'></div>", unsafe_allow_html=True)
+        if kopf[3].button("Entfernen", key=f"weg_{person['id']}"):
+            st.session_state["personen"] = [
+                p for p in st.session_state["personen"] if p["id"] != person["id"]
+            ]
+            st.rerun()
 
-    haushalt = Haushalt(
-        erwachsene=int(anzahl_erw),
-        jugendliche=int(anzahl_jug),
-        kinder=tuple(untergruppen),
-    )
-    if not (haushalt.erwachsene or haushalt.jugendliche or haushalt.kinder):
-        st.info("Bitte mindestens eine Person angeben.")
+    return {"id": person["id"], "alter": int(alter), "unfall": unfall, "kosten": int(kosten)}
+
+
+def haushalt_summe(ergebnisse: list[dict], anzahl_kinder: int) -> None:
+    """Die Summe über alle Personen - das, wonach am Ende gefragt ist."""
+    if not ergebnisse:
         return
 
-    angebote = haushalt_angebote(
-        roh,
-        haushalt,
-        franchise_erwachsene=franchise_erw,
-        franchise_jugendliche=franchise_erw,
-        franchise_kinder=franchise_kin,
-        kanton=kanton,
-        region=region,
-        unfalldeckung=unfalldeckung,
-    )
-    if angebote.empty:
-        st.warning(
-            "Kein Versicherer führt alle verlangten Kategorien. Das passiert vor allem "
-            "bei seltenen Tarifstufen – nur 1 Versicherer führt K4, 4 führen K5."
-        )
-        return
+    gesamt = sum(e["jahreskosten"] for e in ergebnisse)
+    praemien = sum(e["praemie_jahr"] for e in ergebnisse)
 
-    guenstigstes = angebote.iloc[0]
-    teuerstes = angebote.iloc[-1]
-    metriken = st.columns(3)
-    metriken[0].metric(
-        "Günstigste Jahresprämie", f"{chf(guenstigstes['Jahresprämie'])} CHF"
-    )
-    metriken[1].metric(
-        "Teuerste Jahresprämie", f"{chf(teuerstes['Jahresprämie'])} CHF"
-    )
-    metriken[2].metric(
-        "Unterschied",
-        f"{chf(teuerstes['Jahresprämie'] - guenstigstes['Jahresprämie'])} CHF",
-        help="Pro Jahr, bei identischer Franchise und Haushaltszusammensetzung.",
-    )
+    st.markdown("---")
+    st.header("Gesamtkosten des Haushalts")
+
+    spalten = st.columns(3)
+    spalten[0].metric("Pro Jahr", f"{chf(gesamt)} CHF")
+    spalten[1].metric("Pro Monat", f"{chf(gesamt / 12, 2)} CHF")
+    spalten[2].metric("Personen", str(len(ergebnisse)))
     st.caption(
-        f"Günstigstes Angebot: **{guenstigstes['Versicherername']}** – "
-        f"{guenstigstes['Tarifbezeichnung']}. {len(angebote)} Angebote führen alle "
-        f"verlangten Kategorien."
+        f"Summe über alle Personen: Prämien ({chf(praemien)} CHF) plus Franchise und "
+        f"Selbstbehalt bei den jeweils angegebenen Krankheitskosten, je zum "
+        f"günstigsten Angebot."
     )
 
-    # Erst Anbieter, dann die Prämie je Personenkategorie, zuletzt die Summen.
-    kategorien = [
-        s
-        for s in angebote.columns
-        if s not in {"Versicherer", "Versicherername", "Tarifbezeichnung",
-                     "Monatsprämie", "Jahresprämie"}
-    ]
+    uebersicht = pd.DataFrame(
+        [
+            {
+                "Person": f"{i}. {e['zielgruppe']}",
+                "Franchise": e["franchise"],
+                "Versicherer": e["versicherer"],
+                "Tarif": e["tarif"],
+                "Kosten/Jahr": round(e["jahreskosten"]),
+                "Kosten/Monat": round(e["jahreskosten"] / 12, 2),
+            }
+            for i, e in enumerate(ergebnisse, start=1)
+        ]
+    )
     st.dataframe(
-        angebote[
-            ["Versicherername", "Tarifbezeichnung", *kategorien,
-             "Monatsprämie", "Jahresprämie"]
-        ].round(2),
+        uebersicht,
         hide_index=True,
         use_container_width=True,
+        column_config={
+            "Franchise": st.column_config.NumberColumn(format="%d", width="small"),
+            "Kosten/Jahr": st.column_config.NumberColumn(format="%.0f", width="small"),
+            "Kosten/Monat": st.column_config.NumberColumn(format="%.2f", width="small"),
+        },
     )
 
-    if haushalt.anzahl_kinder >= 2:
-        st.subheader("Familien-Höchstgrenze der Kinder")
-        kosten_je_kind = st.slider(
-            "Angenommene Krankheitskosten pro Kind und Jahr (CHF)",
-            0, 10000, 3000, step=250,
-        )
-        betrag, gedeckelt = kinder_kostenbeteiligung(
-            [float(kosten_je_kind)] * haushalt.anzahl_kinder, franchise_kin
-        )
-        ohne_deckel = sum(
-            min(kosten_je_kind, franchise_kin)
-            + min(max(0, kosten_je_kind - franchise_kin) * 0.1, 350)
-            for _ in range(haushalt.anzahl_kinder)
-        )
-        links, rechts = st.columns(2)
-        links.metric("Kostenbeteiligung aller Kinder", f"{chf(betrag)} CHF")
-        rechts.metric(
-            "Ohne Deckelung wären es",
-            f"{chf(ohne_deckel)} CHF",
-            delta=f"−{chf(ohne_deckel - betrag)} CHF" if gedeckelt else "nicht erreicht",
-            delta_color="normal" if gedeckelt else "off",
-        )
+    if anzahl_kinder >= 2:
         st.caption(
-            f"Art. 93 Abs. 3 KVV: Sind mehrere Kinder einer Familie beim gleichen "
-            f"Versicherer versichert, ist ihre Kostenbeteiligung auf das Zweifache des "
-            f"Höchstbetrages je Kind begrenzt – hier 2 × ({franchise_kin} + 350) = "
-            f"{chf(2 * (franchise_kin + 350))} CHF. Bei unterschiedlichen Franchisen der "
-            f"Kinder setzt der Versicherer die Höchstbeteiligung fest; hier wird eine "
-            f"gemeinsame Franchise angenommen."
+            f"Die Kinderprämien enthalten den Geschwisterrabatt, soweit er bei "
+            f"{anzahl_kinder} Kindern erreichbar ist. Zusätzlich begrenzt Art. 93 "
+            f"Abs. 3 KVV die Kostenbeteiligung aller Kinder beim gleichen "
+            f"Versicherer auf das Zweifache des Höchstbetrages je Kind – diese "
+            f"Deckelung ist in den Zahlen oben **nicht** berücksichtigt, die reale "
+            f"Belastung kann also tiefer ausfallen."
         )
 
 
-# Ein Klick ins Diagramm merkt den Wert vor; angewendet wird er hier, bevor der
-# Regler entsteht.
+# Ein Klick ins Diagramm merkt den Wert vor; angewendet wird er hier, bevor die
+# Eingabefelder entstehen.
 if "_klick_kosten" in st.session_state:
-    st.session_state["erwartete_kosten"] = st.session_state.pop("_klick_kosten")
+    schluessel, wert = st.session_state.pop("_klick_kosten")
+    st.session_state[schluessel] = wert
+
+st.session_state.setdefault(
+    "personen", [{"id": 1, "alter": 40, "unfall": "OHN-UNF", "kosten": 1000}]
+)
 
 with st.sidebar:
-    st.header("Deine Angaben")
+    st.header("Wohnort und Modelle")
 
     if st.button("Prämiendaten neu laden"):
         st.cache_data.clear()
@@ -568,61 +544,7 @@ with st.sidebar:
         st.rerun()
 
     roh = praemien(7)
-
     wohnort = wohnort_waehlen()
-
-    alter = st.number_input(
-        "Alter",
-        min_value=0,
-        max_value=120,
-        value=40,
-        step=1,
-        help="Daraus ergibt sich die Altersklasse: Kinder bis 18, junge Erwachsene "
-        "19 bis 25, danach Erwachsene.",
-    )
-    zielgruppe = zielgruppe_fuer_alter(int(alter))
-    st.caption(f"Altersklasse: **{zielgruppe}**")
-
-    # Die Unfalldeckung wird immer gefragt, nie aus dem Alter abgeleitet: Ob jemand
-    # über einen Arbeitgeber versichert ist, weiss nur er selbst. Vorgewählt ist der
-    # Normalfall - bei Erwachsenen "ohne" (meist über den Arbeitgeber gedeckt), bei
-    # Kindern und jungen Erwachsenen "mit".
-    unfall = st.radio(
-        "Unfalldeckung",
-        ["MIT-UNF", "OHN-UNF"],
-        index=1 if zielgruppe == "Erwachsene" else 0,
-        format_func=lambda u: (
-            "mit – nicht über einen Arbeitgeber versichert"
-            if u == "MIT-UNF"
-            else "ohne – über einen Arbeitgeber versichert"
-        ),
-        help="Wer mindestens acht Stunden pro Woche bei demselben Arbeitgeber "
-        "arbeitet, ist dort gegen Unfall versichert und braucht die Deckung in der "
-        "Grundversicherung nicht. Sonst muss sie eingeschlossen sein.",
-    )
-    unfalldeckung = {zielgruppe: unfall}
-
-    st.session_state.setdefault("erwartete_kosten", 1000)
-    erwartete_kosten = st.number_input(
-        "Erwartete Krankheitskosten pro Jahr (CHF)",
-        min_value=0,
-        step=100,
-        key="erwartete_kosten",
-        help="Der wichtigste Wert neben dem Alter. Arztbesuche, Medikamente, "
-        "Therapien – alles, was über die Grundversicherung abgerechnet wird. "
-        "Nach oben offen; oberhalb des Kipppunkts ändert sich die Empfehlung "
-        "allerdings nicht mehr.",
-    )
-
-    # Die Rückerstattung der Umweltabgaben ist für alle gleich hoch und ändert
-    # jährlich. Danach zu fragen hiesse, eine Zahl zu verlangen, die niemand im
-    # Kopf hat - sie wird deshalb nur noch genannt.
-    umweltabgabe = umweltabgabe_standard
-    st.caption(
-        f"Rückerstattung Umweltabgaben: **{umweltabgabe * 12:.2f} CHF pro Jahr** "
-        f"({umweltabgabe:.2f} pro Monat). Wird von der Prämie abgezogen und ist für "
-        f"alle Versicherten gleich."
-    )
 
     # Der Tariftyp entscheidet über die freie Arztwahl und kostet schnell mehr als
     # die ganze Franchisenfrage - er gehört nicht in eine eingeklappte Schublade.
@@ -637,44 +559,69 @@ with st.sidebar:
     if not tariftypen:
         st.caption("Ohne Tarifmodell gibt es nichts zu vergleichen.")
 
-    if zielgruppe == "Kinder":
-        kinder_untergruppen = st.multiselect(
-            "Tarifstufe des Kindes",
-            list(KINDER_UNTERGRUPPEN),
-            default=["K1"],
-            format_func=lambda k: f"{k} – {KINDER_UNTERGRUPPEN[k]}",
-            help="Geschwisterrabatte, benannt wie in der Tarifliste des BAG. "
-            "Welche Stufe für dein Kind gilt, hängt von der Zahl der Kinder "
-            "derselben Familie beim gleichen Versicherer ab und steht in der "
-            "Police. Mehrere Kinder vergleichst du besser im Register «Haushalt».",
-        )
-    else:
-        kinder_untergruppen = ["K1"]
+    umweltabgabe = umweltabgabe_standard
+    st.caption(
+        f"Rückerstattung Umweltabgaben: **{umweltabgabe * 12:.2f} CHF pro Jahr** "
+        f"({umweltabgabe:.2f} pro Monat). Wird von der Prämie abgezogen und ist für "
+        f"alle Versicherten gleich."
+    )
 
 st.title("Welche Franchise lohnt sich?")
 st.caption(
     "Die Grundversicherung bietet mehrere Franchisen zur Auswahl. Diese App rechnet für "
-    "deine Angaben nach, welche davon überhaupt je die günstigste ist und ab welchen "
+    "jede Person nach, welche davon überhaupt je die günstigste ist und ab welchen "
     "jährlichen Krankheitskosten es von der einen zur anderen kippt. "
     "Datenquelle: BAG-Prämiendaten über opendata.swiss."
 )
 
-tab_person, tab_haushalt = st.tabs(["Einzelperson", "Haushalt"])
+if wohnort is None:
+    st.info("Bitte links eine gültige Postleitzahl eingeben.")
+    st.stop()
 
-with tab_person:
-    if wohnort is None:
-        st.info("Bitte links eine gültige Postleitzahl eingeben.")
-    else:
-        einzelperson_ansicht(
-            roh, wohnort[0], wohnort[1], wohnort[2], zielgruppe, unfalldeckung,
-            tariftypen, kinder_untergruppen, umweltabgabe, erwartete_kosten,
-        )
+st.markdown(f"**{wohnort[2]}**")
 
-with tab_haushalt:
-    if wohnort is None:
-        st.info("Bitte links eine gültige Postleitzahl eingeben.")
+# Erst alle Formulare, dann rechnen: Die Tarifstufe eines Kindes hängt davon ab,
+# wie viele Kinder insgesamt im Haushalt leben.
+personen = st.session_state["personen"]
+aktualisiert = []
+for nummer, person in enumerate(personen, start=1):
+    with st.container(border=True):
+        st.markdown(f"**{nummer}. Person**")
+        aktualisiert.append(person_formular(nummer, person, len(personen)))
+st.session_state["personen"] = aktualisiert
+
+if st.button("➕ Weitere Person hinzufügen"):
+    naechste = max((p["id"] for p in aktualisiert), default=0) + 1
+    st.session_state["personen"] = aktualisiert + [
+        {"id": naechste, "alter": 8, "unfall": "MIT-UNF", "kosten": 500}
+    ]
+    st.rerun()
+
+kinder = [p for p in aktualisiert if zielgruppe_fuer_alter(p["alter"]) == "Kinder"]
+ergebnisse = []
+for nummer, person in enumerate(aktualisiert, start=1):
+    zielgruppe = zielgruppe_fuer_alter(person["alter"])
+    if zielgruppe == "Kinder":
+        position = kinder.index(person) + 1
+        stufen = erlaubte_kinderstufen(position, len(kinder))
     else:
-        haushalt_ansicht(
-            roh, wohnort[0], wohnort[1],
-            {"Erwachsene": "OHN-UNF", "Jugendliche": "OHN-UNF", "Kinder": "MIT-UNF"},
+        stufen = ("K1",)
+
+    with st.expander(
+        f"{nummer}. {zielgruppe}, {person['alter']} Jahre – "
+        f"{chf(person['kosten'])} CHF Krankheitskosten",
+        expanded=len(aktualisiert) == 1,
+    ):
+        if zielgruppe == "Kinder" and len(kinder) > 1:
+            st.caption(
+                f"Kind {position} von {len(kinder)} – erreichbare Tarifstufen: "
+                f"{', '.join(f'{s} ({KINDER_UNTERGRUPPEN[s]})' for s in stufen)}."
+            )
+        ergebnis = person_ansicht(
+            roh, wohnort[0], wohnort[1], zielgruppe, {zielgruppe: person["unfall"]},
+            tariftypen, stufen, umweltabgabe, person["kosten"], person["id"],
         )
+    if ergebnis:
+        ergebnisse.append(ergebnis)
+
+haushalt_summe(ergebnisse, len(kinder))

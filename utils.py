@@ -501,3 +501,81 @@ def display_results(
 
         print(f"\nOptimale Franchise nach Krankheitskosten ({e.zielgruppe}):")
         print(e.segmente.to_markdown(index=False))
+
+
+def kinder_stufen_verteilung(anzahl_kinder: int, verfuegbar: set[str]) -> list[str]:
+    """Welche Tarifstufe jedes Kind bekommt, bei `anzahl_kinder` Kindern am selben Ort.
+
+    Die Bedeutung der Stufen steht in der Tarifliste des BAG (Tarife.xlsx,
+    Kategorie ALT):
+
+        K1  ohne zusätzlichen Rabatt
+        K3  Rabatt ab dem 3. Kind
+        K4  Rabatt ab dem 2. Kind, gültig für alle Kinder
+        K5  Rabatt ab dem 3. Kind, gültig für alle Kinder
+
+    Damit lässt sich die Zuteilung aus der Kinderzahl ableiten, statt sie zu
+    erfragen. "Gültig für alle Kinder" heisst: Ist die Schwelle erreicht, gilt
+    der Rabatt für sämtliche Kinder, nicht erst ab dem n-ten. Achtung, K4 meint
+    das zweite Kind, nicht das vierte - die Ziffer ist eine Stufennummer.
+
+    Gibt eine Liste mit einer Stufe je Kind zurück; die günstigste Variante
+    wählt der Aufrufer, weil sie von den Prämien des Versicherers abhängt.
+    """
+    if anzahl_kinder <= 0:
+        return []
+
+    kandidaten: list[list[str]] = [["K1"] * anzahl_kinder]
+    if "K4" in verfuegbar and anzahl_kinder >= 2:
+        kandidaten.append(["K4"] * anzahl_kinder)
+    if "K5" in verfuegbar and anzahl_kinder >= 3:
+        kandidaten.append(["K5"] * anzahl_kinder)
+    if "K3" in verfuegbar and anzahl_kinder >= 3:
+        # Nur die Kinder ab dem dritten bekommen den Rabatt.
+        kandidaten.append(["K1", "K1"] + ["K3"] * (anzahl_kinder - 2))
+    return kandidaten
+
+
+def guenstigste_kinder_kombination(
+    praemie_je_stufe: dict[str, float], anzahl_kinder: int
+) -> tuple[float, list[str]]:
+    """Billigste zulässige Stufenverteilung für `anzahl_kinder` Kinder.
+
+    `praemie_je_stufe` enthält die Monatsprämien eines Versicherers je Stufe.
+    Zurück kommt die Monatssumme für alle Kinder und die zugehörige Verteilung.
+    """
+    if anzahl_kinder <= 0:
+        return 0.0, []
+
+    beste: tuple[float, list[str]] | None = None
+    for verteilung in kinder_stufen_verteilung(anzahl_kinder, set(praemie_je_stufe)):
+        if any(stufe not in praemie_je_stufe for stufe in verteilung):
+            continue
+        summe = sum(praemie_je_stufe[stufe] for stufe in verteilung)
+        if beste is None or summe < beste[0]:
+            beste = (summe, verteilung)
+    return beste if beste else (0.0, [])
+
+
+def erlaubte_kinderstufen(position: int, anzahl_kinder: int) -> tuple[str, ...]:
+    """Tarifstufen, die dem `position`-ten von `anzahl_kinder` Kindern offenstehen.
+
+    Aus den amtlichen Bedingungen (Tarife.xlsx, Kategorie ALT) folgt für jedes
+    Kind einzeln, was erreichbar ist:
+
+        K1  immer
+        K4  ab zwei Kindern - und dann für alle, also auch für das erste
+        K5  ab drei Kindern - ebenfalls für alle
+        K3  ab drei Kindern, aber nur für das dritte und jedes weitere
+
+    Weil die Menge je Kind exakt ist, darf jedes Kind einzeln optimiert werden;
+    eine gemeinsame Rechnung über alle Kinder braucht es dafür nicht.
+    """
+    stufen = {"K1"}
+    if anzahl_kinder >= 2:
+        stufen.add("K4")
+    if anzahl_kinder >= 3:
+        stufen.add("K5")
+        if position >= 3:
+            stufen.add("K3")
+    return tuple(sorted(stufen))
