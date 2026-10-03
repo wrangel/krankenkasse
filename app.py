@@ -593,28 +593,32 @@ with st.sidebar:
         f"alle Versicherten gleich."
     )
 
-    with st.expander("Feineinstellungen"):
-        tariftypen = st.multiselect(
-            "Tariftypen",
-            list(TARIFTYPEN),
-            default=list(TARIFTYPEN),
-            format_func=lambda t: TARIFTYPEN[t],
-            help="Standardmodell heisst freie Arztwahl; die übrigen schränken sie "
-            "ein und sind dafür günstiger.",
+    # Der Tariftyp entscheidet über die freie Arztwahl und kostet schnell mehr als
+    # die ganze Franchisenfrage - er gehört nicht in eine eingeklappte Schublade.
+    tariftypen = st.multiselect(
+        "Tarifmodelle",
+        list(TARIFTYPEN),
+        default=list(TARIFTYPEN),
+        format_func=lambda t: TARIFTYPEN[t],
+        help="Das Standardmodell lässt die Arztwahl frei; die übrigen schränken sie "
+        "ein und sind dafür günstiger. Abwählen, was für dich nicht in Frage kommt.",
+    )
+    if not tariftypen:
+        st.caption("Ohne Tarifmodell gibt es nichts zu vergleichen.")
+
+    if zielgruppe == "Kinder":
+        kinder_untergruppen = st.multiselect(
+            "Tarifstufe des Kindes",
+            list(KINDER_UNTERGRUPPEN),
+            default=["K1"],
+            format_func=lambda k: f"{k} – {KINDER_UNTERGRUPPEN[k]}",
+            help="Geschwisterrabatte, benannt wie in der Tarifliste des BAG. "
+            "Welche Stufe für dein Kind gilt, hängt von der Zahl der Kinder "
+            "derselben Familie beim gleichen Versicherer ab und steht in der "
+            "Police. Mehrere Kinder vergleichst du besser im Register «Haushalt».",
         )
-        if zielgruppe == "Kinder":
-            kinder_untergruppen = st.multiselect(
-                "Tarifstufe des Kindes",
-                list(KINDER_UNTERGRUPPEN),
-                default=["K1"],
-                format_func=lambda k: f"{k} – {KINDER_UNTERGRUPPEN[k]}",
-                help="Geschwisterrabatte, benannt wie in der Tarifliste des BAG. "
-                "Welche Stufe für dein Kind gilt, hängt von der Zahl der Kinder "
-                "derselben Familie beim gleichen Versicherer ab und steht in der "
-                "Police. Mehrere Kinder vergleichst du besser im Register «Haushalt».",
-            )
-        else:
-            kinder_untergruppen = ["K1"]
+    else:
+        kinder_untergruppen = ["K1"]
 
 st.title("Welche Franchise lohnt sich?")
 st.caption(
