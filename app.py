@@ -22,6 +22,24 @@ from utils import (
 
 st.set_page_config(page_title="Welche Franchise lohnt sich?", page_icon="🏥", layout="wide")
 
+# Die Auswahlchips der Mehrfachauswahl kommen in der Signalfarbe des Themes. Die
+# gehört den Knöpfen, die etwas auslösen - eine Liste gewählter Tarifmodelle ist
+# eine Angabe, keine Warnung. Deshalb neutral grau.
+st.markdown(
+    """
+    <style>
+      [data-testid="stMultiSelectTagsContainer"] span[data-tag] {
+          background-color: rgba(250, 250, 250, 0.14) !important;
+          color: inherit !important;
+      }
+      [data-testid="stMultiSelectTagsContainer"] span[data-tag] svg {
+          fill: currentColor !important;
+      }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 FRANCHISEN_ERWACHSENE = [300, 500, 1000, 1500, 2000, 2500]
 FRANCHISEN_KINDER = [0, 100, 200, 300, 400, 500, 600]
 
