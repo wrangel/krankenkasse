@@ -37,6 +37,26 @@ st.markdown(
       [data-testid="stMultiSelectTagsContainer"] span[data-tag] svg {
           fill: currentColor !important;
       }
+      /* Hinzufügen grün, Entfernen rot - die Farbe soll sagen, was passiert.
+         Streamlit hängt den Widget-Schlüssel als Klasse st-key-… an den
+         Container, das ist der einzige verlässliche Haken auf einen bestimmten
+         Knopf. */
+      .st-key-person_hinzu button {
+          background-color: #1b7f4d !important;
+          border-color: #1b7f4d !important;
+          color: #ffffff !important;
+      }
+      .st-key-person_hinzu button:hover {
+          background-color: #166b41 !important;
+      }
+      [class*="st-key-weg_"] button {
+          background-color: transparent !important;
+          border-color: #c2341f !important;
+          color: #e06552 !important;
+      }
+      [class*="st-key-weg_"] button:hover {
+          background-color: rgba(194, 52, 31, 0.15) !important;
+      }
       /* Der gewählte Radioknopf, aus demselben Grund neutral. Nur der Kreis
          selbst: "div div" träfe auch die Beschriftung daneben. */
       [data-testid="stRadioOption"][data-selected="true"] > div > div:first-child {
@@ -577,7 +597,7 @@ def person_formular(person: dict, anzahl_personen: int, roh) -> dict | None:
         "Therapien – alles, was über die Grundversicherung läuft.",
     )
 
-    unten = st.columns([6, 1])
+    unten = st.columns([5, 2])
     tariftypen = unten[0].multiselect(
         "Tarifmodelle",
         list(TARIFTYPEN),
@@ -589,7 +609,7 @@ def person_formular(person: dict, anzahl_personen: int, roh) -> dict | None:
     )
     if anzahl_personen > 1:
         unten[1].markdown("<div style='height:1.8rem'></div>", unsafe_allow_html=True)
-        if unten[1].button("Entfernen", key=f"weg_{kennung}"):
+        if unten[1].button("Person entfernen", key=f"weg_{kennung}"):
             st.session_state["personen"] = [
                 e for e in st.session_state["personen"] if e["id"] != kennung
             ]
@@ -728,11 +748,16 @@ st.session_state["personen"] = [
     for p in aktualisiert
 ]
 
-if st.button("➕ Weitere Person hinzufügen", type="primary", width="stretch"):
+if st.button(
+    "➕ Weitere Person hinzufügen", key="person_hinzu", width="stretch"
+):
     naechste = max((p["id"] for p in aktualisiert), default=0) + 1
     st.session_state["personen"] = st.session_state["personen"] + [
         {"id": naechste, "alter": 8, "unfall": "MIT-UNF", "kosten": 500}
     ]
+    # Die neue Person aufklappen - sonst hängt unten ein zugeklappter Balken und
+    # es sieht aus, als sei nichts passiert.
+    st.session_state["_zuletzt_neu"] = naechste
     st.rerun()
 
 kinder = [p for p in aktualisiert if p["zielgruppe"] == "Kinder"]
@@ -750,7 +775,8 @@ for nummer, person in enumerate(aktualisiert, start=1):
     with st.expander(
         f"{nummer}. {zielgruppe}, {person['alter']} Jahre – "
         f"{chf(person['kosten'])} CHF Krankheitskosten – {person['wohnort'][2]}",
-        expanded=len(aktualisiert) == 1,
+        expanded=len(aktualisiert) == 1
+        or person["id"] == st.session_state.get("_zuletzt_neu"),
     ):
         if zielgruppe == "Kinder" and len(kinder) > 1:
             st.caption(
