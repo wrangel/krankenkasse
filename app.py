@@ -597,8 +597,7 @@ def person_formular(person: dict, anzahl_personen: int, roh) -> dict | None:
         "Therapien – alles, was über die Grundversicherung läuft.",
     )
 
-    unten = st.columns([5, 2])
-    tariftypen = unten[0].multiselect(
+    tariftypen = st.multiselect(
         "Tarifmodelle",
         list(TARIFTYPEN),
         default=list(TARIFTYPEN),
@@ -607,13 +606,6 @@ def person_formular(person: dict, anzahl_personen: int, roh) -> dict | None:
         help="Das Standardmodell lässt die Arztwahl frei; die übrigen schränken sie "
         "ein und sind dafür günstiger.",
     )
-    if anzahl_personen > 1:
-        unten[1].markdown("<div style='height:1.8rem'></div>", unsafe_allow_html=True)
-        if unten[1].button("Person entfernen", key=f"weg_{kennung}"):
-            st.session_state["personen"] = [
-                e for e in st.session_state["personen"] if e["id"] != kennung
-            ]
-            st.rerun()
 
     # Der heutige Vertrag - damit die Auswertung sagen kann, ob sich ein Wechsel
     # überhaupt lohnt, statt nur das theoretisch Günstigste zu zeigen.
@@ -640,6 +632,17 @@ def person_formular(person: dict, anzahl_personen: int, roh) -> dict | None:
 
     if wohnort is None:
         st.warning("Ohne gültige Postleitzahl lässt sich für diese Person nichts rechnen.")
+
+    # Der Löschknopf stand bisher in derselben Zeile wie die Tarifmodelle, direkt
+    # neben deren Lösch- und Aufklapp-Symbolen - ein Fehlgriff dort entfernt die
+    # ganze Person, ohne Rückfrage. Jetzt steht er unten rechts für sich.
+    if anzahl_personen > 1:
+        _, rechts_unten = st.columns([5, 1])
+        if rechts_unten.button("Person entfernen", key=f"weg_{kennung}"):
+            st.session_state["personen"] = [
+                e for e in st.session_state["personen"] if e["id"] != kennung
+            ]
+            st.rerun()
 
     return {
         "id": kennung,
@@ -760,6 +763,9 @@ if st.button(
     st.session_state["_zuletzt_neu"] = naechste
     st.rerun()
 
+import sys as _s
+print("[DIAG] personen=", [(p["id"], p["alter"], p["zielgruppe"], p["unfall"],
+      p["wohnort"][2] if p["wohnort"] else None, len(p["tariftypen"])) for p in aktualisiert], file=_s.stderr, flush=True)
 kinder = [p for p in aktualisiert if p["zielgruppe"] == "Kinder"]
 ergebnisse = []
 for nummer, person in enumerate(aktualisiert, start=1):
