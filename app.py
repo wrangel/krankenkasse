@@ -381,16 +381,20 @@ def person_ansicht(
         angebote = _mit_abstand(angebote, "Prämie/Jahr", "Mehrkosten/Jahr")
         angebote["Prämie/Monat"] = angebote["Prämie"].round(2)
         angebote["Typ"] = angebote["Typ"].map(TARIFTYPEN_KURZ)
-        angebote[""] = [
+        spalten = ["Rang", "Versicherer", "Tarif", "Typ", "Prämie/Jahr",
+                   "Mehrkosten/Jahr", "Prämie/Monat"]
+        # Die Markierungsspalte nur anlegen, wenn es etwas zu markieren gibt -
+        # sonst steht eine leere Spalte da und fragt, was ihr fehlt.
+        markierung = [
             "◀ jetziger Versicherer"
             if jetzt and v == jetzt[0] and ta == jetzt[1]
             else ""
             for v, ta in zip(gezeigt["Versicherername"], gezeigt["Tarifbezeichnung"])
         ]
-        angebote = angebote[
-            ["Rang", "Versicherer", "Tarif", "Typ", "Prämie/Jahr",
-             "Mehrkosten/Jahr", "Prämie/Monat", ""]
-        ]
+        if any(markierung):
+            angebote[""] = markierung
+            spalten.append("")
+        angebote = angebote[spalten]
 
         st.dataframe(
             angebote,
