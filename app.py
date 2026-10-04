@@ -35,6 +35,11 @@ st.markdown(
       [data-testid="stMultiSelectTagsContainer"] span[data-tag] svg {
           fill: currentColor !important;
       }
+      /* Der gewählte Radioknopf, aus demselben Grund neutral. Nur der Kreis
+         selbst: "div div" träfe auch die Beschriftung daneben. */
+      [data-testid="stRadioOption"][data-selected="true"] > div > div:first-child {
+          background-color: rgba(250, 250, 250, 0.85) !important;
+      }
     </style>
     """,
     unsafe_allow_html=True,
