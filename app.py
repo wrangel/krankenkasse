@@ -160,6 +160,50 @@ def _mit_abstand(tabelle: pd.DataFrame, spalte: str, neue_spalte: str) -> pd.Dat
     return tabelle
 
 
+def person_eckwerte(
+    roh, kanton, region, zielgruppe, unfalldeckung, tariftypen,
+    kinder_untergruppen, umweltabgabe, erwartete_kosten,
+) -> dict | None:
+    """Die Eckwerte einer Person, ohne etwas zu zeichnen.
+
+    Gebraucht für eingeklappte Personen: Die Haushaltssumme muss alle enthalten,
+    auch die, deren Bericht gerade zugeklappt ist - sonst ändert sich der
+    Gesamtbetrag, bloss weil jemand einen Abschnitt zuklappt.
+    """
+    daten = get_data(
+        roh, kanton=kanton, region=region, zielgruppen=(zielgruppe,),
+        unfalldeckung=unfalldeckung, kinder_untergruppen=tuple(kinder_untergruppen),
+        tariftypen=tuple(tariftypen) if tariftypen else None,
+    )
+    beste = beste_praemien(daten)
+    if beste.empty:
+        return None
+    ergebnisse = berechne_kipppunkt(
+        beste, umweltabgabe, max(maximale_krankenkosten, int(erwartete_kosten) + 2000)
+    )
+    if not ergebnisse:
+        return None
+
+    e = ergebnisse[0]
+    bei_erwartung = e.kosten.loc[erwartete_kosten]
+    beste_franchise = int(bei_erwartung.idxmin())
+    angebot = (
+        daten[(daten["Zielgruppe"] == zielgruppe) & (daten["Franchise"] == beste_franchise)]
+        .nsmallest(1, "Prämie")
+    )
+    if angebot.empty:
+        return None
+    zeile = angebot.iloc[0]
+    return {
+        "zielgruppe": zielgruppe,
+        "franchise": beste_franchise,
+        "jahreskosten": float(bei_erwartung.min()),
+        "versicherer": zeile["Versicherername"],
+        "tarif": zeile["Tarifbezeichnung"],
+        "praemie_jahr": float(zeile["Prämie"]) * 12,
+    }
+
+
 def person_ansicht(
     roh, kanton, region, zielgruppe, unfalldeckung, tariftypen,
     kinder_untergruppen, umweltabgabe, erwartete_kosten, schluessel, jetzt=None,
@@ -741,61 +785,94 @@ st.info(
 )
 
 personen = st.session_state["personen"]
+
+# Wie viele Kinder im Haushalt leben, muss feststehen, bevor die erste Person
+# gezeichnet wird - davon hängt ab, welche Tarifstufen einem Kind offenstehen.
+# Die Alter stehen schon in session_state, weil Streamlit die Werte der Eingabe-
+# felder über ihren Schlüssel hält; für eine eben hinzugefügte Person gibt es den
+# Schlüssel noch nicht, dann gilt ihr Startwert.
+def _alter_von(eintrag: dict) -> int:
+    return int(st.session_state.get(f"alter_{eintrag['id']}", eintrag["alter"]))
+
+
+kinder_ids = [
+    e["id"] for e in personen if zielgruppe_fuer_alter(_alter_von(e)) == "Kinder"
+]
+
 aktualisiert = []
+ergebnisse = []
 for nummer, person in enumerate(personen, start=1):
     with st.container(border=True):
-        st.markdown(f"**{nummer}. Person**")
-        aktualisiert.append(person_formular(person, len(personen), roh))
+        kopf = st.columns([6, 2])
+        kopf[0].markdown(f"**{nummer}. Person**")
+
+        # Ein benannter Knopf statt nur eines Pfeils: Er sagt, was er tut, und
+        # steht immer an derselben Stelle - ob der Bericht gerade offen ist oder
+        # nicht.
+        offen_schluessel = f"offen_{person['id']}"
+        offen = st.session_state.setdefault(offen_schluessel, nummer == 1)
+        if kopf[1].button(
+            "Einklappen" if offen else "Ausklappen",
+            key=f"klapp_{person['id']}",
+            width="stretch",
+        ):
+            st.session_state[offen_schluessel] = not offen
+            st.rerun()
+
+        eintrag = person_formular(person, len(personen), roh)
+        aktualisiert.append(eintrag)
+
+        if eintrag["wohnort"] is None:
+            continue
+
+        zielgruppe = eintrag["zielgruppe"]
+        if zielgruppe == "Kinder" and person["id"] in kinder_ids:
+            position = kinder_ids.index(person["id"]) + 1
+            stufen = erlaubte_kinderstufen(position, len(kinder_ids))
+            if offen and len(kinder_ids) > 1:
+                st.caption(
+                    f"Kind {position} von {len(kinder_ids)} – erreichbare "
+                    f"Tarifstufen: "
+                    f"{', '.join(f'{s} ({KINDER_UNTERGRUPPEN[s]})' for s in stufen)}."
+                )
+        else:
+            stufen = ("K1",)
+
+        if offen:
+            st.markdown("---")
+            ergebnis = person_ansicht(
+                roh, eintrag["wohnort"][0], eintrag["wohnort"][1], zielgruppe,
+                {zielgruppe: eintrag["unfall"]}, eintrag["tariftypen"], stufen,
+                umweltabgabe_standard, eintrag["kosten"], person["id"], eintrag["jetzt"],
+            )
+        else:
+            ergebnis = person_eckwerte(
+                roh, eintrag["wohnort"][0], eintrag["wohnort"][1], zielgruppe,
+                {zielgruppe: eintrag["unfall"]}, eintrag["tariftypen"], stufen,
+                umweltabgabe_standard, eintrag["kosten"],
+            )
+        if ergebnis:
+            ergebnis["ort"] = eintrag["wohnort"][2].split(" (")[0]
+            ergebnisse.append(ergebnis)
+
 st.session_state["personen"] = [
     {k: v for k, v in p.items() if k in {"id", "alter", "unfall", "kosten"}}
     for p in aktualisiert
 ]
 
-if st.button(
-    "➕ Weitere Person hinzufügen", key="person_hinzu", width="stretch"
-):
+if st.button("➕ Weitere Person hinzufügen", key="person_hinzu", width="stretch"):
     naechste = max((p["id"] for p in aktualisiert), default=0) + 1
     st.session_state["personen"] = st.session_state["personen"] + [
         {"id": naechste, "alter": 8, "unfall": "MIT-UNF", "kosten": 500}
     ]
-    # Die neue Person aufklappen - sonst hängt unten ein zugeklappter Balken und
-    # es sieht aus, als sei nichts passiert.
-    st.session_state["_zuletzt_neu"] = naechste
+    # Die neue Person aufklappen, die übrigen zu - sonst steht man vor einer
+    # Seite voller offener Berichte und sieht nicht, was eben dazugekommen ist.
+    for e in aktualisiert:
+        st.session_state[f"offen_{e['id']}"] = False
+    st.session_state[f"offen_{naechste}"] = True
     st.rerun()
 
-kinder = [p for p in aktualisiert if p["zielgruppe"] == "Kinder"]
-ergebnisse = []
-for nummer, person in enumerate(aktualisiert, start=1):
-    if person["wohnort"] is None:
-        continue
-    zielgruppe = person["zielgruppe"]
-    if zielgruppe == "Kinder":
-        position = kinder.index(person) + 1
-        stufen = erlaubte_kinderstufen(position, len(kinder))
-    else:
-        stufen = ("K1",)
-
-    with st.expander(
-        f"{nummer}. {zielgruppe}, {person['alter']} Jahre – "
-        f"{chf(person['kosten'])} CHF Krankheitskosten – {person['wohnort'][2]}",
-        expanded=len(aktualisiert) == 1
-        or person["id"] == st.session_state.get("_zuletzt_neu"),
-    ):
-        if zielgruppe == "Kinder" and len(kinder) > 1:
-            st.caption(
-                f"Kind {position} von {len(kinder)} – erreichbare Tarifstufen: "
-                f"{', '.join(f'{s} ({KINDER_UNTERGRUPPEN[s]})' for s in stufen)}."
-            )
-        ergebnis = person_ansicht(
-            roh, person["wohnort"][0], person["wohnort"][1], zielgruppe,
-            {zielgruppe: person["unfall"]}, person["tariftypen"], stufen,
-            umweltabgabe_standard, person["kosten"], person["id"], person["jetzt"],
-        )
-    if ergebnis:
-        ergebnis["ort"] = person["wohnort"][2].split(" (")[0]
-        ergebnisse.append(ergebnis)
-
-haushalt_summe(ergebnisse, len(kinder))
+haushalt_summe(ergebnisse, len(kinder_ids))
 
 st.markdown("---")
 spalte_links, spalte_rechts = st.columns([3, 1])
