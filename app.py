@@ -763,9 +763,6 @@ if st.button(
     st.session_state["_zuletzt_neu"] = naechste
     st.rerun()
 
-import sys as _s
-print("[DIAG] personen=", [(p["id"], p["alter"], p["zielgruppe"], p["unfall"],
-      p["wohnort"][2] if p["wohnort"] else None, len(p["tariftypen"])) for p in aktualisiert], file=_s.stderr, flush=True)
 kinder = [p for p in aktualisiert if p["zielgruppe"] == "Kinder"]
 ergebnisse = []
 for nummer, person in enumerate(aktualisiert, start=1):
