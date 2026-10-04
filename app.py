@@ -6,6 +6,8 @@ import streamlit as st
 
 from constants import (
     KINDER_UNTERGRUPPEN,
+    hoechstgrenze_selbstbehalt,
+    selbstbehalt_anteil,
     TARIFTYPEN_KURZ,
     REGIONEN_DATEI,
     TARIFTYPEN,
@@ -205,9 +207,29 @@ def person_ansicht(
     )
     fenster_von = max(0, min(bezugspunkte) - rand)
     fenster_bis = min(rechenbereich, max(bezugspunkte) + rand)
-    kurven = kurven[
-        kurven["Krankheitskosten"].between(fenster_von, fenster_bis)
-    ]
+    kurven = kurven[kurven["Krankheitskosten"].between(fenster_von, fenster_bis)]
+
+    # Ausdünnen fürs Zeichnen. Die Kurven sind stückweise linear, jeder Franken
+    # einzeln ist also nichts als Datenvolumen: Im Fenster sind das rund 23'000
+    # Punkte oder 900 KB JSON - pro Diagramm, pro Person, bei jedem Rerun. Bei
+    # 25er-Schritten bleiben 36 KB bei gleichem Bild.
+    #
+    # Die Knickstellen müssen aber erhalten bleiben, sonst wird die Kurve an den
+    # interessanten Stellen abgeschnitten: dort, wo die Franchise ausgeschöpft
+    # ist, wo der Selbstbehalt seinen Deckel erreicht, am Kipppunkt und an den
+    # Fensterrändern.
+    obergrenze = hoechstgrenze_selbstbehalt[zielgruppe]
+    knicke = {fenster_von, fenster_bis, int(erwartete_kosten)}
+    if e.kipppunkt is not None:
+        knicke.update({e.kipppunkt - 1, e.kipppunkt})
+    for franchise in e.kosten.columns:
+        knicke.add(int(franchise))
+        knicke.add(int(franchise + obergrenze / selbstbehalt_anteil))
+    schritt = max(1, (fenster_bis - fenster_von) // 400)
+    behalten = kurven["Krankheitskosten"].isin(knicke) | (
+        kurven["Krankheitskosten"] % schritt == 0
+    )
+    kurven = kurven[behalten]
 
     diagramm = (
         alt.Chart(kurven)
