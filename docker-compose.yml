@@ -1,9 +1,13 @@
 services:
   app:
-    # Die Synology läuft auf x86_64; ohne diese Zeile baut ein Apple-Rechner ein
-    # arm64-Abbild, das dort nicht startet. Gleicher Grund wie bei
-    # abstractaltitudes.
-    platform: linux/amd64
+    # Die Synology läuft auf x86_64 - deshalb ist linux/amd64 die Vorgabe, sonst
+    # baut ein Apple-Rechner ein arm64-Abbild, das dort nicht startet (gleicher
+    # Grund wie bei abstractaltitudes).
+    #
+    # Zum Prüfen auf dem eigenen Rechner setzt scripts/test.sh ZIELPLATTFORM auf
+    # die Architektur des Macs: Ein amd64-Abbild läuft dort nur emuliert, und
+    # pandas stürzt darin ab.
+    platform: ${ZIELPLATTFORM:-linux/amd64}
     build:
       context: .
       dockerfile: Dockerfile

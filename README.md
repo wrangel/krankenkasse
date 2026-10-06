@@ -337,25 +337,27 @@ Nutzungsbedingungen.
 
 ## Im Container betreiben
 
+Drei Schritte, dieselben wie bei abstractaltitudes, nur ohne pnpm:
+
 ```bash
-docker compose up -d --build
+make dev     # App örtlich aus der virtuellen Umgebung, ohne Container
+make test    # Abbild für diesen Rechner bauen und im Container prüfen
+make prod    # Abbild für die Synology bauen (linux/amd64) und veröffentlichen
 ```
 
-Danach läuft die App auf Port 8501. Für den Betrieb auf einer Synology ist
-`platform: linux/amd64` gesetzt – ohne das baut ein Apple-Rechner ein
-arm64-Abbild, das dort nicht startet.
+`make test` baut bewusst für die Architektur des eigenen Rechners. Ein
+`linux/amd64`-Abbild liefe auf einem Apple-Rechner nur emuliert, und pandas
+stürzt darin mit `qemu: uncaught target signal 11` ab – das ist eine Eigenheit
+der Emulation, nicht des Abbilds. Die Plattform steuert die Variable
+`ZIELPLATTFORM`; ohne sie gilt `linux/amd64`, also die Synology.
+
+`make prod` rechnet zuerst die Tests durch, baut dann für `linux/amd64` und
+schiebt das Abbild auf Docker Hub. Auf der Synology danach:
+
+```bash
+docker pull wrangel/krankenkasse:1.0
+```
 
 Die Prämiendatei des BAG (rund 12 MB) wird beim ersten Aufruf geladen und liegt
 im Volume `praemien-cache`. Dadurch kostet ein Neustart nicht jedes Mal die rund
 sechs Sekunden fürs Einlesen.
-
-**Zum Testen auf einem Apple-Rechner:** Ein `linux/amd64`-Abbild läuft dort unter
-Emulation, und pandas stürzt darin mit einem Speicherzugriffsfehler ab
-(`qemu: uncaught target signal 11`). Das ist eine Eigenheit der Emulation, nicht
-des Abbilds. Lokal prüfen lässt es sich mit einem Bau für die eigene
-Architektur:
-
-```bash
-docker build -t krankenkasse:lokal .
-docker run --rm -p 8501:8501 krankenkasse:lokal
-```
