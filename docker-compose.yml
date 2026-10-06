@@ -1,0 +1,35 @@
+services:
+  app:
+    # Die Synology läuft auf x86_64; ohne diese Zeile baut ein Apple-Rechner ein
+    # arm64-Abbild, das dort nicht startet. Gleicher Grund wie bei
+    # abstractaltitudes.
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: wrangel/krankenkasse:1.0
+    ports:
+      - "8501:8501"
+    restart: unless-stopped
+    networks:
+      - app-network
+    volumes:
+      # Die Prämiendatei des BAG überlebt damit einen Neustart. Ohne das Volume
+      # kostet jeder Start rund sechs Sekunden fürs Einlesen.
+      - praemien-cache:/app/.cache
+    environment:
+      # Streamlit schreibt sonst in ein Home, das der Dienstbenutzer nicht hat.
+      - HOME=/app
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+        reservations:
+          memory: 512M
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  praemien-cache:

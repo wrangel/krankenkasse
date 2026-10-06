@@ -40,6 +40,32 @@ def haushalt_summe(
         f"günstigsten Angebot."
     )
 
+    if gemeinsam:
+        ersparnis = kinder_einzeln - gemeinsam["total"]
+        stufen = ", ".join(k["stufe"] for k in gemeinsam["je_kind"])
+        if ersparnis > 0:
+            st.info(
+                f"**Geschwisterrabatt: {chf(ersparnis)} CHF pro Jahr – aber nur bei "
+                f"einem gemeinsamen Versicherer.**\n\n"
+                f"- Jedes Kind einzeln beim für es günstigsten Anbieter, ohne "
+                f"Rabatt: **{chf(kinder_einzeln)} CHF**\n"
+                f"- Alle {anzahl_kinder} Kinder bei **{gemeinsam['versicherer']} – "
+                f"{gemeinsam['tarif']}**, Tarifstufen {stufen}: "
+                f"**{chf(gemeinsam['total'])} CHF**\n\n"
+                f"K3, K4 und K5 gelten nur für Kinder derselben Familie beim "
+                f"gleichen Versicherer. Rabatt und freie Wahl pro Kind schliessen "
+                f"sich also aus. Oben eingerechnet ist die günstigere Variante.",
+                icon="👪",
+            )
+        else:
+            st.info(
+                f"**Ein gemeinsamer Versicherer für die Kinder lohnt sich hier "
+                f"nicht.** Jedes Kind einzeln zum günstigsten Anbieter kostet "
+                f"{chf(kinder_einzeln)} CHF, alle zusammen bei "
+                f"{gemeinsam['versicherer']} {chf(gemeinsam['total'])} CHF.",
+                icon="👪",
+            )
+
     uebersicht = pd.DataFrame(
         [
             {
@@ -92,41 +118,12 @@ def haushalt_summe(
         mime="text/csv",
     )
 
-    if gemeinsam:
-        st.subheader("Geschwisterrabatt")
-        ersparnis = kinder_einzeln - gemeinsam["total"]
-        stufen = ", ".join(k["stufe"] for k in gemeinsam["je_kind"])
-        links, rechts = st.columns(2)
-        links.metric(
-            "Jedes Kind einzeln, ohne Rabatt", f"{chf(kinder_einzeln)} CHF"
-        )
-        rechts.metric(
-            "Alle Kinder beim gleichen Versicherer",
-            f"{chf(gemeinsam['total'])} CHF",
-            delta=f"{-ersparnis:,.0f} CHF".replace(",", "'"),
-            delta_color="inverse" if ersparnis > 0 else "normal",
-        )
-        if ersparnis > 0:
-            st.caption(
-                f"**{gemeinsam['versicherer']} – {gemeinsam['tarif']}** für alle "
-                f"{anzahl_kinder} Kinder, Tarifstufen {stufen}: "
-                f"**{chf(ersparnis)} CHF pro Jahr günstiger**, als jedes Kind "
-                f"einzeln zum günstigsten Anbieter zu versichern. Der Rabatt setzt "
-                f"voraus, dass alle Kinder beim **gleichen** Versicherer sind – "
-                f"deshalb lässt er sich nicht mit der freien Wahl pro Kind "
-                f"kombinieren. In der Summe oben ist die günstigere Variante "
-                f"eingerechnet."
-            )
-        else:
-            st.caption(
-                f"Ein gemeinsamer Vertrag bringt hier nichts: Jedes Kind einzeln "
-                f"zum günstigsten Anbieter kommt gleich teuer oder günstiger."
-            )
+    if anzahl_kinder >= 2:
         st.caption(
-            f"Zusätzlich begrenzt Art. 93 Abs. 3 KVV die Kostenbeteiligung aller "
-            f"Kinder beim gleichen Versicherer auf das Zweifache des Höchstbetrages "
-            f"je Kind – diese Deckelung ist oben **nicht** berücksichtigt, die reale "
-            f"Belastung kann also tiefer ausfallen."
+            "Zusätzlich begrenzt Art. 93 Abs. 3 KVV die Kostenbeteiligung aller "
+            "Kinder beim gleichen Versicherer auf das Zweifache des Höchstbetrages "
+            "je Kind – diese Deckelung ist oben **nicht** berücksichtigt, die reale "
+            "Belastung kann also tiefer ausfallen."
         )
 
 
