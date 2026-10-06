@@ -17,10 +17,6 @@ from view_person import person_form, person_summary, person_view
 
 configure_page()
 
-if "_clicked_costs" in st.session_state:
-    key, value = st.session_state.pop("_clicked_costs")
-    st.session_state[key] = value
-
 st.session_state.setdefault(
     "people", [{"id": 1, "age": 40, "accident": "OHN-UNF", "costs": 1000}]
 )

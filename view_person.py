@@ -213,42 +213,17 @@ def person_view(
         .encode(x="k:Q", y=alt.value(0), text="beschriftung:N")
     )
 
-    # Clicking the chart moves the red line. The number field stays the second
-    # way in; both write the same value.
-    click_point = alt.selection_point(
-        name="point", fields=["Krankheitskosten"], nearest=True, on="click", empty=False
-    )
-    # Invisible but clickable verticals across the full height. mark_point with
-    # opacity=0 does not respond to clicks; a rule with a wide stroke does.
-    hit_area = (
-        alt.Chart(curves[["Krankheitskosten"]].drop_duplicates())
-        .mark_rule(size=8)
-        .encode(x="Krankheitskosten:Q", opacity=alt.value(0))
-        .add_params(click_point)
-    )
-    event = st.altair_chart(
-        chart + hit_area, width="stretch", on_select="rerun", key=f"chart_{key}",
-    )
-
-    selected = (event.selection or {}).get("point") if event else None
-    if selected:
-        new_value = int(round(selected[0]["Krankheitskosten"] / 50) * 50)
-        # Clamp to the range actually computed, not to its lower bound -
-        # otherwise a click beyond 10,000 would jump back.
-        new_value = max(0, min(cost_range, new_value))
-        if new_value != expected_costs:
-            # Do not set the input's key directly - it has already been
-            # instantiated in this run. Note it down and apply it on the next.
-            st.session_state["_clicked_costs"] = (key, new_value)
-            st.rerun()
+    # The chart is read-only. Expected costs are set in the number field, the
+    # same way as age and accident cover - one way in, not two.
+    st.altair_chart(chart, width="stretch")
 
     # One caption instead of two: both explained the same picture - the vertical
     # lines and the faded curves - and two paragraphs in a row read like two
     # separate topics.
     parts = [
         f"Die **rote Linie** steht bei deinen erwarteten Krankheitskosten "
-        f"({chf(expected_costs)} CHF); du kannst sie im Diagramm anklicken oder den "
-        f"Betrag links eintragen. Fett gezeichnet ist die dort günstigste Franchise."
+        f"({chf(expected_costs)} CHF) – den Betrag trägst du oben ein. Fett "
+        f"gezeichnet ist die dort günstigste Franchise."
     ]
     if r.tipping_point is None:
         parts.append(

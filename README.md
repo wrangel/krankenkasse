@@ -111,8 +111,8 @@ necessarily want it for everyone else.
 Per person, when the box is expanded:
 
 - the cheapest deductible at the healthcare costs entered, and the resulting annual total,
-- the cost curves of all deductibles as a chart, with the tipping point marked; clicking
-  the chart moves the expected-costs line,
+- the cost curves of all deductibles as a chart, with the tipping point and the expected
+  costs marked,
 - the cheapest offers for that deductible, including insurer and tariff model, with the
   current contract marked and ranked if one was entered,
 - a comparison of all deductibles at the costs entered,
