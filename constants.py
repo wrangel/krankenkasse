@@ -40,7 +40,7 @@ umweltabgabe_standard = 57.00 / 12
 # Gesetzliche Selbstbehalt-Obergrenze pro Jahr (Art. 103 KVV)
 hoechstgrenze_selbstbehalt = {
     "Erwachsene": 700,
-    "Jugendliche": 700,
+    "Junge Erwachsene": 700,
     "Kinder": 350,
 }
 
@@ -52,7 +52,7 @@ maximale_krankenkosten = 10000
 
 ALTERSKLASSEN = {
     "AKL-ERW": "Erwachsene",
-    "AKL-JUG": "Jugendliche",
+    "AKL-JUG": "Junge Erwachsene",
     "AKL-KIN": "Kinder",
 }
 

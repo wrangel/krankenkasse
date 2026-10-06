@@ -30,11 +30,24 @@ def regionen_nach_plz() -> dict[str, list[dict]]:
 
 
 def zielgruppe_fuer_alter(alter: int) -> str:
-    """Altersklasse des BAG: Kinder bis 18, junge Erwachsene 19-25, danach Erwachsene."""
+    """Altersklasse der Prämien nach KVG.
+
+    Das KVG kennt für die Prämien genau drei Klassen (Art. 61 Abs. 3 KVG, Namen
+    nach den "Erläuterungen zu den Prämiendaten" des BAG):
+
+        bis 18    Kinder             (AKA_01_KIN)
+        19 - 25   Junge Erwachsene   (AKA_02_JUG)
+        ab 26     Erwachsene         (AKA_03_ERW)
+
+    Eine Klasse "Jugendliche" gibt es nicht, und ein Vierzehnjähriger ist für die
+    Prämie ein Kind - nicht erst bis 12. Die Abstufung erfolgt übrigens nach
+    Geburtsjahr, nicht nach Geburtstag (Art. 89 Abs. 3 KVV); diese App rechnet
+    vereinfachend mit dem Alter.
+    """
     if alter <= 18:
         return "Kinder"
     if alter <= 25:
-        return "Jugendliche"
+        return "Junge Erwachsene"
     return "Erwachsene"
 
 

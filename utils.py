@@ -146,7 +146,7 @@ def get_data(
     und normalisiert Franchise, Prämie und Altersklasse."""
     unfalldeckung = unfalldeckung or {
         "Erwachsene": "OHN-UNF",
-        "Jugendliche": "OHN-UNF",
+        "Junge Erwachsene": "OHN-UNF",
         "Kinder": "MIT-UNF",
     }
     akl_pro_zielgruppe = {name: akl for akl, name in ALTERSKLASSEN.items()}
@@ -392,7 +392,7 @@ def haushalt_angebote(
     """
     unfalldeckung = unfalldeckung or {
         "Erwachsene": "OHN-UNF",
-        "Jugendliche": "OHN-UNF",
+        "Junge Erwachsene": "OHN-UNF",
         "Kinder": "MIT-UNF",
     }
     basis = df[(df["Kanton"] == kanton) & (df["Region"] == region)]
@@ -404,8 +404,8 @@ def haushalt_angebote(
             * haushalt.erwachsene
         )
     if haushalt.jugendliche:
-        teile["Jugendliche"] = (
-            _preisreihe(basis, "AKL-JUG", unfalldeckung["Jugendliche"], franchise_jugendliche)
+        teile["Junge Erwachsene"] = (
+            _preisreihe(basis, "AKL-JUG", unfalldeckung["Junge Erwachsene"], franchise_jugendliche)
             * haushalt.jugendliche
         )
     for untergruppe in sorted(set(haushalt.kinder)):
