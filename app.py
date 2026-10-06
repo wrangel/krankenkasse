@@ -38,7 +38,9 @@ st.info(
     f"über opendata.swiss · Rückerstattung Umweltabgaben "
     f"**{umweltabgabe_standard * 12:.2f} CHF pro Jahr** "
     f"({umweltabgabe_standard:.2f} pro Monat), für alle Versicherten gleich und bereits "
-    f"von den Prämien abgezogen.",
+    f"von den Prämien abgezogen.\n\n"
+    f"**Rechenhilfe, keine Finanz- oder Versicherungsberatung.** Was nicht "
+    f"berücksichtigt ist, steht unten auf der Seite.",
     icon="ℹ️",
 )
 
@@ -202,6 +204,40 @@ if len(kinder_ergebnisse) >= 2:
 haushalt_summe(ergebnisse, len(kinder_ids), gemeinsam)
 
 st.markdown("---")
+
+# Dieselben Einschränkungen wie im README - wer die App benutzt, liest das
+# README nicht. Eingeklappt, damit die Seite nicht mit Kleingedrucktem endet,
+# aber von jeder Seite aus erreichbar.
+with st.expander("Was diese Rechnung nicht berücksichtigt"):
+    st.markdown(
+        """
+Diese Anwendung ist eine **Rechenhilfe und keine Finanz- oder
+Versicherungsberatung**. Sie rechnet aus den amtlichen Prämiendaten, was die
+angegebene Person bei den angegebenen Krankheitskosten zahlen würde – mehr nicht.
+Welche Versicherung zu jemandem passt, hängt an Dingen, die hier nicht vorkommen:
+
+- **Prämienverbilligung**, Zusatzversicherungen, der Spitalbeitrag von 15 CHF pro
+  Tag sowie Besonderheiten einzelner Modelle.
+- **Einschränkungen bei der Arztwahl.** Die alternativen Modelle sind in den
+  Prämien enthalten, ihre Auflagen aber nicht bewertet. Das günstigste Angebot ist
+  nicht automatisch das passendste – die günstigsten sind fast immer Modelle, die
+  die Arztwahl einschränken.
+- **Die Familien-Höchstgrenze** der Kostenbeteiligung (Art. 93 Abs. 3 KVV) ist in
+  den Summen nicht eingerechnet. Bei drei oder mehr Kindern fällt die reale
+  Belastung also tiefer aus als hier gezeigt.
+- **Unterschiedliche Franchisen der Kinder.** Die Verordnung überlässt die
+  Höchstbeteiligung dann dem Versicherer; hier wird eine gemeinsame Franchise
+  angenommen.
+- **Der Kipppunkt ist auf den Franken genau, aber dort geht es um Rappen.** Welche
+  Richtung er anzeigt – hohe oder tiefe Franchise – ist belastbar, der genaue
+  Betrag nicht.
+
+Massgebend sind die Angaben der Versicherer und das offizielle
+[priminfo.admin.ch](https://www.priminfo.admin.ch). Für Entscheide mit Folgen
+lohnt sich eine Beratung bei einer unabhängigen Stelle.
+        """
+    )
+
 spalte_links, spalte_rechts = st.columns([3, 1])
 spalte_links.caption(
     "Die Prämiendaten werden beim ersten Aufruf geladen und sieben Tage "
