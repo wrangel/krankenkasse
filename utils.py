@@ -579,3 +579,80 @@ def erlaubte_kinderstufen(position: int, anzahl_kinder: int) -> tuple[str, ...]:
         if position >= 3:
             stufen.add("K3")
     return tuple(sorted(stufen))
+
+
+def _kind_jahreskosten(
+    praemie: float, franchise: int, krankheitskosten: float, umweltabgabe: float
+) -> float:
+    """Gesamtkosten eines Kindes für ein Jahr: Prämie plus Kostenbeteiligung."""
+    obergrenze = hoechstgrenze_selbstbehalt["Kinder"]
+    selbstbehalt = min(
+        max(0.0, krankheitskosten - franchise) * selbstbehalt_anteil, obergrenze
+    )
+    return (
+        12 * (praemie - umweltabgabe)
+        + min(krankheitskosten, franchise)
+        + selbstbehalt
+    )
+
+
+def kinder_beim_gleichen_versicherer(
+    daten: pd.DataFrame, kosten_je_kind: list[float], umweltabgabe: float
+) -> dict | None:
+    """Günstigstes Angebot, wenn alle Kinder beim gleichen Versicherer sind.
+
+    Das ist die Bedingung für jeden Geschwisterrabatt: K3, K4 und K5 gelten nur
+    für Kinder derselben Familie **beim gleichen Versicherer**. Wer jedes Kind
+    einzeln zum billigsten Anbieter schickt, bekommt deshalb gar keinen Rabatt -
+    und wer den Rabatt will, muss alle Kinder zusammen versichern, auch wenn ein
+    einzelnes anderswo günstiger wäre.
+
+    Gerechnet wird je Versicherer und Tarif: Für jedes Kind wird unter den dort
+    erreichbaren Stufen und allen Franchisen die günstigste Kombination gesucht,
+    danach über alle Anbieter das kleinste Total.
+
+    `daten` muss bereits auf Kinder, Wohnort, Unfalldeckung und Tarifmodelle
+    gefiltert sein.
+    """
+    anzahl = len(kosten_je_kind)
+    if anzahl == 0 or daten.empty:
+        return None
+
+    bestes: dict | None = None
+    for (versicherer, tarif), gruppe in daten.groupby(
+        ["Versicherername", "Tarifbezeichnung"]
+    ):
+        vorhanden = set(gruppe["Altersuntergruppe"].dropna())
+        gesamt = 0.0
+        aufteilung = []
+        for position, krankheitskosten in enumerate(kosten_je_kind, start=1):
+            erlaubt = set(erlaubte_kinderstufen(position, anzahl)) & vorhanden
+            moeglich = gruppe[gruppe["Altersuntergruppe"].isin(erlaubt)]
+            if moeglich.empty:
+                aufteilung = []
+                break
+            kosten = moeglich.apply(
+                lambda z: _kind_jahreskosten(
+                    z["Prämie"], int(z["Franchise"]), krankheitskosten, umweltabgabe
+                ),
+                axis=1,
+            )
+            beste_zeile = moeglich.loc[kosten.idxmin()]
+            gesamt += float(kosten.min())
+            aufteilung.append(
+                {
+                    "franchise": int(beste_zeile["Franchise"]),
+                    "stufe": beste_zeile["Altersuntergruppe"],
+                    "kosten": float(kosten.min()),
+                }
+            )
+        if not aufteilung:
+            continue
+        if bestes is None or gesamt < bestes["total"]:
+            bestes = {
+                "versicherer": versicherer,
+                "tarif": tarif,
+                "total": gesamt,
+                "je_kind": aufteilung,
+            }
+    return bestes

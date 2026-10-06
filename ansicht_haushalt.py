@@ -6,12 +6,25 @@ import streamlit as st
 from basis import chf
 
 
-def haushalt_summe(ergebnisse: list[dict], anzahl_kinder: int) -> None:
+def haushalt_summe(
+    ergebnisse: list[dict], anzahl_kinder: int, gemeinsam: dict | None = None
+) -> None:
     """Die Summe über alle Personen - das, wonach am Ende gefragt ist."""
     if not ergebnisse:
         return
 
-    gesamt = sum(e["jahreskosten"] for e in ergebnisse)
+    kinder_einzeln = sum(
+        e["jahreskosten"] for e in ergebnisse if e["zielgruppe"] == "Kinder"
+    )
+    uebrige = sum(
+        e["jahreskosten"] for e in ergebnisse if e["zielgruppe"] != "Kinder"
+    )
+    # Für die Kinder gilt, was günstiger ist: jedes Kind frei zum Normaltarif,
+    # oder alle zusammen bei einem Versicherer mit Geschwisterrabatt.
+    kinder_gewaehlt = (
+        min(kinder_einzeln, gemeinsam["total"]) if gemeinsam else kinder_einzeln
+    )
+    gesamt = uebrige + kinder_gewaehlt
     praemien = sum(e["praemie_jahr"] for e in ergebnisse)
 
     st.markdown("---")
@@ -79,13 +92,40 @@ def haushalt_summe(ergebnisse: list[dict], anzahl_kinder: int) -> None:
         mime="text/csv",
     )
 
-    if anzahl_kinder >= 2:
+    if gemeinsam:
+        st.subheader("Geschwisterrabatt")
+        ersparnis = kinder_einzeln - gemeinsam["total"]
+        stufen = ", ".join(k["stufe"] for k in gemeinsam["je_kind"])
+        links, rechts = st.columns(2)
+        links.metric(
+            "Jedes Kind einzeln, ohne Rabatt", f"{chf(kinder_einzeln)} CHF"
+        )
+        rechts.metric(
+            "Alle Kinder beim gleichen Versicherer",
+            f"{chf(gemeinsam['total'])} CHF",
+            delta=f"{-ersparnis:,.0f} CHF".replace(",", "'"),
+            delta_color="inverse" if ersparnis > 0 else "normal",
+        )
+        if ersparnis > 0:
+            st.caption(
+                f"**{gemeinsam['versicherer']} – {gemeinsam['tarif']}** für alle "
+                f"{anzahl_kinder} Kinder, Tarifstufen {stufen}: "
+                f"**{chf(ersparnis)} CHF pro Jahr günstiger**, als jedes Kind "
+                f"einzeln zum günstigsten Anbieter zu versichern. Der Rabatt setzt "
+                f"voraus, dass alle Kinder beim **gleichen** Versicherer sind – "
+                f"deshalb lässt er sich nicht mit der freien Wahl pro Kind "
+                f"kombinieren. In der Summe oben ist die günstigere Variante "
+                f"eingerechnet."
+            )
+        else:
+            st.caption(
+                f"Ein gemeinsamer Vertrag bringt hier nichts: Jedes Kind einzeln "
+                f"zum günstigsten Anbieter kommt gleich teuer oder günstiger."
+            )
         st.caption(
-            f"Die Kinderprämien enthalten den Geschwisterrabatt, soweit er bei "
-            f"{anzahl_kinder} Kindern erreichbar ist. Zusätzlich begrenzt Art. 93 "
-            f"Abs. 3 KVV die Kostenbeteiligung aller Kinder beim gleichen "
-            f"Versicherer auf das Zweifache des Höchstbetrages je Kind – diese "
-            f"Deckelung ist in den Zahlen oben **nicht** berücksichtigt, die reale "
+            f"Zusätzlich begrenzt Art. 93 Abs. 3 KVV die Kostenbeteiligung aller "
+            f"Kinder beim gleichen Versicherer auf das Zweifache des Höchstbetrages "
+            f"je Kind – diese Deckelung ist oben **nicht** berücksichtigt, die reale "
             f"Belastung kann also tiefer ausfallen."
         )
 

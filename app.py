@@ -13,7 +13,7 @@ from ansicht_person import person_ansicht, person_eckwerte, person_formular
 from basis import chf, praemien, zielgruppe_fuer_alter
 from constants import KINDER_UNTERGRUPPEN, umweltabgabe_standard
 from oberflaeche import farbe_fuer_person, personen_farben_setzen, seite_einrichten
-from utils import erlaubte_kinderstufen
+from utils import get_data, kinder_beim_gleichen_versicherer
 
 seite_einrichten()
 
@@ -90,17 +90,15 @@ for nummer, person in enumerate(personen, start=1):
             continue
 
         zielgruppe = eintrag["zielgruppe"]
-        if zielgruppe == "Kinder" and person["id"] in kinder_ids:
-            position = kinder_ids.index(person["id"]) + 1
-            stufen = erlaubte_kinderstufen(position, len(kinder_ids))
-            if offen and len(kinder_ids) > 1:
-                st.caption(
-                    f"Kind {position} von {len(kinder_ids)} – erreichbare "
-                    f"Tarifstufen: "
-                    f"{', '.join(f'{s} ({KINDER_UNTERGRUPPEN[s]})' for s in stufen)}."
-                )
-        else:
-            stufen = ("K1",)
+        stufen = ("K1",)
+        if zielgruppe == "Kinder" and offen and len(kinder_ids) > 1:
+            st.caption(
+                f"Kind {kinder_ids.index(person['id']) + 1} von {len(kinder_ids)}. "
+                f"Unten steht dieses Kind einzeln gerechnet, zum Normaltarif K1. "
+                f"Geschwisterrabatte gibt es nur, wenn **alle** Kinder beim "
+                f"gleichen Versicherer sind – dazu der eigene Abschnitt weiter "
+                f"unten."
+            )
 
         if offen:
             st.markdown("---")
@@ -117,6 +115,11 @@ for nummer, person in enumerate(personen, start=1):
             )
         if ergebnis:
             ergebnis["ort"] = eintrag["wohnort"][2].split(" (")[0]
+            ergebnis["id"] = person["id"]
+            ergebnis["kosten"] = eintrag["kosten"]
+            ergebnis["wohnort"] = eintrag["wohnort"]
+            ergebnis["unfall"] = eintrag["unfall"]
+            ergebnis["tariftypen"] = eintrag["tariftypen"]
             ergebnisse.append(ergebnis)
 
 st.session_state["personen"] = [
@@ -173,7 +176,30 @@ if ziel is not None:
             height=0,
         )
 
-haushalt_summe(ergebnisse, len(kinder_ids))
+# Geschwisterrabatt: nur erhältlich, wenn alle Kinder beim gleichen Versicherer
+# sind. Deshalb wird er für die Kinder gemeinsam gerechnet und gegen die freie
+# Wahl ohne Rabatt gestellt - die Entscheidung gehört dem Haushalt, nicht dem
+# einzelnen Kind.
+gemeinsam = None
+kinder_ergebnisse = [e for e in ergebnisse if e["zielgruppe"] == "Kinder"]
+if len(kinder_ergebnisse) >= 2:
+    erstes = kinder_ergebnisse[0]
+    kinderdaten = get_data(
+        roh,
+        kanton=erstes["wohnort"][0],
+        region=erstes["wohnort"][1],
+        zielgruppen=("Kinder",),
+        unfalldeckung={"Kinder": erstes["unfall"]},
+        kinder_untergruppen=tuple(KINDER_UNTERGRUPPEN),
+        tariftypen=tuple(erstes["tariftypen"]) if erstes["tariftypen"] else None,
+    )
+    gemeinsam = kinder_beim_gleichen_versicherer(
+        kinderdaten,
+        [float(e["kosten"]) for e in kinder_ergebnisse],
+        umweltabgabe_standard,
+    )
+
+haushalt_summe(ergebnisse, len(kinder_ids), gemeinsam)
 
 st.markdown("---")
 spalte_links, spalte_rechts = st.columns([3, 1])
