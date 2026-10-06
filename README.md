@@ -367,6 +367,55 @@ schiebt das Abbild auf Docker Hub. Auf der Synology danach:
 docker pull wrangel/krankenkasse:1.0
 ```
 
+### Öffentlich erreichbar machen
+
+Die Reihenfolge ist nicht beliebig: Ein Zertifikat wird auf einen Namen
+ausgestellt, der Name muss also zuerst da sein.
+
+1. **Name.** Entweder eine eigene Domain, oder gratis über DSM:
+   *Systemsteuerung → Externer Zugriff → DDNS*, Anbieter Synology, ergibt
+   `etwas.synology.me`. Für den Anfang reicht das und spart den Umweg über einen
+   Registrar.
+
+2. **Router.** Port 443 auf die NAS weiterleiten, und **Port 80 ebenfalls** –
+   nicht für den Betrieb, sondern weil Let's Encrypt darüber prüft, dass der Name
+   wirklich dir gehört. Sperrt der Anbieter Port 80, geht das Zertifikat nur über
+   die DNS-Prüfung.
+
+3. **Zertifikat.** *Systemsteuerung → Sicherheit → Zertifikat → Hinzufügen →
+   Let's Encrypt*, als Domain den Namen aus Schritt 1. DSM erneuert es danach
+   selbst.
+
+4. **Reverse Proxy.** *Systemsteuerung → Anmeldeportal → Erweitert → Reverse
+   Proxy*:
+
+   | | |
+   |---|---|
+   | Quelle | HTTPS, Name aus Schritt 1, Port 443 |
+   | Ziel | HTTP, `localhost`, Port 8501 |
+
+   **Hier liegt die Stolperfalle.** Streamlit hält die Verbindung über einen
+   WebSocket offen; ohne ihn lädt die Seite und bleibt dann bei „Connecting…"
+   stehen – die Oberfläche ist da, aber nichts reagiert. Im Reverse Proxy unter
+   *Benutzerdefinierte Kopfzeilen* die Vorlage **WebSocket** hinzufügen. Das
+   setzt `Upgrade` und `Connection` und ist der häufigste Grund, warum eine
+   Streamlit-App hinter einem Proxy tot wirkt.
+
+5. **Von HTTP auf HTTPS.** Eine zweite Regel für Port 80 auf denselben Namen,
+   und in der HTTPS-Regel **HSTS** einschalten. Web Station braucht es dafür
+   nicht.
+
+6. **Firewall.** *Systemsteuerung → Sicherheit → Firewall*: 80 und 443 offen,
+   8501 **nicht**. Nötig ist das ohnehin nicht mehr – der Container hört seit
+   dieser Fassung nur noch auf `127.0.0.1`, ist also von aussen gar nicht
+   erreichbar, sondern nur über den Proxy auf der NAS selbst.
+
+Danach prüfen, ob die Verbindung wirklich steht und nicht nur die Seite lädt:
+
+```bash
+curl -I https://DEINNAME/_stcore/health     # muss 200 liefern
+```
+
 ### Auf der Synology
 
 Dort wird nur geholt und neu gestartet, nie gebaut. Im Aufgabenplaner als

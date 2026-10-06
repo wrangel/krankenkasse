@@ -13,7 +13,14 @@ services:
       dockerfile: Dockerfile
     image: wrangel/krankenkasse:1.0
     ports:
-      - "${PORT:-8501}:8501"
+      # Nur an localhost binden. Der Reverse Proxy der Synology läuft auf der NAS
+      # selbst und erreicht den Container darüber; von aussen ist er damit nicht
+      # direkt erreichbar. Ohne die Bindung an 127.0.0.1 wäre die App unter
+      # NAS-IP:8501 offen - ohne TLS, am Proxy vorbei.
+      #
+      # Für den Zugriff aus dem Heimnetz, etwa zum Prüfen von einem anderen
+      # Rechner: BIND=0.0.0.0 docker compose up -d
+      - "${BIND:-127.0.0.1}:${PORT:-8501}:8501"
     restart: unless-stopped
     networks:
       - app-network
