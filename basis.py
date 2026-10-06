@@ -12,7 +12,13 @@ from constants import REGIONEN_DATEI
 from utils import lade_praemien
 
 
-@st.cache_data(show_spinner="Lade BAG-Prämiendaten…")
+# Die Meldung sagt, warum es dauert und dass es nur einmal dauert. Beim ersten
+# Aufruf nach einem Neustart wird die Datei des BAG eingelesen - auf der Synology
+# spürbar lange -, danach liegt sie eingelesen bereit.
+@st.cache_data(
+    show_spinner="Lade die Prämiendaten des BAG. Beim ersten Aufruf dauert das "
+    "einen Moment, danach geht es schnell."
+)
 def praemien(max_alter_tage: int):
     return lade_praemien(max_alter_tage)
 
