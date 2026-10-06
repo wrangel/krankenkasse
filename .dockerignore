@@ -8,8 +8,8 @@ __pycache__
 .idea
 .vscode
 .DS_Store
-finding_history.json
-data_state.json
+data/finding_history.json
+data/data_state.json
 test_calculation.py
 check_data_sources.py
 refresh_insurers.py

@@ -1,3 +1,9 @@
+# The project name is pinned rather than derived from the directory name.
+# Compose defaults to the folder it finds docker-compose.yml in, which would
+# make the container name - and so the docker exec calls in
+# scripts/syno-deploy.sh - break the moment the checkout is renamed or moved.
+name: grundversicherungsrechner
+
 services:
   app:
     # The Synology runs on x86_64 - hence linux/amd64 as the default, otherwise
@@ -11,7 +17,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: wrangel/krankenkasse:1.0
+    image: wrangel/grundversicherungsrechner:1.0
     ports:
       # Bind to localhost only. The Synology's reverse proxy runs on the NAS
       # itself and reaches the container that way; from outside it is therefore

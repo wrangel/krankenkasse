@@ -9,7 +9,7 @@ import pandas as pd
 import streamlit as st
 
 from constants import ADULTS, CHILDREN, REGIONS_FILE, YOUNG_ADULTS
-from utils import load_premiums
+from calculation import load_premiums
 
 
 # The message says why it takes a moment and that it only takes it once. On the

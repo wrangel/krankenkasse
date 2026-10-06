@@ -22,8 +22,8 @@ import json
 
 import pandas as pd
 
-from constants import REGIONS_FILE
-from utils import download_file
+from constants import DATA_DIR, REGIONS_FILE
+from calculation import download_file
 
 REGIONS_URL = "https://www.priminfo.admin.ch/downloads/praemienregionen-2027.xlsx"
 SHEET = "B_NPA"
@@ -64,6 +64,7 @@ def fetch_regions() -> dict[str, list[dict]]:
 
 
 def main() -> int:
+    DATA_DIR.mkdir(exist_ok=True)
     mapping = fetch_regions()
     REGIONS_FILE.write_text(
         json.dumps(mapping, indent=0, ensure_ascii=False, sort_keys=True) + "\n",

@@ -17,7 +17,7 @@ while ! docker info >/dev/null 2>&1; do
 done
 
 echo "Checking the arithmetic before anything is published..."
-VENV="${VENV:-$HOME/.venvs/krankenkasse}"
+VENV="${VENV:-$HOME/.venvs/grundversicherungsrechner}"
 "$VENV/bin/python" test_calculation.py
 
 echo "Building $IMAGE for linux/amd64..."

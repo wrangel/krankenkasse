@@ -9,18 +9,17 @@ and entered below.
 
 import json
 import re
-from pathlib import Path
 
 import pandas as pd
 
-from utils import download_file
+from constants import DATA_DIR, INSURERS_FILE
+from calculation import download_file
 
 DIRECTORY_URL = (
     "https://www.bag.admin.ch/dam/de/sd-web/wKeV97535ICf/"
     "Zugelassene%20Krankenversicherer_1.1.2026.xlsx"
 )
 SHEET = "Zugelassene Krankenversicherer"
-TARGET = Path(__file__).parent / "insurers.json"
 
 
 def _name(cell) -> str:
@@ -42,6 +41,7 @@ def main() -> None:
     )
     df = pd.read_excel(path, sheet_name=SHEET, header=None, skiprows=2)
 
+    DATA_DIR.mkdir(exist_ok=True)
     mapping = {}
     for _, row in df.iterrows():
         try:
@@ -52,11 +52,11 @@ def main() -> None:
         if name and name != "nan":
             mapping[str(number)] = name
 
-    TARGET.write_text(
+    INSURERS_FILE.write_text(
         json.dumps(mapping, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    print(f"{len(mapping)} insurers written to {TARGET.name}.")
+    print(f"{len(mapping)} insurers written to {INSURERS_FILE.name}.")
 
 
 if __name__ == "__main__":

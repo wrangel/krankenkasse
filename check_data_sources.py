@@ -40,20 +40,16 @@ import sys
 import urllib.error
 import urllib.request
 from datetime import date
-from pathlib import Path
 
-from constants import premiums_url
+from constants import DATA_DIR, HISTORY_FILE, STATE_FILE, premiums_url
 from refresh_insurers import DIRECTORY_URL
-from utils import cheapest_premiums, compute_tipping_point, get_data, load_premiums
+from calculation import cheapest_premiums, compute_tipping_point, get_data, load_premiums
 
-STATE_FILE = Path(__file__).parent / "data_state.json"
-
-# The state above is overwritten on every recording - it only ever describes the
-# present. The history beside it is only ever appended to: one entry per premium
-# year. Over the years that builds a series against which the observation "only
-# the highest and the lowest deductible win" can actually be checked, instead of
-# being asserted from memory.
-HISTORY_FILE = Path(__file__).parent / "finding_history.json"
+# STATE_FILE is overwritten on every recording - it only ever describes the
+# present. HISTORY_FILE beside it is only ever appended to: one entry per
+# premium year. Over the years that builds a series against which the
+# observation "only the highest and the lowest deductible win" can actually be
+# checked, instead of being asserted from memory.
 _USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
 
 # Reference selection for the finding. Deliberately fixed, so that the
@@ -247,6 +243,7 @@ def main() -> int:
     print(f"  Age subgroups: {', '.join(found['age_subgroups'])}")
 
     if arguments.write:
+        DATA_DIR.mkdir(exist_ok=True)
         STATE_FILE.write_text(
             json.dumps(found, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
         )

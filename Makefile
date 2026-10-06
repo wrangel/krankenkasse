@@ -16,5 +16,5 @@ prod:
 	@./scripts/prod.sh
 
 check:
-	@$${VENV:-$$HOME/.venvs/krankenkasse}/bin/python test_calculation.py
-	@$${VENV:-$$HOME/.venvs/krankenkasse}/bin/python check_data_sources.py
+	@$${VENV:-$$HOME/.venvs/grundversicherungsrechner}/bin/python test_calculation.py
+	@$${VENV:-$$HOME/.venvs/grundversicherungsrechner}/bin/python check_data_sources.py

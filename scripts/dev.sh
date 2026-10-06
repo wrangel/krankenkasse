@@ -3,7 +3,7 @@
 # environment.
 set -e
 
-VENV="${VENV:-$HOME/.venvs/krankenkasse}"
+VENV="${VENV:-$HOME/.venvs/grundversicherungsrechner}"
 cd "$(dirname "$0")/.."
 source scripts/free_port.sh
 

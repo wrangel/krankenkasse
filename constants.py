@@ -18,9 +18,18 @@ from pathlib import Path
 
 PROJECT_DIR = Path(__file__).parent
 CACHE_DIR = PROJECT_DIR / ".cache"
-INSURERS_FILE = PROJECT_DIR / "insurers.json"
+
+# Reference data and recorded state, kept out of the source tree. Two of these
+# are fetched from the BAG by the refresh_* scripts, two are written by the
+# monitoring; none of them is hand-edited.
+DATA_DIR = PROJECT_DIR / "data"
+INSURERS_FILE = DATA_DIR / "insurers.json"
 # Postcode -> canton and premium region, produced by refresh_regions.py
-REGIONS_FILE = PROJECT_DIR / "premium_regions.json"
+REGIONS_FILE = DATA_DIR / "premium_regions.json"
+# Last observed state of the BAG sources, and the series of findings over the
+# years. Both are maintained by check_data_sources.py.
+STATE_FILE = DATA_DIR / "data_state.json"
+HISTORY_FILE = DATA_DIR / "finding_history.json"
 
 # Data source: the BAG premium data via opendata.swiss.
 #

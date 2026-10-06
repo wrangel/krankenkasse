@@ -2,7 +2,7 @@
 
 Only the sequence lives here: set up the page, load the data, collect the
 people, show each person's report, and the household total at the end. The
-computation is in utils.py, the drawing in the view_* modules.
+computation is in calculation.py, the drawing in the view_* modules.
 """
 
 import streamlit as st
@@ -11,7 +11,7 @@ import streamlit.components.v1 as components
 from common import age_group_for_age, premiums
 from constants import CHILD_SUBGROUPS, CHILDREN, environmental_rebate_default
 from theme import apply_person_colours, colour_for_person, configure_page
-from utils import children_with_one_insurer, get_data
+from calculation import children_with_one_insurer, get_data
 from view_household import household_total
 from view_person import person_form, person_summary, person_view
 

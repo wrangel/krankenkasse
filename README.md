@@ -51,15 +51,43 @@ The coinsurance cap is CHF 700 per year for adults and young adults, CHF 350 for
 Then, for each cost amount, the cheapest deductible is determined. The tipping point is
 the lowest amount from which the **lowest** deductible wins.
 
+## Project layout
+
+The modules form a straight line; nothing reaches backwards.
+
+```
+constants.py        data sources, legal constants, shared vocabularies (no imports)
+theme.py            page config and CSS (no imports)
+  calculation.py    the whole domain model: cost formula, tipping point,
+                    sibling-discount schemes. No user interface.
+    common.py       loading, formatting, location lookup, age class
+      view_person.py / view_household.py     the two views
+        app.py      Streamlit entry point: sequence only
+
+main.py                 the same calculation from the command line
+check_data_sources.py   monitoring; writes data/data_state.json and the history
+refresh_insurers.py     regenerates data/insurers.json from the BAG register
+refresh_regions.py      regenerates data/premium_regions.json
+test_calculation.py     arithmetic tests on invented premiums, no network
+
+data/                   reference data and recorded state, never hand-edited
+scripts/                dev / test / prod / NAS deployment
+```
+
+The layout is deliberately flat. A `src/` package would buy tidiness at the
+price of five places that can silently break the deployment — the Streamlit
+entry path, the Dockerfile `CMD`, `dev.sh`, the `streamlit run app.py` match in
+`free_port.sh` and CI — which is a poor trade at this size.
+
 ## Installation
 
 Requires Python 3.12 or newer.
 
 ```bash
-git clone https://github.com/wrangel/krankenkasse.git
-cd krankenkasse
-python3 -m venv ~/.venvs/krankenkasse
-~/.venvs/krankenkasse/bin/pip install -r requirements.txt
+git clone https://github.com/wrangel/grundversicherungsrechner.git
+cd grundversicherungsrechner
+python3 -m venv ~/.venvs/grundversicherungsrechner
+~/.venvs/grundversicherungsrechner/bin/pip install -r requirements.txt
 ```
 
 The virtual environment deliberately sits outside the project folder — that way it is
@@ -71,7 +99,7 @@ project (`python3 -m venv venv`) works just as well.
 ### Graphical interface
 
 ```bash
-~/.venvs/krankenkasse/bin/streamlit run app.py
+~/.venvs/grundversicherungsrechner/bin/streamlit run app.py
 ```
 
 Opens <http://localhost:8501>. The household is entered as a list of people, one box per
@@ -99,8 +127,8 @@ cap on cost sharing. The whole household can be downloaded as CSV with a total r
 ### Command line
 
 ```bash
-~/.venvs/krankenkasse/bin/python main.py
-~/.venvs/krankenkasse/bin/python main.py --canton BE --environmental-rebate 4.75
+~/.venvs/grundversicherungsrechner/bin/python main.py
+~/.venvs/grundversicherungsrechner/bin/python main.py --canton BE --environmental-rebate 4.75
 ```
 
 Options: `--canton`, `--region`, `--environmental-rebate`, `--max-costs`.
@@ -152,7 +180,7 @@ plausible-looking numbers. `load_premiums` therefore de-duplicates on the busine
 instead, and `_normalise_codes` maps the new spellings back onto the previous ones so the
 rest of the code speaks a single language.
 
-`check_data_sources.py` compares against the state recorded in `data_state.json`:
+`check_data_sources.py` compares against the state recorded in `data/data_state.json`:
 reachability, premium year, columns, age classes, age subgroups and deductible steps.
 
 ```bash
@@ -175,10 +203,10 @@ have ever won is an **observation about individual premium years, not a target v
 Premiums are set anew every year, and what pays off follows from them — not the other way
 round. A tool that reported a changed result as a failure would be defending a hypothesis
 instead of calculating. So the finding is recorded, never compared: every
-`--write` adds an entry to `finding_history.json`, where it builds a series across the
+`--write` adds an entry to `data/finding_history.json`, where it builds a series across the
 years without ever becoming a specification.
 
-`data_state.json` is accordingly a memory, not a specification: it records what was last
+`data/data_state.json` is accordingly a memory, not a specification: it records what was last
 observed, so that change gets noticed in the first place.
 
 For the same reason, nothing in the interface is hard-wired to say that only two
@@ -196,17 +224,17 @@ runs daily during those weeks and reports by itself. The sequence:
    The message says what has shifted.
 2. **Update**: the download address and the spellings in `constants.py` and
    `_normalise_codes`, the environmental levy refund for the new year, and a look at
-   whether `insurers.json` still knows every insurer.
+   whether `data/insurers.json` still knows every insurer.
 3. **Record**:
 
    ```bash
    python check_data_sources.py --write
    ```
 
-   That overwrites `data_state.json` (only ever the present) and **appends** an entry for
-   the new premium year to `finding_history.json`.
+   That overwrites `data/data_state.json` (only ever the present) and **appends** an entry for
+   the new premium year to `data/finding_history.json`.
 
-`finding_history.json` is the only part that grows: one entry per year with the
+`data/finding_history.json` is the only part that grows: one entry per year with the
 deductibles that were ever cheapest and the tipping point. Over the years that builds a
 series against which the observation in the section below can actually be checked —
 instead of being asserted from memory. The series starts with premium year 2027; earlier
@@ -219,13 +247,13 @@ different de-duplication and would not be comparable.
   so 4.75 per month; 2026 it was 61.80 and 5.15). Set as `environmental_rebate_default` in
   `constants.py`. It does not move the tipping point, but it does affect every absolute
   amount.
-- **Insurer names** — `insurers.json` comes from the
+- **Insurer names** — `data/insurers.json` comes from the
   [BAG register of authorised health insurers](https://www.bag.admin.ch/de/verzeichnisse-der-zugelassenen-kranken-und-rueckversicherer).
   The download URL contains a hash that changes annually: read the new URL off the page,
   enter it in `refresh_insurers.py` and run it.
 - **Premium data** — fetched automatically and cached for seven days under `.cache/`. In
   the interface, *Prämiendaten neu laden* forces a refetch.
-- **Premium regions** — `premium_regions.json` is produced by `refresh_regions.py`. Its
+- **Premium regions** — `data/premium_regions.json` is produced by `refresh_regions.py`. Its
   source URL carries the year (`praemienregionen-2027.xlsx`) and therefore changes
   annually.
 
@@ -274,7 +302,7 @@ It is an observation, not an assumption — the calculation always works from th
 data.
 
 The continuously extended series is in
-[`finding_history.json`](finding_history.json) — one entry per premium year, from 2027 on.
+[`data/finding_history.json`](data/finding_history.json) — one entry per premium year, from 2027 on.
 
 **So far only the highest and the lowest deductible have won.** In premium year 2027 the
 steps 500, 1000, 1500 and 2000 are optimal at *no* healthcare costs; either the 300 or the
@@ -377,7 +405,7 @@ PORT=8502 make test
 Docker Hub. On the Synology afterwards:
 
 ```bash
-docker pull wrangel/krankenkasse:1.0
+docker pull wrangel/grundversicherungsrechner:1.0
 ```
 
 `make check` runs the tests and the data-source monitor without touching Docker.
@@ -442,7 +470,7 @@ There, things are only pulled and restarted, never built. In the Task Scheduler 
 user-defined script:
 
 ```bash
-bash /volume1/homes/Matthias/Drive/Programming/krankenkasse/scripts/syno-deploy.sh
+bash /volume1/homes/Matthias/Drive/Programming/grundversicherungsrechner/scripts/syno-deploy.sh
 ```
 
 The script pulls exactly the tag written in `docker-compose.yml`, brings the stack back up,
