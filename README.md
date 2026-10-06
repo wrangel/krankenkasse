@@ -351,6 +351,15 @@ stürzt darin mit `qemu: uncaught target signal 11` ab – das ist eine Eigenhei
 der Emulation, nicht des Abbilds. Die Plattform steuert die Variable
 `ZIELPLATTFORM`; ohne sie gilt `linux/amd64`, also die Synology.
 
+Beide räumen den Port vorher frei, wenn ihn die eigene App oder der eigene
+Container hält – `make dev` und `make test` treten sich also nicht auf die Füsse.
+Hält ihn ein fremder Prozess, brechen sie ab und sagen welcher, statt ihn zu
+beenden. Nebeneinander laufen lassen geht über den Port:
+
+```bash
+PORT=8502 make test
+```
+
 `make prod` rechnet zuerst die Tests durch, baut dann für `linux/amd64` und
 schiebt das Abbild auf Docker Hub. Auf der Synology danach:
 

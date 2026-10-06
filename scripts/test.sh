@@ -7,6 +7,10 @@
 set -e
 
 cd "$(dirname "$0")/.."
+source scripts/port_freigeben.sh
+
+PORT="${PORT:-8501}"
+export PORT
 
 echo "Starte Docker, falls nötig..."
 open --background -a Docker 2>/dev/null || true
@@ -23,14 +27,15 @@ esac
 export ZIELPLATTFORM
 echo "Baue für $ZIELPLATTFORM (Architektur dieses Rechners)."
 
-docker compose down --remove-orphans 2>/dev/null || true
+port_freigeben "$PORT" || exit 1
+
 docker compose up --build -d
 
 echo "Warte auf die App..."
 for _ in $(seq 1 60); do
-  if curl -sf http://localhost:8501/_stcore/health >/dev/null 2>&1; then
-    echo "Läuft auf http://localhost:8501"
-    open http://localhost:8501 2>/dev/null || true
+  if curl -sf http://localhost:$PORT/_stcore/health >/dev/null 2>&1; then
+    echo "Läuft auf http://localhost:$PORT"
+    open "http://localhost:$PORT" 2>/dev/null || true
     exit 0
   fi
   sleep 2

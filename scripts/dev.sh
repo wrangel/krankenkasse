@@ -4,6 +4,9 @@ set -e
 
 VENV="${VENV:-$HOME/.venvs/krankenkasse}"
 cd "$(dirname "$0")/.."
+source scripts/port_freigeben.sh
+
+PORT="${PORT:-8501}"
 
 if [[ ! -x "$VENV/bin/streamlit" ]]; then
   echo "Virtuelle Umgebung fehlt unter $VENV."
@@ -11,8 +14,7 @@ if [[ ! -x "$VENV/bin/streamlit" ]]; then
   exit 1
 fi
 
-echo "Beende eine allenfalls laufende Instanz..."
-pkill -f "streamlit run app.py" 2>/dev/null || true
+port_freigeben "$PORT" || exit 1
 
-echo "Starte die App auf http://localhost:8501"
-exec "$VENV/bin/streamlit" run app.py --server.port 8501
+echo "Starte die App auf http://localhost:$PORT"
+exec "$VENV/bin/streamlit" run app.py --server.port "$PORT"
