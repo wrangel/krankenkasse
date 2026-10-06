@@ -557,30 +557,6 @@ def guenstigste_kinder_kombination(
     return beste if beste else (0.0, [])
 
 
-def erlaubte_kinderstufen(position: int, anzahl_kinder: int) -> tuple[str, ...]:
-    """Tarifstufen, die dem `position`-ten von `anzahl_kinder` Kindern offenstehen.
-
-    Aus den amtlichen Bedingungen (Tarife.xlsx, Kategorie ALT) folgt für jedes
-    Kind einzeln, was erreichbar ist:
-
-        K1  immer
-        K4  ab zwei Kindern - und dann für alle, also auch für das erste
-        K5  ab drei Kindern - ebenfalls für alle
-        K3  ab drei Kindern, aber nur für das dritte und jedes weitere
-
-    Weil die Menge je Kind exakt ist, darf jedes Kind einzeln optimiert werden;
-    eine gemeinsame Rechnung über alle Kinder braucht es dafür nicht.
-    """
-    stufen = {"K1"}
-    if anzahl_kinder >= 2:
-        stufen.add("K4")
-    if anzahl_kinder >= 3:
-        stufen.add("K5")
-        if position >= 3:
-            stufen.add("K3")
-    return tuple(sorted(stufen))
-
-
 def _kind_jahreskosten(
     praemie: float, franchise: int, krankheitskosten: float, umweltabgabe: float
 ) -> float:
@@ -601,15 +577,24 @@ def kinder_beim_gleichen_versicherer(
 ) -> dict | None:
     """Günstigstes Angebot, wenn alle Kinder beim gleichen Versicherer sind.
 
-    Das ist die Bedingung für jeden Geschwisterrabatt: K3, K4 und K5 gelten nur
-    für Kinder derselben Familie **beim gleichen Versicherer**. Wer jedes Kind
-    einzeln zum billigsten Anbieter schickt, bekommt deshalb gar keinen Rabatt -
-    und wer den Rabatt will, muss alle Kinder zusammen versichern, auch wenn ein
-    einzelnes anderswo günstiger wäre.
+    Das ist die Bedingung für jeden Geschwisterrabatt. Die Tarifliste des BAG
+    (Tarife.xlsx, Kategorie ALT) beschreibt vier Schemas, und zwar in allen vier
+    Sprachfassungen gleichlautend:
 
-    Gerechnet wird je Versicherer und Tarif: Für jedes Kind wird unter den dort
-    erreichbaren Stufen und allen Franchisen die günstigste Kombination gesucht,
-    danach über alle Anbieter das kleinste Total.
+        K1  ohne zusätzlichen Rabatt
+        K3  Rabatt ab dem 3. Kind
+        K4  Rabatt ab dem 2. Kind, gültig für alle Kinder
+        K5  Rabatt ab dem 3. Kind, gültig für alle Kinder
+
+    Der Zusatz "gültig für alle Kinder" steht bei K4 und K5, nicht bei K3. Zwei
+    Kinder bekommen also mit K4 beide den Rabatt, auch das erste; bei K3 bekommen
+    ihn erst das dritte und jedes weitere.
+
+    Entscheidend für die Rechnung: Das sind vier Schemas, von denen die Familie
+    eines wählt - kein Baukasten, aus dem sich jedes Kind das günstigste nimmt.
+    K4 für ein Kind und K5 für ein anderes wäre keine Mischform, die es zu kaufen
+    gibt. Deshalb wird über die Schemas iteriert und innerhalb eines Schemas nur
+    noch die Franchise je Kind frei gewählt.
 
     `daten` muss bereits auf Kinder, Wohnort, Unfalldeckung und Tarifmodelle
     gefiltert sein.
@@ -623,36 +608,37 @@ def kinder_beim_gleichen_versicherer(
         ["Versicherername", "Tarifbezeichnung"]
     ):
         vorhanden = set(gruppe["Altersuntergruppe"].dropna())
-        gesamt = 0.0
-        aufteilung = []
-        for position, krankheitskosten in enumerate(kosten_je_kind, start=1):
-            erlaubt = set(erlaubte_kinderstufen(position, anzahl)) & vorhanden
-            moeglich = gruppe[gruppe["Altersuntergruppe"].isin(erlaubt)]
-            if moeglich.empty:
-                aufteilung = []
-                break
-            kosten = moeglich.apply(
-                lambda z: _kind_jahreskosten(
-                    z["Prämie"], int(z["Franchise"]), krankheitskosten, umweltabgabe
-                ),
-                axis=1,
-            )
-            beste_zeile = moeglich.loc[kosten.idxmin()]
-            gesamt += float(kosten.min())
-            aufteilung.append(
-                {
-                    "franchise": int(beste_zeile["Franchise"]),
-                    "stufe": beste_zeile["Altersuntergruppe"],
-                    "kosten": float(kosten.min()),
+        for schema in kinder_stufen_verteilung(anzahl, vorhanden):
+            gesamt = 0.0
+            aufteilung = []
+            for stufe, krankheitskosten in zip(schema, kosten_je_kind):
+                moeglich = gruppe[gruppe["Altersuntergruppe"] == stufe]
+                if moeglich.empty:
+                    aufteilung = []
+                    break
+                kosten = moeglich.apply(
+                    lambda z: _kind_jahreskosten(
+                        z["Prämie"], int(z["Franchise"]), krankheitskosten, umweltabgabe
+                    ),
+                    axis=1,
+                )
+                beste_zeile = moeglich.loc[kosten.idxmin()]
+                gesamt += float(kosten.min())
+                aufteilung.append(
+                    {
+                        "franchise": int(beste_zeile["Franchise"]),
+                        "stufe": stufe,
+                        "kosten": float(kosten.min()),
+                    }
+                )
+            if not aufteilung:
+                continue
+            if bestes is None or gesamt < bestes["total"]:
+                bestes = {
+                    "versicherer": versicherer,
+                    "tarif": tarif,
+                    "total": gesamt,
+                    "je_kind": aufteilung,
+                    "schema": list(schema),
                 }
-            )
-        if not aufteilung:
-            continue
-        if bestes is None or gesamt < bestes["total"]:
-            bestes = {
-                "versicherer": versicherer,
-                "tarif": tarif,
-                "total": gesamt,
-                "je_kind": aufteilung,
-            }
     return bestes

@@ -172,20 +172,33 @@ def test_kinder_haben_den_tieferen_selbstbehalt_deckel():
 
 
 def test_kinder_stufen_folgen_den_amtlichen_bedingungen():
-    """K3 ab dem 3. Kind, K4 ab dem 2. für alle, K5 ab dem 3. für alle."""
+    """Die vier Schemas der BAG-Tarifliste, in allen Sprachfassungen gleichlautend:
+
+    K1 ohne Rabatt; K3 ab dem 3. Kind; K4 ab dem 2. Kind, gültig für alle Kinder;
+    K5 ab dem 3. Kind, gültig für alle Kinder. Der Zusatz "gültig für alle Kinder"
+    steht bei K4 und K5, nicht bei K3 - daran hängt die ganze Zuteilung.
+    """
     alle = {"K1", "K3", "K4", "K5"}
 
     # Ein Kind: kein Rabatt erreichbar, egal was der Versicherer führt.
     assert kinder_stufen_verteilung(1, alle) == [["K1"]]
 
-    # Zwei Kinder: nur K4 greift, und dann für beide.
-    assert ["K4", "K4"] in kinder_stufen_verteilung(2, alle)
-    assert not any("K3" in v or "K5" in v for v in kinder_stufen_verteilung(2, alle))
+    # Zwei Kinder: nur K4 greift - und dann für beide, auch für das erste.
+    verteilungen = kinder_stufen_verteilung(2, alle)
+    assert ["K4", "K4"] in verteilungen
+    assert not any("K3" in v or "K5" in v for v in verteilungen)
 
-    # Drei Kinder: K3 nur für das dritte, K5 für alle drei.
+    # Drei Kinder: K5 für alle drei, K3 nur fürs dritte.
     verteilungen = kinder_stufen_verteilung(3, alle)
-    assert ["K1", "K1", "K3"] in verteilungen
     assert ["K5", "K5", "K5"] in verteilungen
+    assert ["K1", "K1", "K3"] in verteilungen
+
+    # Jedes Schema ist einheitlich: entweder eine Stufe für alle, oder das
+    # K3-Muster. Gemischt wird nie - K4 für ein Kind und K5 fürs nächste gibt es
+    # nicht zu kaufen.
+    for anzahl in (2, 3, 4, 5):
+        for schema in kinder_stufen_verteilung(anzahl, alle):
+            assert len(set(schema)) == 1 or set(schema) == {"K1", "K3"}
 
     # Führt ein Versicherer eine Stufe nicht, kommt sie nicht vor.
     assert kinder_stufen_verteilung(3, {"K1"}) == [["K1", "K1", "K1"]]
