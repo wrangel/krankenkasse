@@ -410,11 +410,23 @@ ausgestellt, der Name muss also zuerst da sein.
    dieser Fassung nur noch auf `127.0.0.1`, ist also von aussen gar nicht
    erreichbar, sondern nur über den Proxy auf der NAS selbst.
 
-Danach prüfen, ob die Verbindung wirklich steht und nicht nur die Seite lädt:
+Danach prüfen – und zwar richtig. Dass die Startseite lädt, sagt nichts: Fehlt
+die WebSocket-Vorlage, liefert `/_stcore/health` trotzdem 200, und die Seite
+zeigt nur ihr graues Gerüst. Aussagekräftig ist allein, ob der Proxy das Upgrade
+durchlässt:
 
 ```bash
-curl -I https://DEINNAME/_stcore/health     # muss 200 liefern
+curl -s -i --max-time 20 \
+  -H "Connection: Upgrade" -H "Upgrade: websocket" \
+  -H "Sec-WebSocket-Version: 13" -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
+  https://DEINNAME/_stcore/stream | head -3
 ```
+
+- `HTTP/1.1 101 Switching Protocols` – der Proxy leitet den WebSocket durch, die
+  App funktioniert.
+- `HTTP/2 200` mit `content-type: text/html` – der Proxy beantwortet das Upgrade
+  mit der Seite, statt die Verbindung umzuschalten. Dann fehlt die
+  WebSocket-Vorlage in den Kopfzeilen der Regel.
 
 ### Auf der Synology
 
