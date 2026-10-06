@@ -1,15 +1,26 @@
 services:
   app:
-    # Die Synology läuft auf x86_64; ohne diese Zeile baut ein Apple-Rechner ein
-    # arm64-Abbild, das dort nicht startet. Gleicher Grund wie bei
-    # abstractaltitudes.
-    platform: linux/amd64
+    # Die Synology läuft auf x86_64 - deshalb ist linux/amd64 die Vorgabe, sonst
+    # baut ein Apple-Rechner ein arm64-Abbild, das dort nicht startet (gleicher
+    # Grund wie bei abstractaltitudes).
+    #
+    # Zum Prüfen auf dem eigenen Rechner setzt scripts/test.sh ZIELPLATTFORM auf
+    # die Architektur des Macs: Ein amd64-Abbild läuft dort nur emuliert, und
+    # pandas stürzt darin ab.
+    platform: ${ZIELPLATTFORM:-linux/amd64}
     build:
       context: .
       dockerfile: Dockerfile
     image: wrangel/krankenkasse:1.0
     ports:
-      - "8501:8501"
+      # Nur an localhost binden. Der Reverse Proxy der Synology läuft auf der NAS
+      # selbst und erreicht den Container darüber; von aussen ist er damit nicht
+      # direkt erreichbar. Ohne die Bindung an 127.0.0.1 wäre die App unter
+      # NAS-IP:8501 offen - ohne TLS, am Proxy vorbei.
+      #
+      # Für den Zugriff aus dem Heimnetz, etwa zum Prüfen von einem anderen
+      # Rechner: BIND=0.0.0.0 docker compose up -d
+      - "${BIND:-127.0.0.1}:${PORT:-8501}:8501"
     restart: unless-stopped
     networks:
       - app-network

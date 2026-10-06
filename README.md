@@ -334,3 +334,121 @@ Das Werkzeug ist eine Rechenhilfe und keine Finanz- oder Versicherungsberatung.
 
 Die Prämiendaten stammen vom Bundesamt für Gesundheit und unterliegen dessen
 Nutzungsbedingungen.
+
+## Im Container betreiben
+
+Drei Schritte, dieselben wie bei abstractaltitudes, nur ohne pnpm:
+
+```bash
+make dev     # App örtlich aus der virtuellen Umgebung, ohne Container
+make test    # Abbild für diesen Rechner bauen und im Container prüfen
+make prod    # Abbild für die Synology bauen (linux/amd64) und veröffentlichen
+```
+
+`make test` baut bewusst für die Architektur des eigenen Rechners. Ein
+`linux/amd64`-Abbild liefe auf einem Apple-Rechner nur emuliert, und pandas
+stürzt darin mit `qemu: uncaught target signal 11` ab – das ist eine Eigenheit
+der Emulation, nicht des Abbilds. Die Plattform steuert die Variable
+`ZIELPLATTFORM`; ohne sie gilt `linux/amd64`, also die Synology.
+
+Beide räumen den Port vorher frei, wenn ihn die eigene App oder der eigene
+Container hält – `make dev` und `make test` treten sich also nicht auf die Füsse.
+Hält ihn ein fremder Prozess, brechen sie ab und sagen welcher, statt ihn zu
+beenden. Nebeneinander laufen lassen geht über den Port:
+
+```bash
+PORT=8502 make test
+```
+
+`make prod` rechnet zuerst die Tests durch, baut dann für `linux/amd64` und
+schiebt das Abbild auf Docker Hub. Auf der Synology danach:
+
+```bash
+docker pull wrangel/krankenkasse:1.0
+```
+
+### Öffentlich erreichbar machen
+
+Die Reihenfolge ist nicht beliebig: Ein Zertifikat wird auf einen Namen
+ausgestellt, der Name muss also zuerst da sein.
+
+1. **Name.** Entweder eine eigene Domain, oder gratis über DSM:
+   *Systemsteuerung → Externer Zugriff → DDNS*, Anbieter Synology, ergibt
+   `etwas.synology.me`. Für den Anfang reicht das und spart den Umweg über einen
+   Registrar.
+
+2. **Router.** Port 443 auf die NAS weiterleiten, und **Port 80 ebenfalls** –
+   nicht für den Betrieb, sondern weil Let's Encrypt darüber prüft, dass der Name
+   wirklich dir gehört. Sperrt der Anbieter Port 80, geht das Zertifikat nur über
+   die DNS-Prüfung.
+
+3. **Zertifikat.** *Systemsteuerung → Sicherheit → Zertifikat → Hinzufügen →
+   Let's Encrypt*, als Domain den Namen aus Schritt 1. DSM erneuert es danach
+   selbst.
+
+4. **Reverse Proxy.** *Systemsteuerung → Anmeldeportal → Erweitert → Reverse
+   Proxy*:
+
+   | | |
+   |---|---|
+   | Quelle | HTTPS, Name aus Schritt 1, Port 443 |
+   | Ziel | HTTP, `localhost`, Port 8501 |
+
+   **Hier liegt die Stolperfalle.** Streamlit hält die Verbindung über einen
+   WebSocket offen; ohne ihn lädt die Seite und bleibt dann bei „Connecting…"
+   stehen – die Oberfläche ist da, aber nichts reagiert. Im Reverse Proxy unter
+   *Benutzerdefinierte Kopfzeilen* die Vorlage **WebSocket** hinzufügen. Das
+   setzt `Upgrade` und `Connection` und ist der häufigste Grund, warum eine
+   Streamlit-App hinter einem Proxy tot wirkt.
+
+5. **Von HTTP auf HTTPS.** Eine zweite Regel für Port 80 auf denselben Namen,
+   und in der HTTPS-Regel **HSTS** einschalten. Web Station braucht es dafür
+   nicht.
+
+6. **Firewall.** *Systemsteuerung → Sicherheit → Firewall*: 80 und 443 offen,
+   8501 **nicht**. Nötig ist das ohnehin nicht mehr – der Container hört seit
+   dieser Fassung nur noch auf `127.0.0.1`, ist also von aussen gar nicht
+   erreichbar, sondern nur über den Proxy auf der NAS selbst.
+
+Danach prüfen – und zwar richtig. Dass die Startseite lädt, sagt nichts: Fehlt
+die WebSocket-Vorlage, liefert `/_stcore/health` trotzdem 200, und die Seite
+zeigt nur ihr graues Gerüst. Aussagekräftig ist allein, ob der Proxy das Upgrade
+durchlässt:
+
+```bash
+curl -s -i --max-time 20 \
+  -H "Connection: Upgrade" -H "Upgrade: websocket" \
+  -H "Sec-WebSocket-Version: 13" -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
+  https://DEINNAME/_stcore/stream | head -3
+```
+
+- `HTTP/1.1 101 Switching Protocols` – der Proxy leitet den WebSocket durch, die
+  App funktioniert.
+- `HTTP/2 200` mit `content-type: text/html` – der Proxy beantwortet das Upgrade
+  mit der Seite, statt die Verbindung umzuschalten. Dann fehlt die
+  WebSocket-Vorlage in den Kopfzeilen der Regel.
+
+### Auf der Synology
+
+Dort wird nur geholt und neu gestartet, nie gebaut. Im Aufgabenplaner als
+benutzerdefiniertes Skript:
+
+```bash
+bash /volume1/homes/Matthias/Drive/Programming/krankenkasse/scripts/syno-deploy.sh
+```
+
+Das Skript holt genau die Marke, die in `docker-compose.yml` steht, setzt den
+Stapel neu auf, wartet, bis die App antwortet, und prüft zusätzlich, ob der
+Container das BAG erreicht – ohne Internet ist diese App wertlos, und das Netz
+ist der Teil, der auf der NAS erfahrungsgemäss nach einem Neuaufbau klemmt.
+Aufgeräumt werden nur Abbilder dieses Projekts; `praemien-cache` bleibt
+unangetastet.
+
+Die Prämiendatei des BAG (rund 12 MB) wird beim ersten Aufruf geladen und liegt
+im Volume `praemien-cache`. Daneben legt die App die einmal eingelesene Tabelle
+ab: Das Herunterladen dauert unter einer Sekunde, das Einlesen der 220'000
+Zeilen aus dem Excel-Format rund sechs Sekunden auf einem flotten Rechner und
+ein Vielfaches davon auf der Synology. Aus der Zwischenablage gelesen sind es
+0.14 Sekunden. Trifft eine neuere Prämiendatei ein, wird sie verworfen und neu
+eingelesen. Dadurch kostet ein Neustart nicht jedes Mal die rund
+sechs Sekunden fürs Einlesen.
