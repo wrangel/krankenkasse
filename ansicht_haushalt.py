@@ -40,6 +40,14 @@ def haushalt_summe(
         f"günstigsten Angebot."
     )
 
+    if gemeinsam and gemeinsam.get("unbekannte_stufen"):
+        st.warning(
+            f"Die Prämiendaten führen für Kinder die Tarifstufe(n) "
+            f"**{', '.join(gemeinsam['unbekannte_stufen'])}**, deren Bedingungen "
+            f"hier nicht bekannt sind. Sie bleiben in der Rechnung unberücksichtigt – "
+            f"der Geschwisterrabatt könnte also höher ausfallen als unten gezeigt."
+        )
+
     if gemeinsam:
         ersparnis = kinder_einzeln - gemeinsam["total"]
         stufen = ", ".join(k["stufe"] for k in gemeinsam["je_kind"])

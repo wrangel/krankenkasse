@@ -503,6 +503,23 @@ def display_results(
         print(e.segmente.to_markdown(index=False))
 
 
+# Die Stufen, deren Bedingungen aus der BAG-Tarifliste bekannt sind. Das
+# Feldverzeichnis des BAG nennt zusätzlich "K2"; in den Daten kommt es landesweit
+# nicht vor, und die Tarifliste beschreibt es nicht. Taucht es oder eine andere
+# unbekannte Stufe künftig auf, darf sie nicht stillschweigend übergangen werden -
+# sie könnte einen Rabatt tragen, den die Rechnung dann unterschlägt.
+BEKANNTE_KINDERSTUFEN = frozenset({"K1", "K3", "K4", "K5"})
+
+
+def unbekannte_kinderstufen(daten: pd.DataFrame) -> set[str]:
+    """Kinder-Tarifstufen in den Daten, deren Bedingung nicht bekannt ist."""
+    if "Altersuntergruppe" not in daten or "Altersklasse" not in daten:
+        return set()
+    kinder = daten[daten["Altersklasse"].isin(["AKL-KIN", "Kinder"])]
+    vorhanden = set(kinder["Altersuntergruppe"].dropna())
+    return {s for s in vorhanden if s not in BEKANNTE_KINDERSTUFEN}
+
+
 def kinder_stufen_verteilung(anzahl_kinder: int, verfuegbar: set[str]) -> list[str]:
     """Welche Tarifstufe jedes Kind bekommt, bei `anzahl_kinder` Kindern am selben Ort.
 
@@ -603,6 +620,13 @@ def kinder_beim_gleichen_versicherer(
     if anzahl == 0 or daten.empty:
         return None
 
+    # Eine Stufe, deren Bedingung wir nicht kennen, wird unten nicht
+    # berücksichtigt. Das darf nicht unbemerkt bleiben.
+    unbekannt = {
+        s for s in set(daten["Altersuntergruppe"].dropna())
+        if s not in BEKANNTE_KINDERSTUFEN
+    }
+
     bestes: dict | None = None
     for (versicherer, tarif), gruppe in daten.groupby(
         ["Versicherername", "Tarifbezeichnung"]
@@ -641,4 +665,6 @@ def kinder_beim_gleichen_versicherer(
                     "je_kind": aufteilung,
                     "schema": list(schema),
                 }
+    if bestes is not None:
+        bestes["unbekannte_stufen"] = sorted(unbekannt)
     return bestes
