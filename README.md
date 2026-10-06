@@ -445,5 +445,10 @@ Aufgeräumt werden nur Abbilder dieses Projekts; `praemien-cache` bleibt
 unangetastet.
 
 Die Prämiendatei des BAG (rund 12 MB) wird beim ersten Aufruf geladen und liegt
-im Volume `praemien-cache`. Dadurch kostet ein Neustart nicht jedes Mal die rund
+im Volume `praemien-cache`. Daneben legt die App die einmal eingelesene Tabelle
+ab: Das Herunterladen dauert unter einer Sekunde, das Einlesen der 220'000
+Zeilen aus dem Excel-Format rund sechs Sekunden auf einem flotten Rechner und
+ein Vielfaches davon auf der Synology. Aus der Zwischenablage gelesen sind es
+0.14 Sekunden. Trifft eine neuere Prämiendatei ein, wird sie verworfen und neu
+eingelesen. Dadurch kostet ein Neustart nicht jedes Mal die rund
 sechs Sekunden fürs Einlesen.

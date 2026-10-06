@@ -110,11 +110,38 @@ def lade_praemien(max_alter_tage: int = 7) -> pd.DataFrame:
     """Rohe BAG-Prämientabelle. Der Download ist rund 14 MB und wird gecacht."""
     pfad = lade_datei(praemien_url, "praemien_ch.xlsx", max_alter_tage)
 
-    # Das Blatt hiess schon "Export" und heisst jetzt "Sheet1". Fehlt der
-    # erwartete Name, wird das erste Blatt genommen, statt abzustürzen.
-    blaetter = pd.ExcelFile(pfad).sheet_names
-    blatt = praemien_sheet if praemien_sheet in blaetter else blaetter[0]
-    df = pd.read_excel(pfad, sheet_name=blatt)
+    # Die Tabelle einmal eingelesen daneben ablegen. Das Herunterladen der 12 MB
+    # dauert unter einer Sekunde; das Einlesen der 220'000 Zeilen aus dem
+    # Excel-Format kostet dagegen rund sechs Sekunden auf einem flotten Rechner
+    # und ein Vielfaches davon auf der Synology - es ist reine Rechenarbeit.
+    # Aus der Zwischenablage gelesen sind es 0.01 Sekunden, also rund 600-mal
+    # schneller.
+    #
+    # Zwischengespeichert wird bewusst die *rohe* Tabelle, nicht die bereinigte:
+    # So wirken Änderungen an der Entdoppelung und an _normalisiere_codes sofort,
+    # ohne dass jemand daran denken muss, den Zwischenstand wegzuwerfen.
+    zwischen = pfad.with_suffix(".pkl")
+    df = None
+    if zwischen.exists() and zwischen.stat().st_mtime >= pfad.stat().st_mtime:
+        try:
+            df = pd.read_pickle(zwischen)
+        except Exception:
+            # Unlesbar, etwa nach einem Versionswechsel von pandas: wegwerfen und
+            # neu einlesen. Es ist nur eine Zwischenablage.
+            zwischen.unlink(missing_ok=True)
+            df = None
+
+    if df is None:
+        # Das Blatt hiess schon "Export" und heisst jetzt "Sheet1". Fehlt der
+        # erwartete Name, wird das erste Blatt genommen, statt abzustürzen.
+        blaetter = pd.ExcelFile(pfad).sheet_names
+        blatt = praemien_sheet if praemien_sheet in blaetter else blaetter[0]
+        df = pd.read_excel(pfad, sheet_name=blatt)
+        try:
+            df.to_pickle(zwischen)
+        except Exception:
+            # Ohne Schreibrecht läuft es weiter, nur eben langsam.
+            pass
 
     # Früher stand hier ein Filter auf isBaseP == 0. Das war für die Datei bis
     # 2026 richtig, weil die Standardtarife dort doppelt geführt wurden und die
