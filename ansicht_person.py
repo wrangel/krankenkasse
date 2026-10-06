@@ -193,7 +193,7 @@ def person_ansicht(
             .mark_rule(strokeDash=[6, 4], color="#9aa0a6", size=2)
             .encode(x="k:Q")
         )
-    hier = pd.DataFrame({"k": [erwartete_kosten], "beschriftung": ["du bist hier"]})
+    hier = pd.DataFrame({"k": [erwartete_kosten], "beschriftung": ["Deine erwarteten Krankheitskosten"]})
     diagramm += (
         alt.Chart(hier).mark_rule(color="#ff4b4b", size=3).encode(x="k:Q")
     )

@@ -59,3 +59,38 @@ def seite_einrichten() -> None:
 
 
 
+
+
+# Eine Farbe je Person, damit sich die Kästen auseinanderhalten lassen, sobald es
+# mehr als zwei sind. Gedeckte Töne, die auf dunklem Grund lesbar bleiben und
+# nicht mit den Signalfarben der Knöpfe konkurrieren.
+PERSONEN_FARBEN = [
+    "#8a8f98",  # grau
+    "#5b8ff9",  # blau
+    "#5fb97a",  # grün
+    "#c9a227",  # gold
+    "#a97bc9",  # violett
+    "#d3756b",  # lachs
+]
+
+
+def farbe_fuer_person(nummer: int) -> str:
+    """Farbe der n-ten Person, 1-basiert. Wiederholt sich nach sechs Personen."""
+    return PERSONEN_FARBEN[(nummer - 1) % len(PERSONEN_FARBEN)]
+
+
+def personen_farben_setzen(anzahl: int) -> None:
+    """Färbt den Rahmen jedes Personenkastens ein.
+
+    Streamlit hängt den Container-Schlüssel als Klasse st-key-… an; darüber
+    lässt sich jeder Kasten einzeln ansprechen.
+    """
+    regeln = []
+    for nummer in range(1, anzahl + 1):
+        farbe = farbe_fuer_person(nummer)
+        regeln.append(
+            f'.st-key-person_box_{nummer} {{ '
+            f"border-color: {farbe} !important; "
+            f"border-left-width: 4px !important; }}"
+        )
+    st.markdown("<style>" + "\n".join(regeln) + "</style>", unsafe_allow_html=True)

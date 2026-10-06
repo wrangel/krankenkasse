@@ -6,12 +6,13 @@ utils.py, gezeichnet in den ansicht_*-Modulen.
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from ansicht_haushalt import haushalt_summe
 from ansicht_person import person_ansicht, person_eckwerte, person_formular
 from basis import chf, praemien, zielgruppe_fuer_alter
 from constants import KINDER_UNTERGRUPPEN, umweltabgabe_standard
-from oberflaeche import seite_einrichten
+from oberflaeche import farbe_fuer_person, personen_farben_setzen, seite_einrichten
 from utils import erlaubte_kinderstufen
 
 seite_einrichten()
@@ -56,12 +57,18 @@ kinder_ids = [
     e["id"] for e in personen if zielgruppe_fuer_alter(_alter_von(e)) == "Kinder"
 ]
 
+personen_farben_setzen(len(personen))
+
 aktualisiert = []
 ergebnisse = []
 for nummer, person in enumerate(personen, start=1):
-    with st.container(border=True):
+    with st.container(border=True, key=f"person_box_{nummer}"):
         kopf = st.columns([6, 2])
-        kopf[0].markdown(f"**{nummer}. Person**")
+        kopf[0].markdown(
+            f"<span style='color:{farbe_fuer_person(nummer)}'>●</span> "
+            f"**{nummer}. Person**",
+            unsafe_allow_html=True,
+        )
 
         # Ein benannter Knopf statt nur eines Pfeils: Er sagt, was er tut, und
         # steht immer an derselben Stelle - ob der Bericht gerade offen ist oder
@@ -127,7 +134,44 @@ if st.button("➕ Weitere Person hinzufügen", key="person_hinzu", width="stretc
     for e in aktualisiert:
         st.session_state[f"offen_{e['id']}"] = False
     st.session_state[f"offen_{naechste}"] = True
+    st.session_state["_springe_zu"] = naechste
     st.rerun()
+
+# Beim Hinzufügen einer Person dorthin springen. Streamlit hält die
+# Bildlaufposition über Reruns hinweg; ohne das landet man mitten im Bericht der
+# vorigen Person und sieht die neuen Eingabefelder gar nicht.
+ziel = st.session_state.pop("_springe_zu", None)
+if ziel is not None:
+    nummer_ziel = next(
+        (i for i, e in enumerate(aktualisiert, start=1) if e["id"] == ziel), None
+    )
+    if nummer_ziel:
+        # Gescrollt wird der Hauptbereich section[data-testid="stMain"], nicht das
+        # Fenster - scrollIntoView fasst den falschen Behälter an und bleibt
+        # wirkungslos. Mehrere Versuche, weil Streamlit die vorherige Position
+        # erst nach dem Zeichnen wiederherstellt und einen sofortigen Sprung
+        # gleich wieder überschreiben würde.
+        components.html(
+            f"""
+            <script>
+              const doc = window.parent.document;
+              let versuche = 0;
+              const springen = () => {{
+                const flaeche = doc.querySelector('section[data-testid="stMain"]');
+                const kasten = doc.querySelector('.st-key-person_box_{nummer_ziel}');
+                if (flaeche && kasten) {{
+                  const ziel = kasten.getBoundingClientRect().top
+                             - flaeche.getBoundingClientRect().top
+                             + flaeche.scrollTop - 16;
+                  flaeche.scrollTo({{top: ziel, behavior: 'smooth'}});
+                }}
+                if (++versuche < 8) setTimeout(springen, 200);
+              }};
+              setTimeout(springen, 120);
+            </script>
+            """,
+            height=0,
+        )
 
 haushalt_summe(ergebnisse, len(kinder_ids))
 
