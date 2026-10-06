@@ -47,14 +47,25 @@ hoechstgrenze_selbstbehalt = {
 # Anteil der Kosten über der Franchise, den die versicherte Person trägt
 selbstbehalt_anteil = 0.1
 
-# Maximale jährliche Krankheitskosten für die Kipppunktanalyse
-maximale_krankenkosten = 10000
+# Bis hierhin wird die Kostenmatrix mindestens gerechnet. Das war einmal eine
+# Obergrenze für die Eingabe - die gibt es nicht mehr, man kann beliebig hohe
+# Krankheitskosten angeben, und der Bereich wächst dann mit. Geblieben ist eine
+# Untergrenze: So weit wird immer gerechnet, damit der Kipppunkt gefunden wird,
+# auch wenn jemand nur 200 CHF erwartet.
+mindest_rechenbereich = 10000
 
 ALTERSKLASSEN = {
     "AKL-ERW": "Erwachsene",
     "AKL-JUG": "Junge Erwachsene",
     "AKL-KIN": "Kinder",
 }
+
+# Benannte Zugriffe darauf. Überall sonst im Code stand die Zeichenkette
+# "Kinder" ausgeschrieben - bei einer Umbenennung wie "Jugendliche" ->
+# "Junge Erwachsene" muss man die dann alle einzeln finden.
+ERWACHSENE = ALTERSKLASSEN["AKL-ERW"]
+JUNGE_ERWACHSENE = ALTERSKLASSEN["AKL-JUG"]
+KINDER = ALTERSKLASSEN["AKL-KIN"]
 
 # Altersuntergruppen der Kinder - die Geschwisterrabatte. Die Bezeichnungen
 # stammen aus der Tarifliste des BAG (Tarife.xlsx auf opendata.swiss, Kategorie

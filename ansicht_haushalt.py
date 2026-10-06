@@ -4,6 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from basis import chf
+from constants import KINDER
 
 
 def haushalt_summe(
@@ -14,10 +15,10 @@ def haushalt_summe(
         return
 
     kinder_einzeln = sum(
-        e["jahreskosten"] for e in ergebnisse if e["zielgruppe"] == "Kinder"
+        e["jahreskosten"] for e in ergebnisse if e["zielgruppe"] == KINDER
     )
     uebrige = sum(
-        e["jahreskosten"] for e in ergebnisse if e["zielgruppe"] != "Kinder"
+        e["jahreskosten"] for e in ergebnisse if e["zielgruppe"] != KINDER
     )
     # Für die Kinder gilt, was günstiger ist: jedes Kind frei zum Normaltarif,
     # oder alle zusammen bei einem Versicherer mit Geschwisterrabatt.

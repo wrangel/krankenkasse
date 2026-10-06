@@ -79,16 +79,6 @@ def erreichbar(url: str) -> tuple[bool, str]:
 def aktueller_stand() -> dict:
     """Liest die Prämiendatei und beschreibt ihren heutigen Zustand."""
     roh = lade_praemien(max_alter_tage=0)
-    daten = get_data(roh, kanton=REFERENZ_KANTON, region=REFERENZ_REGION)
-    ergebnisse = berechne_kipppunkt(beste_praemien(daten), umweltabgabe=0.0)
-
-    befund = {}
-    for e in ergebnisse:
-        befund[e.zielgruppe] = {
-            "optimal": sorted(int(f) for f in set(e.optimal)),
-            "nie_optimal": sorted(int(f) for f in e.nie_optimal),
-            "kipppunkt": None if e.kipppunkt is None else int(e.kipppunkt),
-        }
 
     return {
         "praemienjahr": int(roh["Geschäftsjahr"].max()),
@@ -99,11 +89,6 @@ def aktueller_stand() -> dict:
         ),
         "franchisen": sorted(str(f) for f in roh["Franchise"].dropna().unique()),
         "anzahl_kantone": int(roh["Kanton"].nunique()),
-        "befund_referenz": {
-            "kanton": REFERENZ_KANTON,
-            "region": REFERENZ_REGION,
-            **befund,
-        },
     }
 
 
@@ -136,39 +121,29 @@ def vergleiche(erwartet: dict, gefunden: dict) -> list[str]:
     return abweichungen
 
 
-def befund_aenderungen(erwartet: dict, gefunden: dict) -> list[str]:
-    """Was die Daten heute anders erzählen als beim letzten Festhalten.
+def befund_ermitteln(praemienjahr: int) -> dict:
+    """Was die Daten dieses Jahres ergeben - für die Historie, nicht zur Prüfung.
 
-    Bewusst getrennt von `vergleiche`: Dort geht es um Dinge, die das Werkzeug
-    kaputt machen – eine tote URL, eine umbenannte Spalte, ein gekipptes
-    Kennzeichen. Hier geht es um das Ergebnis der Rechnung selbst, und das ist
-    kein Sollwert. Dass bisher nur die höchste und die tiefste Franchise je
-    optimal waren, ist eine Beobachtung über die Prämien einzelner Jahre, keine
-    Vorgabe, an der sich neue Daten zu messen hätten. Ändert sie sich, hat nicht
-    die Rechnung versagt, sondern die Beschreibung in README und Oberfläche ist
-    veraltet.
+    Bewusst getrennt vom Überwachungsstand: Dort hat ein Ergebnis nichts zu
+    suchen. Die Überwachung achtet darauf, ob die Quelle noch die ist, die wir
+    kennen - Erreichbarkeit, Spalten, Wertebereiche, Prämienjahr. Was daraus
+    folgt, ist Beobachtung und gehört in die Historie, wo es die Reihe über die
+    Jahre bildet, ohne je ein Sollwert zu werden.
     """
-    aenderungen: list[str] = []
-    alt_befund = erwartet.get("befund_referenz", {})
-    neu_befund = gefunden.get("befund_referenz", {})
-
-    for zielgruppe in ("Erwachsene", "Kinder"):
-        alt = alt_befund.get(zielgruppe)
-        neu = neu_befund.get(zielgruppe)
-        if not alt or not neu:
-            continue
-        if alt["optimal"] != neu["optimal"]:
-            aenderungen.append(
-                f"{zielgruppe}: Je günstigste Franchisen zuletzt {alt['optimal']}, "
-                f"jetzt {neu['optimal']}."
-            )
-        if alt["kipppunkt"] != neu["kipppunkt"]:
-            aenderungen.append(
-                f"{zielgruppe}: Kipppunkt zuletzt {alt['kipppunkt']}, "
-                f"jetzt {neu['kipppunkt']}."
-            )
-
-    return aenderungen
+    daten = get_data(lade_praemien(), kanton=REFERENZ_KANTON, region=REFERENZ_REGION)
+    eintrag = {
+        "praemienjahr": praemienjahr,
+        "erfasst_am": date.today().isoformat(),
+        "kanton": REFERENZ_KANTON,
+        "region": REFERENZ_REGION,
+    }
+    for e in berechne_kipppunkt(beste_praemien(daten), umweltabgabe=0.0):
+        eintrag[e.zielgruppe] = {
+            "optimal": sorted(int(f) for f in set(e.optimal)),
+            "nie_optimal": sorted(int(f) for f in e.nie_optimal),
+            "kipppunkt": None if e.kipppunkt is None else int(e.kipppunkt),
+        }
+    return eintrag
 
 
 def historie_ergaenzen(gefunden: dict) -> tuple[list[dict], bool]:
@@ -183,20 +158,7 @@ def historie_ergaenzen(gefunden: dict) -> tuple[list[dict], bool]:
         historie = json.loads(HISTORIE_DATEI.read_text(encoding="utf-8"))
 
     jahr = gefunden["praemienjahr"]
-    eintrag = {
-        "praemienjahr": jahr,
-        "erfasst_am": date.today().isoformat(),
-        "kanton": REFERENZ_KANTON,
-        "region": REFERENZ_REGION,
-    }
-    for zielgruppe in ("Erwachsene", "Kinder"):
-        befund = gefunden["befund_referenz"].get(zielgruppe)
-        if befund:
-            eintrag[zielgruppe] = {
-                "optimal": befund["optimal"],
-                "nie_optimal": befund["nie_optimal"],
-                "kipppunkt": befund["kipppunkt"],
-            }
+    eintrag = befund_ermitteln(jahr)
 
     vorhanden = next((e for e in historie if e.get("praemienjahr") == jahr), None)
     neu = vorhanden is None
@@ -310,14 +272,6 @@ def main() -> int:
     gefunden = aktueller_stand()
     print(f"  Prämienjahr: {gefunden['praemienjahr']}")
     print(f"  Altersuntergruppen: {', '.join(gefunden['altersuntergruppen'])}")
-    for zielgruppe in ("Erwachsene", "Kinder"):
-        eintrag = gefunden["befund_referenz"].get(zielgruppe)
-        if eintrag:
-            print(
-                f"  {zielgruppe}: optimal {eintrag['optimal']}, "
-                f"nie optimal {eintrag['nie_optimal']}, "
-                f"Kipppunkt {eintrag['kipppunkt']}"
-            )
 
     if argumente.schreiben:
         STAND_DATEI.write_text(
@@ -345,29 +299,9 @@ def main() -> int:
 
     erwartet = json.loads(STAND_DATEI.read_text(encoding="utf-8"))
     probleme.extend(vergleiche(erwartet, gefunden))
-    aenderungen = befund_aenderungen(erwartet, gefunden)
-
-    # Zuerst das Ergebnis der Rechnung - es ist eine Beobachtung, kein Sollwert,
-    # und steht deshalb für sich, unabhängig vom Ausgang der Prüfung.
-    if aenderungen:
-        _melde_an_github(aenderungen, gefunden["praemienjahr"])
-        print("\n" + "-" * 72)
-        print("DIE DATEN ERGEBEN ETWAS ANDERES ALS BEIM LETZTEN FESTHALTEN")
-        print("-" * 72)
-        for aenderung in aenderungen:
-            print(f"  {aenderung}")
-        print(
-            "\n  Das ist ein Befund, kein Fehler: Die Prämien werden jedes Jahr neu\n"
-            "  festgesetzt, und welche Franchisen sich lohnen, folgt aus ihnen - nicht\n"
-            "  umgekehrt. Zu tun ist nur eines: nachsehen, ob die Beschreibung in\n"
-            "  README und Oberfläche noch zu den Daten passt."
-        )
 
     if not probleme:
-        if not aenderungen:
-            print("\nDatenquellen unverändert, Befund wie zuletzt festgehalten.")
-        else:
-            print("\nDatenquellen in Ordnung; der Befund hat sich geändert (siehe oben).")
+        print("\nDatenquellen unverändert.")
         return 0
 
     print("\n" + "=" * 72)

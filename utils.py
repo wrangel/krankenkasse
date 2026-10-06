@@ -13,7 +13,7 @@ from constants import (
     KINDER_UNTERGRUPPEN_STANDARD,
     VERSICHERER_DATEI,
     hoechstgrenze_selbstbehalt,
-    maximale_krankenkosten,
+    mindest_rechenbereich,
     praemien_sheet,
     praemien_url,
     selbstbehalt_anteil,
@@ -316,7 +316,7 @@ def _segmente(optimal: pd.Series) -> pd.DataFrame:
 def berechne_kipppunkt(
     beste: pd.DataFrame,
     umweltabgabe: float,
-    max_kosten: int = maximale_krankenkosten,
+    max_kosten: int = mindest_rechenbereich,
 ) -> list[Ergebnis]:
     """Berechnet für jede Zielgruppe die Jahreskosten je Franchise und daraus den
     Kipppunkt: die tiefsten Krankheitskosten, ab denen die tiefste Franchise gewinnt."""

@@ -8,7 +8,7 @@ import json
 import pandas as pd
 import streamlit as st
 
-from constants import REGIONEN_DATEI
+from constants import ERWACHSENE, JUNGE_ERWACHSENE, KINDER, REGIONEN_DATEI
 from utils import lade_praemien
 
 
@@ -51,10 +51,10 @@ def zielgruppe_fuer_alter(alter: int) -> str:
     vereinfachend mit dem Alter.
     """
     if alter <= 18:
-        return "Kinder"
+        return KINDER
     if alter <= 25:
-        return "Junge Erwachsene"
-    return "Erwachsene"
+        return JUNGE_ERWACHSENE
+    return ERWACHSENE
 
 
 def wohnort_waehlen(schluessel: int, spalte=None) -> tuple[str, str, str] | None:

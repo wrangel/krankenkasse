@@ -45,36 +45,5 @@
     "FRA-500",
     "FRA-600"
   ],
-  "anzahl_kantone": 28,
-  "befund_referenz": {
-    "kanton": "ZH",
-    "region": "PR-REG CH1",
-    "Erwachsene": {
-      "optimal": [
-        300,
-        2500
-      ],
-      "nie_optimal": [
-        500,
-        1000,
-        1500,
-        2000
-      ],
-      "kipppunkt": 1893
-    },
-    "Kinder": {
-      "optimal": [
-        0,
-        600
-      ],
-      "nie_optimal": [
-        100,
-        200,
-        300,
-        400,
-        500
-      ],
-      "kipppunkt": 467
-    }
-  }
+  "anzahl_kantone": 28
 }

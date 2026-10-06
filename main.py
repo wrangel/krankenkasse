@@ -2,7 +2,7 @@ import argparse
 
 from constants import (
     kanton_standard,
-    maximale_krankenkosten,
+    mindest_rechenbereich,
     region_standard,
     umweltabgabe_standard,
 )
@@ -16,7 +16,7 @@ def parse_args():
     p.add_argument("--kanton", default=kanton_standard)
     p.add_argument("--region", default=region_standard)
     p.add_argument("--umweltabgabe", type=float, default=umweltabgabe_standard)
-    p.add_argument("--max-kosten", type=int, default=maximale_krankenkosten)
+    p.add_argument("--max-kosten", type=int, default=mindest_rechenbereich)
     return p.parse_args()
 
 

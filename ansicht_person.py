@@ -12,11 +12,12 @@ import streamlit as st
 
 from basis import chf, mit_abstand, wohnort_waehlen, zielgruppe_fuer_alter
 from constants import (
+    ERWACHSENE,
     KINDER_UNTERGRUPPEN,
     TARIFTYPEN,
     TARIFTYPEN_KURZ,
     hoechstgrenze_selbstbehalt,
-    maximale_krankenkosten,
+    mindest_rechenbereich,
     selbstbehalt_anteil,
 )
 from utils import beste_praemien, berechne_kipppunkt, get_data
@@ -41,7 +42,7 @@ def person_eckwerte(
     if beste.empty:
         return None
     ergebnisse = berechne_kipppunkt(
-        beste, umweltabgabe, max(maximale_krankenkosten, int(erwartete_kosten) + 2000)
+        beste, umweltabgabe, max(mindest_rechenbereich, int(erwartete_kosten) + 2000)
     )
     if not ergebnisse:
         return None
@@ -88,7 +89,7 @@ def person_ansicht(
     # Gerechnet wird immer über einen Bereich, der die eingegebenen Kosten
     # einschliesst - sonst fiele ein hoher Wert aus der Kostenmatrix.
     praemienjahr = int(roh["Geschäftsjahr"].max())
-    rechenbereich = max(maximale_krankenkosten, int(erwartete_kosten) + 2000)
+    rechenbereich = max(mindest_rechenbereich, int(erwartete_kosten) + 2000)
     ergebnisse = berechne_kipppunkt(beste, umweltabgabe, rechenbereich)
     if not ergebnisse:
         st.warning("Für diese Auswahl lässt sich nichts berechnen.")
@@ -227,7 +228,9 @@ def person_ansicht(
     gewaehlt = (ereignis.selection or {}).get("punkt") if ereignis else None
     if gewaehlt:
         neuer_wert = int(round(gewaehlt[0]["Krankheitskosten"] / 50) * 50)
-        neuer_wert = max(0, min(maximale_krankenkosten, neuer_wert))
+        # Auf den tatsächlich gerechneten Bereich begrenzen, nicht auf dessen
+        # Untergrenze - sonst spränge ein Klick jenseits von 10'000 zurück.
+        neuer_wert = max(0, min(rechenbereich, neuer_wert))
         if neuer_wert != erwartete_kosten:
             # Nicht direkt den Reglerschlüssel setzen - der ist in diesem Lauf schon
             # instanziert. Stattdessen vormerken und beim nächsten Lauf anwenden.
@@ -486,7 +489,7 @@ def person_formular(person: dict, anzahl_personen: int, roh) -> dict | None:
     unfall = oben[2].radio(
         "Unfalldeckung",
         ["MIT-UNF", "OHN-UNF"],
-        index=1 if zielgruppe == "Erwachsene" else 0,
+        index=1 if zielgruppe == ERWACHSENE else 0,
         format_func=lambda u: "mit" if u == "MIT-UNF" else "ohne",
         horizontal=True,
         key=f"unfall_{kennung}",

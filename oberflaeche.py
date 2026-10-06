@@ -9,7 +9,7 @@ import streamlit as st
 
 def seite_einrichten() -> None:
     """Einmal pro Lauf aufzurufen, vor allem anderen."""
-    st.set_page_config(page_title="Welche Franchise lohnt sich?", page_icon="🏥", layout="wide")
+    st.set_page_config(page_title="Grundversicherung: die günstigste Prämie finden", page_icon="🏥", layout="wide")
 
     # Die Auswahlchips der Mehrfachauswahl kommen in der Signalfarbe des Themes. Die
     # gehört den Knöpfen, die etwas auslösen - eine Liste gewählter Tarifmodelle ist

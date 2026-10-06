@@ -11,7 +11,7 @@ import streamlit.components.v1 as components
 from ansicht_haushalt import haushalt_summe
 from ansicht_person import person_ansicht, person_eckwerte, person_formular
 from basis import chf, praemien, zielgruppe_fuer_alter
-from constants import KINDER_UNTERGRUPPEN, umweltabgabe_standard
+from constants import KINDER, KINDER_UNTERGRUPPEN, umweltabgabe_standard
 from oberflaeche import farbe_fuer_person, personen_farben_setzen, seite_einrichten
 from utils import get_data, kinder_beim_gleichen_versicherer
 
@@ -27,11 +27,13 @@ st.session_state.setdefault(
 
 roh = praemien(7)
 
-st.title("Welche Franchise lohnt sich?")
+st.title("Grundversicherung: die günstigste Prämie finden")
 st.caption(
-    "Die Grundversicherung bietet mehrere Franchisen zur Auswahl. Diese App rechnet "
-    "für jede Person nach, welche davon überhaupt je die günstigste ist und ab welchen "
-    "jährlichen Krankheitskosten es von der einen zur anderen kippt."
+    "Diese App rechnet aus den amtlichen Prämiendaten, was die **Grundversicherung** "
+    "für dich am günstigsten kommt – für jede Person im Haushalt, bei den "
+    "Krankheitskosten, die du erwartest, und beschränkt auf die Tarifmodelle, die für "
+    "dich in Frage kommen. Sie nennt Versicherer, Modell und Franchise, und was die "
+    "Alternativen kosten würden."
 )
 st.info(
     f"**Prämienjahr {int(roh['Geschäftsjahr'].max())}** · Datenquelle: BAG-Prämiendaten "
@@ -56,7 +58,7 @@ def _alter_von(eintrag: dict) -> int:
 
 
 kinder_ids = [
-    e["id"] for e in personen if zielgruppe_fuer_alter(_alter_von(e)) == "Kinder"
+    e["id"] for e in personen if zielgruppe_fuer_alter(_alter_von(e)) == KINDER
 ]
 
 personen_farben_setzen(len(personen))
@@ -93,7 +95,7 @@ for nummer, person in enumerate(personen, start=1):
 
         zielgruppe = eintrag["zielgruppe"]
         stufen = ("K1",)
-        if zielgruppe == "Kinder" and offen and len(kinder_ids) > 1:
+        if zielgruppe == KINDER and offen and len(kinder_ids) > 1:
             st.caption(
                 f"Kind {kinder_ids.index(person['id']) + 1} von {len(kinder_ids)}. "
                 f"Unten steht dieses Kind einzeln gerechnet, zum Normaltarif K1. "
@@ -183,15 +185,15 @@ if ziel is not None:
 # Wahl ohne Rabatt gestellt - die Entscheidung gehört dem Haushalt, nicht dem
 # einzelnen Kind.
 gemeinsam = None
-kinder_ergebnisse = [e for e in ergebnisse if e["zielgruppe"] == "Kinder"]
+kinder_ergebnisse = [e for e in ergebnisse if e["zielgruppe"] == KINDER]
 if len(kinder_ergebnisse) >= 2:
     erstes = kinder_ergebnisse[0]
     kinderdaten = get_data(
         roh,
         kanton=erstes["wohnort"][0],
         region=erstes["wohnort"][1],
-        zielgruppen=("Kinder",),
-        unfalldeckung={"Kinder": erstes["unfall"]},
+        zielgruppen=(KINDER,),
+        unfalldeckung={KINDER: erstes["unfall"]},
         kinder_untergruppen=tuple(KINDER_UNTERGRUPPEN),
         tariftypen=tuple(erstes["tariftypen"]) if erstes["tariftypen"] else None,
     )
