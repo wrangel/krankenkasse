@@ -334,3 +334,28 @@ Das Werkzeug ist eine Rechenhilfe und keine Finanz- oder Versicherungsberatung.
 
 Die Prämiendaten stammen vom Bundesamt für Gesundheit und unterliegen dessen
 Nutzungsbedingungen.
+
+## Im Container betreiben
+
+```bash
+docker compose up -d --build
+```
+
+Danach läuft die App auf Port 8501. Für den Betrieb auf einer Synology ist
+`platform: linux/amd64` gesetzt – ohne das baut ein Apple-Rechner ein
+arm64-Abbild, das dort nicht startet.
+
+Die Prämiendatei des BAG (rund 12 MB) wird beim ersten Aufruf geladen und liegt
+im Volume `praemien-cache`. Dadurch kostet ein Neustart nicht jedes Mal die rund
+sechs Sekunden fürs Einlesen.
+
+**Zum Testen auf einem Apple-Rechner:** Ein `linux/amd64`-Abbild läuft dort unter
+Emulation, und pandas stürzt darin mit einem Speicherzugriffsfehler ab
+(`qemu: uncaught target signal 11`). Das ist eine Eigenheit der Emulation, nicht
+des Abbilds. Lokal prüfen lässt es sich mit einem Bau für die eigene
+Architektur:
+
+```bash
+docker build -t krankenkasse:lokal .
+docker run --rm -p 8501:8501 krankenkasse:lokal
+```
