@@ -367,6 +367,22 @@ schiebt das Abbild auf Docker Hub. Auf der Synology danach:
 docker pull wrangel/krankenkasse:1.0
 ```
 
+### Auf der Synology
+
+Dort wird nur geholt und neu gestartet, nie gebaut. Im Aufgabenplaner als
+benutzerdefiniertes Skript:
+
+```bash
+bash /volume1/homes/Matthias/Drive/Programming/krankenkasse/scripts/syno-deploy.sh
+```
+
+Das Skript holt genau die Marke, die in `docker-compose.yml` steht, setzt den
+Stapel neu auf, wartet, bis die App antwortet, und prüft zusätzlich, ob der
+Container das BAG erreicht – ohne Internet ist diese App wertlos, und das Netz
+ist der Teil, der auf der NAS erfahrungsgemäss nach einem Neuaufbau klemmt.
+Aufgeräumt werden nur Abbilder dieses Projekts; `praemien-cache` bleibt
+unangetastet.
+
 Die Prämiendatei des BAG (rund 12 MB) wird beim ersten Aufruf geladen und liegt
 im Volume `praemien-cache`. Dadurch kostet ein Neustart nicht jedes Mal die rund
 sechs Sekunden fürs Einlesen.
