@@ -1,13 +1,13 @@
 # syntax=docker/dockerfile:1
 #
-# Zwei Stufen wie beim Backend von abstractaltitudes: bauen mit allem, laufen mit
-# wenig. Das Ergebnis enthält weder pip-Cache noch Build-Werkzeuge.
+# Two stages, like the abstractaltitudes backend: build with everything, run
+# with little. The result carries neither a pip cache nor build tools.
 
 FROM python:3.13-slim AS build
 WORKDIR /app
 
-# Nur die Abhängigkeitsliste kopieren, damit die Installationsschicht so lange
-# wiederverwendet wird, wie sich an ihr nichts ändert.
+# Copy only the dependency list, so the install layer is reused for as long as
+# nothing in it changes.
 COPY requirements.txt ./
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --prefix=/install -r requirements.txt
@@ -15,27 +15,27 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 FROM python:3.13-slim AS runtime
 
-# Kein root, wie beim Backend von abstractaltitudes.
+# No root, as in the abstractaltitudes backend.
 RUN groupadd --system appgroup && useradd --system --gid appgroup appuser
 
 WORKDIR /app
 COPY --from=build /install /usr/local
 
-# Nur das, was zur Laufzeit gebraucht wird. Tests, Prüfskripte und die
-# Werkzeuge zum Nachführen der Stammdaten gehören nicht ins Abbild.
-COPY app.py basis.py oberflaeche.py ansicht_person.py ansicht_haushalt.py ./
+# Only what is needed at runtime. Tests, check scripts and the tools for
+# refreshing the reference data do not belong in the image.
+COPY app.py common.py theme.py view_person.py view_household.py ./
 COPY utils.py constants.py main.py ./
-COPY versicherer.json praemienregionen.json ./
+COPY insurers.json premium_regions.json ./
 
-# Die BAG-Prämiendatei wird beim ersten Aufruf geladen und hier abgelegt. Als
-# Volume eingehängt übersteht sie einen Neustart des Containers - sonst kostet
-# jeder Start die rund sechs Sekunden zum Einlesen der 12-MB-Datei.
+# The BAG premium file is fetched on first use and stored here. Mounted as a
+# volume it survives a container restart - otherwise every start costs the six
+# or so seconds needed to parse the 12 MB file.
 RUN mkdir -p /app/.cache && chown -R appuser:appgroup /app
 USER appuser
 
 EXPOSE 8501
 
-# Streamlit bringt einen eigenen Endpunkt für Lebenszeichen mit.
+# Streamlit ships its own liveness endpoint.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"
 

@@ -1,31 +1,31 @@
-"""Welche Franchise lohnt sich? - Einstiegspunkt.
+"""Grundversicherung: die günstigste Prämie finden - entry point.
 
-Hier steht nur der Ablauf: Seite einrichten, Daten laden, Personen einsammeln,
-je Person den Bericht zeigen, am Schluss die Haushaltssumme. Gerechnet wird in
-utils.py, gezeichnet in den ansicht_*-Modulen.
+Only the sequence lives here: set up the page, load the data, collect the
+people, show each person's report, and the household total at the end. The
+computation is in utils.py, the drawing in the view_* modules.
 """
 
 import streamlit as st
 import streamlit.components.v1 as components
 
-from ansicht_haushalt import haushalt_summe
-from ansicht_person import person_ansicht, person_eckwerte, person_formular
-from basis import chf, praemien, zielgruppe_fuer_alter
-from constants import KINDER, KINDER_UNTERGRUPPEN, umweltabgabe_standard
-from oberflaeche import farbe_fuer_person, personen_farben_setzen, seite_einrichten
-from utils import get_data, kinder_beim_gleichen_versicherer
+from common import age_group_for_age, premiums
+from constants import CHILD_SUBGROUPS, CHILDREN, environmental_rebate_default
+from theme import apply_person_colours, colour_for_person, configure_page
+from utils import children_with_one_insurer, get_data
+from view_household import household_total
+from view_person import person_form, person_summary, person_view
 
-seite_einrichten()
+configure_page()
 
-if "_klick_kosten" in st.session_state:
-    schluessel, wert = st.session_state.pop("_klick_kosten")
-    st.session_state[schluessel] = wert
+if "_clicked_costs" in st.session_state:
+    key, value = st.session_state.pop("_clicked_costs")
+    st.session_state[key] = value
 
 st.session_state.setdefault(
-    "personen", [{"id": 1, "alter": 40, "unfall": "OHN-UNF", "kosten": 1000}]
+    "people", [{"id": 1, "age": 40, "accident": "OHN-UNF", "costs": 1000}]
 )
 
-roh = praemien(7)
+raw = premiums(7)
 
 st.title("Grundversicherung: die günstigste Prämie finden")
 st.caption(
@@ -36,180 +36,178 @@ st.caption(
     "Alternativen kosten würden."
 )
 st.info(
-    f"**Prämienjahr {int(roh['Geschäftsjahr'].max())}** · Datenquelle: BAG-Prämiendaten "
+    f"**Prämienjahr {int(raw['Geschäftsjahr'].max())}** · Datenquelle: BAG-Prämiendaten "
     f"über opendata.swiss · Rückerstattung Umweltabgaben "
-    f"**{umweltabgabe_standard * 12:.2f} CHF pro Jahr** "
-    f"({umweltabgabe_standard:.2f} pro Monat), für alle Versicherten gleich und bereits "
-    f"von den Prämien abgezogen.\n\n"
+    f"**{environmental_rebate_default * 12:.2f} CHF pro Jahr** "
+    f"({environmental_rebate_default:.2f} pro Monat), für alle Versicherten gleich und "
+    f"bereits von den Prämien abgezogen.\n\n"
     f"**Rechenhilfe, keine Finanz- oder Versicherungsberatung.** Was nicht "
     f"berücksichtigt ist, steht unten auf der Seite.",
     icon="ℹ️",
 )
 
-personen = st.session_state["personen"]
-
-# Wie viele Kinder im Haushalt leben, muss feststehen, bevor die erste Person
-# gezeichnet wird - davon hängt ab, welche Tarifstufen einem Kind offenstehen.
-# Die Alter stehen schon in session_state, weil Streamlit die Werte der Eingabe-
-# felder über ihren Schlüssel hält; für eine eben hinzugefügte Person gibt es den
-# Schlüssel noch nicht, dann gilt ihr Startwert.
-def _alter_von(eintrag: dict) -> int:
-    return int(st.session_state.get(f"alter_{eintrag['id']}", eintrag["alter"]))
+people = st.session_state["people"]
 
 
-kinder_ids = [
-    e["id"] for e in personen if zielgruppe_fuer_alter(_alter_von(e)) == KINDER
-]
+# How many children live in the household has to be settled before the first
+# person is drawn - which tariff tiers are open to a child depends on it. The
+# ages are already in session_state, because Streamlit holds each input's value
+# under its key; for a person just added the key does not exist yet, and then
+# their starting value applies.
+def _age_of(entry: dict) -> int:
+    return int(st.session_state.get(f"age_{entry['id']}", entry["age"]))
 
-personen_farben_setzen(len(personen))
 
-aktualisiert = []
-ergebnisse = []
-for nummer, person in enumerate(personen, start=1):
-    with st.container(border=True, key=f"person_box_{nummer}"):
-        kopf = st.columns([6, 2])
-        kopf[0].markdown(
-            f"<span style='color:{farbe_fuer_person(nummer)}'>●</span> "
-            f"**{nummer}. Person**",
+child_ids = [p["id"] for p in people if age_group_for_age(_age_of(p)) == CHILDREN]
+
+apply_person_colours(len(people))
+
+updated = []
+results = []
+for number, person in enumerate(people, start=1):
+    with st.container(border=True, key=f"person_box_{number}"):
+        head = st.columns([6, 2])
+        head[0].markdown(
+            f"<span style='color:{colour_for_person(number)}'>●</span> "
+            f"**{number}. Person**",
             unsafe_allow_html=True,
         )
 
-        # Ein benannter Knopf statt nur eines Pfeils: Er sagt, was er tut, und
-        # steht immer an derselben Stelle - ob der Bericht gerade offen ist oder
-        # nicht.
-        offen_schluessel = f"offen_{person['id']}"
-        offen = st.session_state.setdefault(offen_schluessel, nummer == 1)
-        if kopf[1].button(
-            "Einklappen" if offen else "Ausklappen",
-            key=f"klapp_{person['id']}",
+        # A named button rather than just an arrow: it says what it does, and it
+        # always sits in the same place - whether the report is open or not.
+        open_key = f"open_{person['id']}"
+        is_open = st.session_state.setdefault(open_key, number == 1)
+        if head[1].button(
+            "Einklappen" if is_open else "Ausklappen",
+            key=f"toggle_{person['id']}",
             width="stretch",
         ):
-            st.session_state[offen_schluessel] = not offen
+            st.session_state[open_key] = not is_open
             st.rerun()
 
-        eintrag = person_formular(person, len(personen), roh)
-        aktualisiert.append(eintrag)
+        entry = person_form(person, len(people), raw)
+        updated.append(entry)
 
-        if eintrag["wohnort"] is None:
+        if entry["location"] is None:
             continue
 
-        zielgruppe = eintrag["zielgruppe"]
-        stufen = ("K1",)
-        if zielgruppe == KINDER and offen and len(kinder_ids) > 1:
+        age_group = entry["age_group"]
+        tiers = ("K1",)
+        if age_group == CHILDREN and is_open and len(child_ids) > 1:
             st.caption(
-                f"Kind {kinder_ids.index(person['id']) + 1} von {len(kinder_ids)}. "
+                f"Kind {child_ids.index(person['id']) + 1} von {len(child_ids)}. "
                 f"Unten steht dieses Kind einzeln gerechnet, zum Normaltarif K1. "
                 f"Geschwisterrabatte gibt es nur, wenn **alle** Kinder beim "
                 f"gleichen Versicherer sind – dazu der eigene Abschnitt weiter "
                 f"unten."
             )
 
-        if offen:
+        if is_open:
             st.markdown("---")
-            ergebnis = person_ansicht(
-                roh, eintrag["wohnort"][0], eintrag["wohnort"][1], zielgruppe,
-                {zielgruppe: eintrag["unfall"]}, eintrag["tariftypen"], stufen,
-                umweltabgabe_standard, eintrag["kosten"], person["id"], eintrag["jetzt"],
+            result = person_view(
+                raw, entry["location"][0], entry["location"][1], age_group,
+                {age_group: entry["accident"]}, entry["tariff_types"], tiers,
+                environmental_rebate_default, entry["costs"], person["id"],
+                entry["current"],
             )
         else:
-            ergebnis = person_eckwerte(
-                roh, eintrag["wohnort"][0], eintrag["wohnort"][1], zielgruppe,
-                {zielgruppe: eintrag["unfall"]}, eintrag["tariftypen"], stufen,
-                umweltabgabe_standard, eintrag["kosten"],
+            result = person_summary(
+                raw, entry["location"][0], entry["location"][1], age_group,
+                {age_group: entry["accident"]}, entry["tariff_types"], tiers,
+                environmental_rebate_default, entry["costs"],
             )
-        if ergebnis:
-            ergebnis["ort"] = eintrag["wohnort"][2].split(" (")[0]
-            ergebnis["id"] = person["id"]
-            ergebnis["kosten"] = eintrag["kosten"]
-            ergebnis["wohnort"] = eintrag["wohnort"]
-            ergebnis["unfall"] = eintrag["unfall"]
-            ergebnis["tariftypen"] = eintrag["tariftypen"]
-            ergebnisse.append(ergebnis)
+        if result:
+            result["town"] = entry["location"][2].split(" (")[0]
+            result["id"] = person["id"]
+            result["costs"] = entry["costs"]
+            result["location"] = entry["location"]
+            result["accident"] = entry["accident"]
+            result["tariff_types"] = entry["tariff_types"]
+            results.append(result)
 
-st.session_state["personen"] = [
-    {k: v for k, v in p.items() if k in {"id", "alter", "unfall", "kosten"}}
-    for p in aktualisiert
+st.session_state["people"] = [
+    {k: v for k, v in p.items() if k in {"id", "age", "accident", "costs"}}
+    for p in updated
 ]
 
-if st.button("➕ Weitere Person hinzufügen", key="person_hinzu", width="stretch"):
-    naechste = max((p["id"] for p in aktualisiert), default=0) + 1
-    st.session_state["personen"] = st.session_state["personen"] + [
-        {"id": naechste, "alter": 8, "unfall": "MIT-UNF", "kosten": 500}
+if st.button("➕ Weitere Person hinzufügen", key="add_person", width="stretch"):
+    next_id = max((p["id"] for p in updated), default=0) + 1
+    st.session_state["people"] = st.session_state["people"] + [
+        {"id": next_id, "age": 8, "accident": "MIT-UNF", "costs": 500}
     ]
-    # Die neue Person aufklappen, die übrigen zu - sonst steht man vor einer
-    # Seite voller offener Berichte und sieht nicht, was eben dazugekommen ist.
-    for e in aktualisiert:
-        st.session_state[f"offen_{e['id']}"] = False
-    st.session_state[f"offen_{naechste}"] = True
-    st.session_state["_springe_zu"] = naechste
+    # Expand the new person, collapse the rest - otherwise you face a page full
+    # of open reports and cannot see what was just added.
+    for p in updated:
+        st.session_state[f"open_{p['id']}"] = False
+    st.session_state[f"open_{next_id}"] = True
+    st.session_state["_scroll_to"] = next_id
     st.rerun()
 
-# Beim Hinzufügen einer Person dorthin springen. Streamlit hält die
-# Bildlaufposition über Reruns hinweg; ohne das landet man mitten im Bericht der
-# vorigen Person und sieht die neuen Eingabefelder gar nicht.
-ziel = st.session_state.pop("_springe_zu", None)
-if ziel is not None:
-    nummer_ziel = next(
-        (i for i, e in enumerate(aktualisiert, start=1) if e["id"] == ziel), None
+# Jump to the person just added. Streamlit keeps the scroll position across
+# reruns; without this you land in the middle of the previous person's report
+# and never see the new input fields.
+scroll_target = st.session_state.pop("_scroll_to", None)
+if scroll_target is not None:
+    target_number = next(
+        (i for i, p in enumerate(updated, start=1) if p["id"] == scroll_target), None
     )
-    if nummer_ziel:
-        # Gescrollt wird der Hauptbereich section[data-testid="stMain"], nicht das
-        # Fenster - scrollIntoView fasst den falschen Behälter an und bleibt
-        # wirkungslos. Mehrere Versuche, weil Streamlit die vorherige Position
-        # erst nach dem Zeichnen wiederherstellt und einen sofortigen Sprung
-        # gleich wieder überschreiben würde.
+    if target_number:
+        # What scrolls is the main area section[data-testid="stMain"], not the
+        # window - scrollIntoView grabs the wrong container and has no effect.
+        # Several attempts, because Streamlit restores the previous position
+        # only after drawing and would immediately overwrite an instant jump.
         components.html(
             f"""
             <script>
               const doc = window.parent.document;
-              let versuche = 0;
-              const springen = () => {{
-                const flaeche = doc.querySelector('section[data-testid="stMain"]');
-                const kasten = doc.querySelector('.st-key-person_box_{nummer_ziel}');
-                if (flaeche && kasten) {{
-                  const ziel = kasten.getBoundingClientRect().top
-                             - flaeche.getBoundingClientRect().top
-                             + flaeche.scrollTop - 16;
-                  flaeche.scrollTo({{top: ziel, behavior: 'smooth'}});
+              let attempts = 0;
+              const jump = () => {{
+                const area = doc.querySelector('section[data-testid="stMain"]');
+                const box = doc.querySelector('.st-key-person_box_{target_number}');
+                if (area && box) {{
+                  const target = box.getBoundingClientRect().top
+                               - area.getBoundingClientRect().top
+                               + area.scrollTop - 16;
+                  area.scrollTo({{top: target, behavior: 'smooth'}});
                 }}
-                if (++versuche < 8) setTimeout(springen, 200);
+                if (++attempts < 8) setTimeout(jump, 200);
               }};
-              setTimeout(springen, 120);
+              setTimeout(jump, 120);
             </script>
             """,
             height=0,
         )
 
-# Geschwisterrabatt: nur erhältlich, wenn alle Kinder beim gleichen Versicherer
-# sind. Deshalb wird er für die Kinder gemeinsam gerechnet und gegen die freie
-# Wahl ohne Rabatt gestellt - die Entscheidung gehört dem Haushalt, nicht dem
-# einzelnen Kind.
-gemeinsam = None
-kinder_ergebnisse = [e for e in ergebnisse if e["zielgruppe"] == KINDER]
-if len(kinder_ergebnisse) >= 2:
-    erstes = kinder_ergebnisse[0]
-    kinderdaten = get_data(
-        roh,
-        kanton=erstes["wohnort"][0],
-        region=erstes["wohnort"][1],
-        zielgruppen=(KINDER,),
-        unfalldeckung={KINDER: erstes["unfall"]},
-        kinder_untergruppen=tuple(KINDER_UNTERGRUPPEN),
-        tariftypen=tuple(erstes["tariftypen"]) if erstes["tariftypen"] else None,
+# Sibling discount: only available when all children are with the same insurer.
+# It is therefore computed for the children jointly and set against free choice
+# without a discount - the decision belongs to the household, not to the
+# individual child.
+shared = None
+child_results = [r for r in results if r["age_group"] == CHILDREN]
+if len(child_results) >= 2:
+    first = child_results[0]
+    child_data = get_data(
+        raw,
+        canton=first["location"][0],
+        region=first["location"][1],
+        age_groups=(CHILDREN,),
+        accident_cover={CHILDREN: first["accident"]},
+        child_subgroups=tuple(CHILD_SUBGROUPS),
+        tariff_types=tuple(first["tariff_types"]) if first["tariff_types"] else None,
     )
-    gemeinsam = kinder_beim_gleichen_versicherer(
-        kinderdaten,
-        [float(e["kosten"]) for e in kinder_ergebnisse],
-        umweltabgabe_standard,
+    shared = children_with_one_insurer(
+        child_data,
+        [float(r["costs"]) for r in child_results],
+        environmental_rebate_default,
     )
 
-haushalt_summe(ergebnisse, len(kinder_ids), gemeinsam)
+household_total(results, len(child_ids), shared)
 
 st.markdown("---")
 
-# Dieselben Einschränkungen wie im README - wer die App benutzt, liest das
-# README nicht. Eingeklappt, damit die Seite nicht mit Kleingedrucktem endet,
-# aber von jeder Seite aus erreichbar.
+# The same limitations as in the README - whoever uses the app does not read the
+# README. Collapsed, so the page does not end in small print, but reachable from
+# anywhere on the page.
 with st.expander("Was diese Rechnung nicht berücksichtigt"):
     st.markdown(
         """
@@ -240,13 +238,12 @@ lohnt sich eine Beratung bei einer unabhängigen Stelle.
         """
     )
 
-spalte_links, spalte_rechts = st.columns([3, 1])
-spalte_links.caption(
+left, right = st.columns([3, 1])
+left.caption(
     "Die Prämiendaten werden beim ersten Aufruf geladen und sieben Tage "
     "zwischengespeichert."
 )
-if spalte_rechts.button("Prämiendaten neu laden"):
+if right.button("Prämiendaten neu laden"):
     st.cache_data.clear()
-    praemien(0)
+    premiums(0)
     st.rerun()
-

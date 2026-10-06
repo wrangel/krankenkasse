@@ -1,10 +1,10 @@
-# Dieselben drei Schritte wie bei abstractaltitudes, nur ohne pnpm:
+# The same three steps as in abstractaltitudes, just without pnpm:
 #
-#   make dev    App örtlich aus der virtuellen Umgebung starten
-#   make test   Abbild für diesen Rechner bauen und im Container prüfen
-#   make prod   Abbild für die Synology bauen (linux/amd64) und veröffentlichen
+#   make dev    run the app locally from the virtual environment
+#   make test   build an image for this machine and check it in a container
+#   make prod   build the image for the Synology (linux/amd64) and publish it
 
-.PHONY: dev test prod pruefen
+.PHONY: dev test prod check
 
 dev:
 	@./scripts/dev.sh
@@ -15,6 +15,6 @@ test:
 prod:
 	@./scripts/prod.sh
 
-pruefen:
-	@$${VENV:-$$HOME/.venvs/krankenkasse}/bin/python test_berechnung.py
-	@$${VENV:-$$HOME/.venvs/krankenkasse}/bin/python pruefe_datenquellen.py
+check:
+	@$${VENV:-$$HOME/.venvs/krankenkasse}/bin/python test_calculation.py
+	@$${VENV:-$$HOME/.venvs/krankenkasse}/bin/python check_data_sources.py

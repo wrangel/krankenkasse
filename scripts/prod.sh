@@ -1,34 +1,34 @@
 #!/bin/bash
-# Abbild für die Synology bauen und auf Docker Hub schieben.
+# Build the image for the Synology and push it to Docker Hub.
 #
-# Gebaut wird linux/amd64 - die Architektur der Synology. Auf einem
-# Apple-Rechner ist dieses Abbild nicht lauffähig; das ist in Ordnung, es ist
-# nicht für hier gedacht. Zum örtlichen Prüfen scripts/test.sh.
+# What gets built is linux/amd64 - the Synology's architecture. On an Apple
+# machine that image will not run; that is fine, it is not meant for here. For a
+# local trial use scripts/test.sh.
 set -e
 
 cd "$(dirname "$0")/.."
-ABBILD="$(grep -E '^\s*image:' docker-compose.yml | head -1 | awk '{print $2}')"
+IMAGE="$(grep -E '^\s*image:' docker-compose.yml | head -1 | awk '{print $2}')"
 
-echo "Starte Docker, falls nötig..."
+echo "Starting Docker if needed..."
 open --background -a Docker 2>/dev/null || true
 while ! docker info >/dev/null 2>&1; do
-  echo "warte auf Docker..."
+  echo "waiting for Docker..."
   sleep 2
 done
 
-echo "Prüfe die Rechnung, bevor etwas veröffentlicht wird..."
+echo "Checking the arithmetic before anything is published..."
 VENV="${VENV:-$HOME/.venvs/krankenkasse}"
-"$VENV/bin/python" test_berechnung.py
+"$VENV/bin/python" test_calculation.py
 
-echo "Baue $ABBILD für linux/amd64..."
-docker build --platform linux/amd64 -t "$ABBILD" .
+echo "Building $IMAGE for linux/amd64..."
+docker build --platform linux/amd64 -t "$IMAGE" .
 
-echo "Anmeldung bei Docker Hub (falls nötig)..."
+echo "Signing in to Docker Hub (if needed)..."
 docker login
 
-echo "Schiebe $ABBILD..."
-docker push "$ABBILD"
+echo "Pushing $IMAGE..."
+docker push "$IMAGE"
 
 echo
-echo "Fertig. Auf der Synology holen mit:"
-echo "    docker pull $ABBILD"
+echo "Done. Pull it on the Synology with:"
+echo "    docker pull $IMAGE"

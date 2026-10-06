@@ -3,17 +3,16 @@ name: CI Workflow
 # The job name below ("check") is what a branch ruleset asks for under
 # "Require status checks to pass". Renaming the job means updating the rule.
 #
-# Geprüft wird dreierlei: dass sich die gepinnten Abhängigkeiten auflösen und
-# installieren lassen, dass jedes Modul kompiliert, und dass die Rechenkette
-# dieselben Zahlen liefert wie von Hand gerechnet (test_berechnung.py).
+# Three things get checked: that the pinned dependencies resolve and install,
+# that every module compiles, and that the chain of computation still produces
+# the same numbers as the hand calculation (test_calculation.py).
 #
-# Der dritte Punkt ist der Grund, warum eine grüne Prüfung an einem Dependabot-PR
-# überhaupt etwas aussagt: Die ganze App ist eine Rechenkette über pandas.
-# Änderte sich das Verhalten von groupby, idxmin oder str.extract, käme klaglos
-# ein falscher Kipppunkt heraus - Installation und Kompilierung blieben davon
-# unberührt.
+# That third point is why a green check on a Dependabot PR says anything at all:
+# the whole app is a chain of computation over pandas. If the behaviour of
+# groupby, idxmin or str.extract changed, a wrong tipping point would come out
+# without complaint - installation and compilation would be none the wiser.
 #
-# Die Tests brauchen weder Netz noch pytest.
+# The tests need neither network nor pytest.
 
 permissions:
   contents: read
@@ -50,5 +49,5 @@ jobs:
       - name: Byte-compile every module
         run: python -m compileall -q .
 
-      - name: Rechentests (ohne Netz)
-        run: python test_berechnung.py
+      - name: Arithmetic tests (no network)
+        run: python test_calculation.py

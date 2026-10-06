@@ -1,3 +1,17 @@
+"""All of the computation, none of the user interface.
+
+Vocabulary, since the Swiss terms have no single obvious English equivalent:
+
+    Franchise         deductible          the amount paid before cover starts
+    Selbstbehalt      coinsurance         10% share above the deductible
+    Kostenbeteiligung cost sharing        deductible plus coinsurance
+    Prämie            premium
+    Kipppunkt         tipping point       healthcare costs at which the lowest
+                                          deductible becomes the cheaper choice
+
+DataFrame column labels stay as the BAG spells them - see constants.py for why.
+"""
+
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -8,86 +22,97 @@ import numpy as np
 import pandas as pd
 
 from constants import (
-    ALTERSKLASSEN,
+    AGE_CLASSES,
+    ADULTS,
     CACHE_DIR,
-    KINDER_UNTERGRUPPEN_STANDARD,
-    VERSICHERER_DATEI,
-    hoechstgrenze_selbstbehalt,
-    mindest_rechenbereich,
-    praemien_sheet,
-    praemien_url,
-    selbstbehalt_anteil,
+    CHILD_SUBGROUPS_DEFAULT,
+    CHILDREN,
+    INSURERS_FILE,
+    YOUNG_ADULTS,
+    coinsurance_cap,
+    coinsurance_rate,
+    min_cost_range,
+    premiums_sheet,
+    premiums_url,
 )
 
-# admin.ch weist Anfragen ohne Browser-User-Agent ab.
+# admin.ch rejects requests without a browser user agent.
 _USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 )
 
+# Default accident cover per age class. Employees are covered through their
+# employer, children are not.
+_ACCIDENT_DEFAULT = {
+    ADULTS: "OHN-UNF",
+    YOUNG_ADULTS: "OHN-UNF",
+    CHILDREN: "MIT-UNF",
+}
 
-def lade_datei(url: str, dateiname: str, max_alter_tage: int = 7) -> Path:
-    """Lädt eine Datei und legt sie im Cache ab. Ein vorhandener Download wird
-    wiederverwendet, solange er jünger als `max_alter_tage` ist."""
+
+def download_file(url: str, filename: str, max_age_days: int = 7) -> Path:
+    """Download a file into the cache. An existing download is reused as long as
+    it is younger than `max_age_days`."""
     CACHE_DIR.mkdir(exist_ok=True)
-    ziel = CACHE_DIR / dateiname
+    target = CACHE_DIR / filename
 
-    if ziel.exists():
-        alter = datetime.now() - datetime.fromtimestamp(ziel.stat().st_mtime)
-        if alter < timedelta(days=max_alter_tage):
-            return ziel
+    if target.exists():
+        age = datetime.now() - datetime.fromtimestamp(target.stat().st_mtime)
+        if age < timedelta(days=max_age_days):
+            return target
 
-    anfrage = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
-    with urllib.request.urlopen(anfrage) as antwort:
-        inhalt = antwort.read()
+    request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
+    with urllib.request.urlopen(request) as response:
+        content = response.read()
 
-    temp = ziel.with_suffix(ziel.suffix + ".teil")
-    temp.write_bytes(inhalt)
-    temp.replace(ziel)
-    return ziel
+    temp = target.with_suffix(target.suffix + ".part")
+    temp.write_bytes(content)
+    temp.replace(target)
+    return target
 
 
-def versicherer_namen() -> dict[int, str]:
-    """Zuordnung BAG-Nummer -> Versicherername (siehe refresh_versicherer.py)."""
-    if not VERSICHERER_DATEI.exists():
+def insurer_names() -> dict[int, str]:
+    """BAG number -> insurer name (see refresh_insurers.py)."""
+    if not INSURERS_FILE.exists():
         return {}
-    roh = json.loads(VERSICHERER_DATEI.read_text(encoding="utf-8"))
-    return {int(nummer): name for nummer, name in roh.items()}
+    raw = json.loads(INSURERS_FILE.read_text(encoding="utf-8"))
+    return {int(number): name for number, name in raw.items()}
 
 
-_ALTERSKLASSEN_AB_2027: dict[str, str] = {
+_AGE_CLASSES_FROM_2027: dict[str, str] = {
     "AKA_01_KIN": "AKL-KIN",
     "AKA_02_JUG": "AKL-JUG",
     "AKA_03_ERW": "AKL-ERW",
 }
 
-_UNFALL_AB_2027: dict[str, str] = {
+_ACCIDENT_FROM_2027: dict[str, str] = {
     "MIT_UNF": "MIT-UNF",
     "OHN_UNF": "OHN-UNF",
 }
 
 
-def _normalisiere_codes(df: pd.DataFrame) -> pd.DataFrame:
-    """Übersetzt die Schlüssel der Prämiendatei in die hausinterne Schreibweise.
+def _normalise_codes(df: pd.DataFrame) -> pd.DataFrame:
+    """Translate the premium file's keys into this project's spelling.
 
-    Mit dem Prämienjahr 2027 hat das BAG sämtliche Codes umgestellt:
+    With premium year 2027 the BAG changed every code:
 
         Region            PR-REG CH1  ->  PR_REG_1
-        Altersklasse      AKL-ERW     ->  AKA_03_ERW
-        Unfalleinschluss  OHN-UNF     ->  OHN_UNF
-        Franchise         FRA-300     ->  FRA_01_E_0300   (neu mit Altersklasse)
+        Age class         AKL-ERW     ->  AKA_03_ERW
+        Accident cover    OHN-UNF     ->  OHN_UNF
+        Deductible        FRA-300     ->  FRA_01_E_0300   (now with age class)
 
-    Statt die neue Schreibweise durch das ganze Projekt zu ziehen, wird sie hier
-    einmal auf die bisherige zurückgeführt. Der Rest des Codes - und mit ihm die
-    Tests - spricht damit weiterhin eine einzige Sprache. Dateien in der alten
-    Schreibweise laufen unverändert durch.
+    Rather than pulling the new spelling through the whole project, it is mapped
+    back here once. The rest of the code - and with it the tests - therefore
+    keeps speaking a single language. Files in the old spelling pass through
+    unchanged.
     """
     df = df.copy()
 
     if "Altersklasse" in df:
-        df["Altersklasse"] = df["Altersklasse"].replace(_ALTERSKLASSEN_AB_2027)
+        df["Altersklasse"] = df["Altersklasse"].replace(_AGE_CLASSES_FROM_2027)
     if "Unfalleinschluss" in df:
-        df["Unfalleinschluss"] = df["Unfalleinschluss"].replace(_UNFALL_AB_2027)
+        df["Unfalleinschluss"] = df["Unfalleinschluss"].replace(_ACCIDENT_FROM_2027)
 
     # PR_REG_1 -> PR-REG CH1
     if "Region" in df:
@@ -95,107 +120,102 @@ def _normalisiere_codes(df: pd.DataFrame) -> pd.DataFrame:
             r"^PR_REG_(\d+)$", r"PR-REG CH\1", regex=True
         )
 
-    # FRA_01_E_0300 -> FRA-300 (führende Nullen weg, Altersklassen-Buchstabe
-    # entfällt - die Altersklasse steht ohnehin in einer eigenen Spalte)
+    # FRA_01_E_0300 -> FRA-300 (leading zeros dropped, age-class letter dropped -
+    # the age class sits in a column of its own anyway)
     if "Franchise" in df:
-        neu = df["Franchise"].str.extract(r"^FRA_\d+_[EJK]_(\d+)$")[0]
-        df["Franchise"] = neu.where(neu.isna(), "FRA-" + neu.str.lstrip("0").replace("", "0")).fillna(
-            df["Franchise"]
-        )
+        new = df["Franchise"].str.extract(r"^FRA_\d+_[EJK]_(\d+)$")[0]
+        df["Franchise"] = new.where(
+            new.isna(), "FRA-" + new.str.lstrip("0").replace("", "0")
+        ).fillna(df["Franchise"])
 
     return df
 
 
-def lade_praemien(max_alter_tage: int = 7) -> pd.DataFrame:
-    """Rohe BAG-Prämientabelle. Der Download ist rund 14 MB und wird gecacht."""
-    pfad = lade_datei(praemien_url, "praemien_ch.xlsx", max_alter_tage)
+def load_premiums(max_age_days: int = 7) -> pd.DataFrame:
+    """The raw BAG premium table. The download is about 14 MB and is cached."""
+    path = download_file(premiums_url, "praemien_ch.xlsx", max_age_days)
 
-    # Die Tabelle einmal eingelesen daneben ablegen. Das Herunterladen der 12 MB
-    # dauert unter einer Sekunde; das Einlesen der 220'000 Zeilen aus dem
-    # Excel-Format kostet dagegen rund sechs Sekunden auf einem flotten Rechner
-    # und ein Vielfaches davon auf der Synology - es ist reine Rechenarbeit.
-    # Aus der Zwischenablage gelesen sind es 0.01 Sekunden, also rund 600-mal
-    # schneller.
+    # Keep the parsed table next to the download. Fetching the 12 MB takes well
+    # under a second; parsing the 220,000 rows out of the Excel format costs
+    # around six seconds on a fast machine and a multiple of that on the
+    # Synology - it is pure computation. Read back from the pickle it is 0.01
+    # seconds, roughly 600 times faster.
     #
-    # Zwischengespeichert wird bewusst die *rohe* Tabelle, nicht die bereinigte:
-    # So wirken Änderungen an der Entdoppelung und an _normalisiere_codes sofort,
-    # ohne dass jemand daran denken muss, den Zwischenstand wegzuwerfen.
-    zwischen = pfad.with_suffix(".pkl")
+    # What is cached is deliberately the *raw* table, not the cleaned one: that
+    # way changes to the de-duplication and to _normalise_codes take effect
+    # immediately, without anyone having to remember to throw the cache away.
+    cached = path.with_suffix(".pkl")
     df = None
-    if zwischen.exists() and zwischen.stat().st_mtime >= pfad.stat().st_mtime:
+    if cached.exists() and cached.stat().st_mtime >= path.stat().st_mtime:
         try:
-            df = pd.read_pickle(zwischen)
+            df = pd.read_pickle(cached)
         except Exception:
-            # Unlesbar, etwa nach einem Versionswechsel von pandas: wegwerfen und
-            # neu einlesen. Es ist nur eine Zwischenablage.
-            zwischen.unlink(missing_ok=True)
+            # Unreadable, for instance after a pandas version change: discard and
+            # parse again. It is only a cache.
+            cached.unlink(missing_ok=True)
             df = None
 
     if df is None:
-        # Das Blatt hiess schon "Export" und heisst jetzt "Sheet1". Fehlt der
-        # erwartete Name, wird das erste Blatt genommen, statt abzustürzen.
-        blaetter = pd.ExcelFile(pfad).sheet_names
-        blatt = praemien_sheet if praemien_sheet in blaetter else blaetter[0]
-        df = pd.read_excel(pfad, sheet_name=blatt)
+        # The sheet was once called "Export" and is now called "Sheet1". If the
+        # expected name is missing, take the first sheet rather than crash.
+        sheets = pd.ExcelFile(path).sheet_names
+        sheet = premiums_sheet if premiums_sheet in sheets else sheets[0]
+        df = pd.read_excel(path, sheet_name=sheet)
         try:
-            df.to_pickle(zwischen)
+            df.to_pickle(cached)
         except Exception:
-            # Ohne Schreibrecht läuft es weiter, nur eben langsam.
+            # Without write permission it carries on, just slowly.
             pass
 
-    # Früher stand hier ein Filter auf isBaseP == 0. Das war für die Datei bis
-    # 2026 richtig, weil die Standardtarife dort doppelt geführt wurden und die
-    # 0-Zeilen der doppelfreien Tabelle entsprachen. Ab 2027 ist isBaseP ein
-    # schlichtes Kennzeichen ("Tarif Base? 1 = Ja, 0 = Nein"), und es gibt gar
-    # keine Duplikate mehr - derselbe Filter hätte also sämtliche Standardtarife
-    # verworfen, ohne dass irgendwo ein Fehler aufgetreten wäre. Deshalb wird
-    # jetzt über den fachlichen Schlüssel entdoppelt: bis 2026 entfernt das die
-    # Dubletten, ab 2027 ist es wirkungslos.
-    schluessel = [
+    # There used to be a filter on isBaseP == 0 here. That was right for the
+    # file up to 2026, where the standard tariffs were listed twice and the
+    # 0 rows were exactly the duplicate-free table. From 2027 on isBaseP is a
+    # plain flag ("Tarif Base? 1 = yes, 0 = no") and there are no duplicates at
+    # all - so the same filter would have discarded every standard tariff
+    # without raising an error anywhere. De-duplication now happens on the
+    # business key instead: up to 2026 that removes the duplicates, from 2027 on
+    # it does nothing.
+    key = [
         "Versicherer", "Kanton", "Region", "Altersklasse", "Altersuntergruppe",
         "Unfalleinschluss", "Tarif", "Franchise",
     ]
-    df = df.drop_duplicates(subset=[s for s in schluessel if s in df.columns])
+    df = df.drop_duplicates(subset=[k for k in key if k in df.columns])
 
-    return _normalisiere_codes(df)
+    return _normalise_codes(df)
 
 
 def get_data(
     df: pd.DataFrame,
-    kanton: str = "ZH",
+    canton: str = "ZH",
     region: str = "PR-REG CH1",
-    zielgruppen: tuple[str, ...] = ("Erwachsene", "Kinder"),
-    unfalldeckung: dict[str, str] | None = None,
-    kinder_untergruppen: tuple[str, ...] = KINDER_UNTERGRUPPEN_STANDARD,
-    tariftypen: tuple[str, ...] | None = None,
+    age_groups: tuple[str, ...] = (ADULTS, CHILDREN),
+    accident_cover: dict[str, str] | None = None,
+    child_subgroups: tuple[str, ...] = CHILD_SUBGROUPS_DEFAULT,
+    tariff_types: tuple[str, ...] | None = None,
 ) -> pd.DataFrame:
-    """Filtert die BAG-Prämiendaten auf Kanton, Region, Zielgruppen und Unfalldeckung
-    und normalisiert Franchise, Prämie und Altersklasse."""
-    unfalldeckung = unfalldeckung or {
-        "Erwachsene": "OHN-UNF",
-        "Junge Erwachsene": "OHN-UNF",
-        "Kinder": "MIT-UNF",
-    }
-    akl_pro_zielgruppe = {name: akl for akl, name in ALTERSKLASSEN.items()}
+    """Filter the BAG premium data by canton, region, age group and accident
+    cover, and normalise deductible, premium and age class."""
+    accident_cover = accident_cover or dict(_ACCIDENT_DEFAULT)
+    class_per_group = {name: code for code, name in AGE_CLASSES.items()}
 
-    basis = df[(df["Kanton"] == kanton) & (df["Region"] == region)]
-    if tariftypen:
-        basis = basis[basis["Tariftyp"].isin(tariftypen)]
+    base = df[(df["Kanton"] == canton) & (df["Region"] == region)]
+    if tariff_types:
+        base = base[base["Tariftyp"].isin(tariff_types)]
 
-    teile = []
-    for zielgruppe in zielgruppen:
-        akl = akl_pro_zielgruppe[zielgruppe]
-        teil = basis[
-            (basis["Altersklasse"] == akl)
-            & (basis["Unfalleinschluss"] == unfalldeckung[zielgruppe])
+    parts = []
+    for age_group in age_groups:
+        code = class_per_group[age_group]
+        part = base[
+            (base["Altersklasse"] == code)
+            & (base["Unfalleinschluss"] == accident_cover[age_group])
         ]
-        if zielgruppe == "Kinder" and kinder_untergruppen:
-            teil = teil[teil["Altersuntergruppe"].isin(kinder_untergruppen)]
-        teile.append(teil)
+        if age_group == CHILDREN and child_subgroups:
+            part = part[part["Altersuntergruppe"].isin(child_subgroups)]
+        parts.append(part)
 
-    gefiltert = pd.concat(teile) if teile else basis.iloc[0:0]
+    filtered = pd.concat(parts) if parts else base.iloc[0:0]
 
-    ergebnis = gefiltert[
+    result = filtered[
         [
             "Versicherer",
             "Altersklasse",
@@ -207,491 +227,496 @@ def get_data(
             "Tarifbezeichnung",
         ]
     ].copy()
-    ergebnis["Franchise"] = (
-        ergebnis["Franchise"].str.extract(r"FRA-(\d+)")[0].astype(int)
+    result["Franchise"] = result["Franchise"].str.extract(r"FRA-(\d+)")[0].astype(int)
+    result["Prämie"] = result["Prämie"].astype(float)
+    result["Zielgruppe"] = result["Altersklasse"].map(AGE_CLASSES)
+
+    names = insurer_names()
+    result["Versicherername"] = (
+        result["Versicherer"].map(names).fillna(result["Versicherer"].astype(str))
     )
-    ergebnis["Prämie"] = ergebnis["Prämie"].astype(float)
-    ergebnis["Zielgruppe"] = ergebnis["Altersklasse"].map(ALTERSKLASSEN)
-
-    namen = versicherer_namen()
-    ergebnis["Versicherername"] = (
-        ergebnis["Versicherer"].map(namen).fillna(ergebnis["Versicherer"].astype(str))
-    )
-    return ergebnis
+    return result
 
 
-def beste_praemien(df: pd.DataFrame) -> pd.DataFrame:
-    """Günstigstes Angebot pro Zielgruppe und Franchise, inklusive Anbieter."""
+def cheapest_premiums(df: pd.DataFrame) -> pd.DataFrame:
+    """Cheapest offer per age group and deductible, including the provider."""
     if df.empty:
         return df
     idx = df.groupby(["Zielgruppe", "Franchise"])["Prämie"].idxmin()
-    return (
-        df.loc[idx]
-        .sort_values(["Zielgruppe", "Franchise"])
-        .reset_index(drop=True)
-    )
+    return df.loc[idx].sort_values(["Zielgruppe", "Franchise"]).reset_index(drop=True)
 
 
 @dataclass
-class Ergebnis:
-    zielgruppe: str
-    praemien: dict[int, float]
-    anbieter: dict[int, str]
-    kosten: pd.DataFrame
+class Result:
+    age_group: str
+    premiums: dict[int, float]
+    providers: dict[int, str]
+    costs: pd.DataFrame
     optimal: pd.Series
-    segmente: pd.DataFrame
-    kipppunkt: int | None
-    tiefste_franchise: int
-    ersparnis_am_kipppunkt: float | None = None
+    segments: pd.DataFrame
+    tipping_point: int | None
+    lowest_deductible: int
+    saving_at_tipping_point: float | None = None
 
     @property
-    def vorteil_tiefste(self) -> pd.Series:
-        """Wie viel die tiefste Franchise pro Jahr besser ist als die beste Alternative.
-        Negativ, solange sich eine höhere Franchise mehr lohnt."""
-        andere = self.kosten.drop(columns=[self.tiefste_franchise])
-        return andere.min(axis=1) - self.kosten[self.tiefste_franchise]
+    def advantage_of_lowest(self) -> pd.Series:
+        """How much better per year the lowest deductible is than the best
+        alternative. Negative as long as a higher deductible pays off more."""
+        others = self.costs.drop(columns=[self.lowest_deductible])
+        return others.min(axis=1) - self.costs[self.lowest_deductible]
 
     @property
-    def max_vorteil(self) -> float:
-        """Grösster Vorteil der tiefsten Franchise gegenüber der *nächstbesten* Stufe.
+    def max_advantage(self) -> float:
+        """Largest advantage of the lowest deductible over the *next best* step.
 
-        Achtung, eng gefasst: das misst nur, wie knapp benachbarte Franchisenstufen
-        beieinander liegen – nicht, wie viel die Franchisenwahl insgesamt ausmacht.
-        Dafür ist `max_spannweite` zuständig, die typisch ein Vielfaches beträgt.
+        Careful, this is narrow: it measures only how close adjacent deductible
+        steps sit to each other - not how much the choice of deductible matters
+        overall. That is what `max_spread` is for, and it is typically a
+        multiple of this.
         """
-        return float(self.vorteil_tiefste.max())
+        return float(self.advantage_of_lowest.max())
 
     @property
-    def nie_optimal(self) -> list[int]:
-        """Franchisen, die über den ganzen Kostenbereich nie die günstigste sind.
+    def never_optimal(self) -> list[int]:
+        """Deductibles that are never the cheapest across the whole cost range.
 
-        Empirisch sind das bisher alle mittleren Stufen – geprüft über sämtliche
-        Kanton/Region-Kombinationen und einzelne Versichererangebote. Das ist aber
-        ein Befund aus den Daten, keine Rechtsfolge: Die Verordnung deckelt den
-        Prämienrabatt nur (Art. 95 Abs. 2bis KVV), festgelegt wird er von den
-        Versicherern selbst (Abs. 1bis). Da die Prämien jedes Jahr neu bestimmt
-        werden, wird der Befund hier bei jedem Lauf neu berechnet statt angenommen.
+        Empirically that has so far been every middle step - checked across all
+        canton/region combinations and individual insurer offers. But that is a
+        finding from the data, not a legal consequence: the ordinance only caps
+        the premium discount (Art. 95 para. 2bis KVV), the insurers set it
+        themselves (para. 1bis). Since premiums are set anew every year, the
+        finding is recomputed on every run rather than assumed.
         """
-        gewinner = set(self.optimal)
-        return [f for f in self.kosten.columns if f not in gewinner]
+        winners = set(self.optimal)
+        return [d for d in self.costs.columns if d not in winners]
 
     @property
-    def spannweite(self) -> pd.Series:
-        """Differenz zwischen bester und schlechtester Franchise je Kostenbetrag –
-        also der Preis eines Fehlgriffs bei bekannten Krankheitskosten."""
-        return self.kosten.max(axis=1) - self.kosten.min(axis=1)
+    def spread(self) -> pd.Series:
+        """Difference between the best and the worst deductible at each cost
+        level - the price of getting it wrong at known healthcare costs."""
+        return self.costs.max(axis=1) - self.costs.min(axis=1)
 
     @property
-    def max_spannweite(self) -> float:
-        """Grösster Unterschied zwischen bester und schlechtester Franchise. Das ist
-        der eigentliche Einsatz der Franchisenwahl: Wer seine Krankheitskosten kennt,
-        spart bis zu diesem Betrag pro Jahr gegenüber der schlechtesten Wahl."""
-        return float(self.spannweite.max())
+    def max_spread(self) -> float:
+        """Largest difference between the best and the worst deductible. This is
+        what the choice of deductible is actually worth: someone who knows their
+        healthcare costs saves up to this much per year against the worst
+        choice."""
+        return float(self.spread.max())
 
-    def materieller_kipppunkt(self, toleranz: float = 50.0) -> int | None:
-        """Erste Krankheitskosten, ab denen die tiefste Franchise um mehr als `toleranz`
-        Franken pro Jahr besser ist.
+    def material_tipping_point(self, tolerance: float = 50.0) -> int | None:
+        """The first healthcare costs at which the lowest deductible is better by
+        more than `tolerance` francs per year.
 
-        Der reine Kipppunkt ist mathematisch exakt, aber praktisch wertlos: die
-        Kostenkurven schneiden sich sehr flach, deshalb geht es dort um Rappen. Erst
-        dieser Wert beantwortet, ab wann sich der Wechsel spürbar lohnt.
+        The plain tipping point is mathematically exact but practically
+        worthless: the cost curves cross very flatly, so around it the
+        difference is a matter of centimes. Only this value answers from when
+        switching is worth noticing.
         """
-        treffer = self.vorteil_tiefste.index[self.vorteil_tiefste > toleranz]
-        return int(treffer[0]) if len(treffer) else None
+        hits = self.advantage_of_lowest.index[self.advantage_of_lowest > tolerance]
+        return int(hits[0]) if len(hits) else None
 
 
-def _segmente(optimal: pd.Series) -> pd.DataFrame:
-    """Fasst zusammenhängende Bereiche gleicher optimaler Franchise zusammen."""
-    wechsel = optimal.ne(optimal.shift()).cumsum()
-    gruppen = optimal.groupby(wechsel)
+def _segments(optimal: pd.Series) -> pd.DataFrame:
+    """Collapse contiguous ranges that share the same optimal deductible."""
+    changes = optimal.ne(optimal.shift()).cumsum()
+    groups = optimal.groupby(changes)
     return pd.DataFrame(
         {
-            "Von": gruppen.apply(lambda g: g.index[0]).values,
-            "Bis": gruppen.apply(lambda g: g.index[-1]).values,
-            "Franchise": gruppen.first().values,
+            "Von": groups.apply(lambda g: g.index[0]).values,
+            "Bis": groups.apply(lambda g: g.index[-1]).values,
+            "Franchise": groups.first().values,
         }
     )
 
 
-def berechne_kipppunkt(
-    beste: pd.DataFrame,
-    umweltabgabe: float,
-    max_kosten: int = mindest_rechenbereich,
-) -> list[Ergebnis]:
-    """Berechnet für jede Zielgruppe die Jahreskosten je Franchise und daraus den
-    Kipppunkt: die tiefsten Krankheitskosten, ab denen die tiefste Franchise gewinnt."""
-    krankheitskosten = np.arange(max_kosten + 1)
-    ergebnisse = []
+def compute_tipping_point(
+    cheapest: pd.DataFrame,
+    environmental_rebate: float,
+    max_costs: int = min_cost_range,
+) -> list[Result]:
+    """For each age group, the annual costs per deductible and from them the
+    tipping point: the lowest healthcare costs at which the lowest deductible
+    wins."""
+    healthcare_costs = np.arange(max_costs + 1)
+    results = []
 
-    for zielgruppe, gruppe in beste.groupby("Zielgruppe"):
-        praemien = dict(zip(gruppe["Franchise"], gruppe["Prämie"]))
-        anbieter = dict(zip(gruppe["Franchise"], gruppe["Versicherername"]))
-        obergrenze = hoechstgrenze_selbstbehalt[zielgruppe]
+    for age_group, group in cheapest.groupby("Zielgruppe"):
+        premiums = dict(zip(group["Franchise"], group["Prämie"]))
+        providers = dict(zip(group["Franchise"], group["Versicherername"]))
+        cap = coinsurance_cap[age_group]
 
-        kosten = pd.DataFrame(index=pd.Index(krankheitskosten, name="Krankheitskosten"))
-        for franchise, praemie in sorted(praemien.items()):
-            selbstbehalt = np.minimum(
-                np.maximum(0, krankheitskosten - franchise) * selbstbehalt_anteil,
-                obergrenze,
+        costs = pd.DataFrame(index=pd.Index(healthcare_costs, name="Krankheitskosten"))
+        for deductible, premium in sorted(premiums.items()):
+            coinsurance = np.minimum(
+                np.maximum(0, healthcare_costs - deductible) * coinsurance_rate,
+                cap,
             )
-            kosten[franchise] = (
-                12 * (praemie - umweltabgabe)
-                + np.minimum(krankheitskosten, franchise)
-                + selbstbehalt
+            costs[deductible] = (
+                12 * (premium - environmental_rebate)
+                + np.minimum(healthcare_costs, deductible)
+                + coinsurance
             )
 
-        optimal = kosten.idxmin(axis=1)
-        tiefste = min(praemien)
-        treffer = optimal.index[optimal == tiefste]
-        kipppunkt = int(treffer[0]) if len(treffer) else None
+        optimal = costs.idxmin(axis=1)
+        lowest = min(premiums)
+        hits = optimal.index[optimal == lowest]
+        tipping_point = int(hits[0]) if len(hits) else None
 
-        ersparnis = None
-        if kipppunkt is not None:
-            zeile = kosten.loc[kipppunkt]
-            andere = zeile.drop(index=tiefste)
-            ersparnis = float(andere.min() - zeile[tiefste])
+        saving = None
+        if tipping_point is not None:
+            row = costs.loc[tipping_point]
+            others = row.drop(index=lowest)
+            saving = float(others.min() - row[lowest])
 
-        ergebnisse.append(
-            Ergebnis(
-                zielgruppe=zielgruppe,
-                praemien=praemien,
-                anbieter=anbieter,
-                kosten=kosten,
+        results.append(
+            Result(
+                age_group=age_group,
+                premiums=premiums,
+                providers=providers,
+                costs=costs,
                 optimal=optimal,
-                segmente=_segmente(optimal),
-                kipppunkt=kipppunkt,
-                tiefste_franchise=tiefste,
-                ersparnis_am_kipppunkt=ersparnis,
+                segments=_segments(optimal),
+                tipping_point=tipping_point,
+                lowest_deductible=lowest,
+                saving_at_tipping_point=saving,
             )
         )
-    return ergebnisse
+    return results
 
 
 @dataclass
-class Haushalt:
-    """Zusammensetzung eines Haushalts. `kinder` enthält pro Kind die
-    Altersuntergruppe, wie sie der Versicherer für dieses Kind anwendet
-    (z. B. ("K1", "K1", "K3") für drei Kinder, davon eines zum Rabatttarif)."""
+class Household:
+    """Composition of a household. `children` holds, per child, the age subgroup
+    the insurer applies to that child (e.g. ("K1", "K1", "K3") for three
+    children, one of them on the discounted tier)."""
 
-    erwachsene: int = 1
-    jugendliche: int = 0
-    kinder: tuple[str, ...] = ()
+    adults: int = 1
+    young_adults: int = 0
+    children: tuple[str, ...] = ()
 
     @property
-    def anzahl_kinder(self) -> int:
-        return len(self.kinder)
+    def child_count(self) -> int:
+        return len(self.children)
 
 
-def _preisreihe(
-    basis: pd.DataFrame,
-    altersklasse: str,
-    unfall: str,
-    franchise: int,
-    untergruppe: str | None = None,
+def _price_series(
+    base: pd.DataFrame,
+    age_class: str,
+    accident: str,
+    deductible: int,
+    subgroup: str | None = None,
 ) -> pd.Series:
-    """Günstigste Prämie je (Versicherer, Tarifbezeichnung) für eine Personenkategorie."""
-    teil = basis[
-        (basis["Altersklasse"] == altersklasse)
-        & (basis["Unfalleinschluss"] == unfall)
-        & (basis["Franchise"] == f"FRA-{franchise}")
+    """Cheapest premium per (insurer, tariff name) for one category of person."""
+    part = base[
+        (base["Altersklasse"] == age_class)
+        & (base["Unfalleinschluss"] == accident)
+        & (base["Franchise"] == f"FRA-{deductible}")
     ]
-    if untergruppe is not None:
-        teil = teil[teil["Altersuntergruppe"] == untergruppe]
-    return teil.groupby(["Versicherer", "Tarifbezeichnung"])["Prämie"].min()
+    if subgroup is not None:
+        part = part[part["Altersuntergruppe"] == subgroup]
+    return part.groupby(["Versicherer", "Tarifbezeichnung"])["Prämie"].min()
 
 
-def haushalt_angebote(
+def household_offers(
     df: pd.DataFrame,
-    haushalt: Haushalt,
-    franchise_erwachsene: int = 300,
-    franchise_jugendliche: int = 300,
-    franchise_kinder: int = 0,
-    kanton: str = "ZH",
+    household: Household,
+    deductible_adults: int = 300,
+    deductible_young_adults: int = 300,
+    deductible_children: int = 0,
+    canton: str = "ZH",
     region: str = "PR-REG CH1",
-    unfalldeckung: dict[str, str] | None = None,
+    accident_cover: dict[str, str] | None = None,
 ) -> pd.DataFrame:
-    """Jahresprämie des ganzen Haushalts je Versicherer und Tarif, aufsteigend sortiert.
+    """Annual premium for the whole household per insurer and tariff, ascending.
 
-    Berücksichtigt werden nur Angebote, die *alle* benötigten Personenkategorien
-    führen – inklusive der verlangten Kinder-Untergruppen. Das ist der ehrliche
-    Vergleich für eine Familie: ein Versicherer mit günstigen Erwachsenenprämien,
-    aber ohne Geschwisterrabatt, kann für den Haushalt teurer sein.
+    Only offers that carry *every* required category of person are considered -
+    including the requested child subgroups. That is the honest comparison for a
+    family: an insurer with cheap adult premiums but no sibling discount can be
+    more expensive for the household as a whole.
     """
-    unfalldeckung = unfalldeckung or {
-        "Erwachsene": "OHN-UNF",
-        "Junge Erwachsene": "OHN-UNF",
-        "Kinder": "MIT-UNF",
-    }
-    basis = df[(df["Kanton"] == kanton) & (df["Region"] == region)]
+    accident_cover = accident_cover or dict(_ACCIDENT_DEFAULT)
+    base = df[(df["Kanton"] == canton) & (df["Region"] == region)]
 
-    teile: dict[str, pd.Series] = {}
-    if haushalt.erwachsene:
-        teile["Erwachsene"] = (
-            _preisreihe(basis, "AKL-ERW", unfalldeckung["Erwachsene"], franchise_erwachsene)
-            * haushalt.erwachsene
+    parts: dict[str, pd.Series] = {}
+    if household.adults:
+        parts[ADULTS] = (
+            _price_series(base, "AKL-ERW", accident_cover[ADULTS], deductible_adults)
+            * household.adults
         )
-    if haushalt.jugendliche:
-        teile["Junge Erwachsene"] = (
-            _preisreihe(basis, "AKL-JUG", unfalldeckung["Junge Erwachsene"], franchise_jugendliche)
-            * haushalt.jugendliche
-        )
-    for untergruppe in sorted(set(haushalt.kinder)):
-        anzahl = haushalt.kinder.count(untergruppe)
-        teile[f"Kinder {untergruppe}"] = (
-            _preisreihe(
-                basis, "AKL-KIN", unfalldeckung["Kinder"], franchise_kinder, untergruppe
+    if household.young_adults:
+        parts[YOUNG_ADULTS] = (
+            _price_series(
+                base, "AKL-JUG", accident_cover[YOUNG_ADULTS], deductible_young_adults
             )
-            * anzahl
+            * household.young_adults
+        )
+    for subgroup in sorted(set(household.children)):
+        count = household.children.count(subgroup)
+        parts[f"Kinder {subgroup}"] = (
+            _price_series(
+                base, "AKL-KIN", accident_cover[CHILDREN], deductible_children, subgroup
+            )
+            * count
         )
 
-    if not teile:
+    if not parts:
         return pd.DataFrame()
 
-    zusammen = pd.concat(teile, axis=1, join="inner").dropna()
-    if zusammen.empty:
-        return zusammen
+    combined = pd.concat(parts, axis=1, join="inner").dropna()
+    if combined.empty:
+        return combined
 
-    zusammen["Monatsprämie"] = zusammen.sum(axis=1)
-    zusammen["Jahresprämie"] = zusammen["Monatsprämie"] * 12
+    combined["Monatsprämie"] = combined.sum(axis=1)
+    combined["Jahresprämie"] = combined["Monatsprämie"] * 12
 
-    namen = versicherer_namen()
-    ergebnis = zusammen.reset_index()
-    ergebnis["Versicherername"] = (
-        ergebnis["Versicherer"].map(namen).fillna(ergebnis["Versicherer"].astype(str))
+    names = insurer_names()
+    result = combined.reset_index()
+    result["Versicherername"] = (
+        result["Versicherer"].map(names).fillna(result["Versicherer"].astype(str))
     )
-    return ergebnis.sort_values("Jahresprämie").reset_index(drop=True)
+    return result.sort_values("Jahresprämie").reset_index(drop=True)
 
 
-def kinder_kostenbeteiligung(
-    kosten_je_kind: list[float], franchise: int
+def children_cost_sharing(
+    costs_per_child: list[float], deductible: int
 ) -> tuple[float, bool]:
-    """Kostenbeteiligung aller Kinder zusammen, mit Familien-Höchstgrenze.
+    """Combined cost sharing of all children, with the family cap.
 
-    Art. 93 Abs. 3 KVV: Sind mehrere Kinder einer Familie beim gleichen Versicherer
-    versichert, darf ihre Kostenbeteiligung das Zweifache des Höchstbetrages je Kind
-    (Franchise plus Selbstbehalt-Obergrenze) nicht übersteigen.
+    Art. 93 para. 3 KVV: where several children of one family are insured with
+    the same insurer, their combined cost sharing may not exceed twice the
+    maximum amount per child (deductible plus coinsurance cap).
 
-    Gibt (Betrag, ob_gedeckelt) zurück. Die Verordnung setzt für unterschiedliche
-    Franchisen der Kinder keine Formel fest ("so setzt der Versicherer die
-    Höchstbeteiligung fest") – hier wird deshalb eine gemeinsame Franchise angenommen.
+    Returns (amount, was_capped). The ordinance sets no formula for children on
+    different deductibles ("the insurer shall set the maximum share") - a common
+    deductible is therefore assumed here.
     """
-    obergrenze = hoechstgrenze_selbstbehalt["Kinder"]
-    einzeln = sum(
-        min(k, franchise)
-        + min(max(0.0, k - franchise) * selbstbehalt_anteil, obergrenze)
-        for k in kosten_je_kind
+    cap = coinsurance_cap[CHILDREN]
+    individually = sum(
+        min(c, deductible)
+        + min(max(0.0, c - deductible) * coinsurance_rate, cap)
+        for c in costs_per_child
     )
-    hoechstbetrag = 2 * (franchise + obergrenze)
-    return (min(einzeln, hoechstbetrag), einzeln > hoechstbetrag)
+    maximum = 2 * (deductible + cap)
+    return (min(individually, maximum), individually > maximum)
 
 
 def display_results(
-    ergebnisse: list[Ergebnis], umgebung: int = 3, toleranz: float = 50.0
+    results: list[Result], window: int = 3, tolerance: float = 50.0
 ) -> None:
-    """Textausgabe für den CLI-Lauf."""
-    for e in ergebnisse:
-        if e.kipppunkt is None:
+    """Text output for the CLI run."""
+    for r in results:
+        if r.tipping_point is None:
             print(
-                f"\n{e.zielgruppe}: Die tiefste Franchise ({e.tiefste_franchise} CHF) "
-                f"lohnt sich im untersuchten Bereich nie."
+                f"\n{r.age_group}: the lowest deductible ({r.lowest_deductible} CHF) "
+                f"never pays off within the range examined."
             )
         else:
             print(
-                f"\nDie tiefste Franchise ({e.tiefste_franchise} CHF) bei {e.zielgruppe} "
-                f"lohnt sich rechnerisch ab {e.kipppunkt} CHF Krankheitskosten."
+                f"\nFor {r.age_group}, the lowest deductible "
+                f"({r.lowest_deductible} CHF) pays off arithmetically from "
+                f"{r.tipping_point} CHF of healthcare costs."
             )
-            spuerbar = e.materieller_kipppunkt(toleranz)
-            if spuerbar is None:
+            noticeable = r.material_tipping_point(tolerance)
+            if noticeable is None:
                 print(
-                    f"  Aber: mehr als {toleranz:.0f} CHF pro Jahr bringt sie bis "
-                    f"{e.kosten.index[-1]} CHF Krankheitskosten nie."
+                    f"  But: it never gains more than {tolerance:.0f} CHF per year "
+                    f"up to {r.costs.index[-1]} CHF of healthcare costs."
                 )
             else:
                 print(
-                    f"  Spürbar (über {toleranz:.0f} CHF pro Jahr) wird der Vorteil "
-                    f"erst ab {spuerbar} CHF."
+                    f"  The advantage only becomes noticeable (over "
+                    f"{tolerance:.0f} CHF per year) from {noticeable} CHF."
                 )
             print(
-                f"  Gegenüber der nächstbesten Stufe bringt sie höchstens "
-                f"{e.max_vorteil:.0f} CHF pro Jahr – benachbarte Franchisen liegen eng "
-                f"beieinander."
+                f"  Against the next best step it gains at most "
+                f"{r.max_advantage:.0f} CHF per year - adjacent deductibles sit "
+                f"close together."
             )
             print(
-                f"  Die Franchisenwahl als solche wiegt aber schwer: zwischen bester und "
-                f"schlechtester Franchise liegen bis zu {e.max_spannweite:.0f} CHF pro "
-                f"Jahr (bei {e.spannweite.idxmax()} CHF Krankheitskosten)."
+                f"  The choice of deductible as such weighs heavily, though: "
+                f"between the best and the worst deductible lie up to "
+                f"{r.max_spread:.0f} CHF per year (at {r.spread.idxmax()} CHF of "
+                f"healthcare costs)."
             )
             print()
-            von = max(0, e.kipppunkt - umgebung)
-            bis = min(e.kosten.index[-1], e.kipppunkt + umgebung)
-            print(e.kosten.loc[von:bis].round(2).to_markdown())
+            start = max(0, r.tipping_point - window)
+            end = min(r.costs.index[-1], r.tipping_point + window)
+            print(r.costs.loc[start:end].round(2).to_markdown())
 
-        print(f"\nOptimale Franchise nach Krankheitskosten ({e.zielgruppe}):")
-        print(e.segmente.to_markdown(index=False))
-
-
-# Die Stufen, deren Bedingungen aus der BAG-Tarifliste bekannt sind. Das
-# Feldverzeichnis des BAG nennt zusätzlich "K2"; in den Daten kommt es landesweit
-# nicht vor, und die Tarifliste beschreibt es nicht. Taucht es oder eine andere
-# unbekannte Stufe künftig auf, darf sie nicht stillschweigend übergangen werden -
-# sie könnte einen Rabatt tragen, den die Rechnung dann unterschlägt.
-BEKANNTE_KINDERSTUFEN = frozenset({"K1", "K3", "K4", "K5"})
+        print(f"\nOptimal deductible by healthcare costs ({r.age_group}):")
+        print(r.segments.to_markdown(index=False))
 
 
-def unbekannte_kinderstufen(daten: pd.DataFrame) -> set[str]:
-    """Kinder-Tarifstufen in den Daten, deren Bedingung nicht bekannt ist."""
-    if "Altersuntergruppe" not in daten or "Altersklasse" not in daten:
+# The tiers whose conditions are known from the BAG tariff list. The BAG field
+# index additionally mentions "K2"; it does not occur anywhere in the national
+# data, and the tariff list does not describe it. Should it or any other unknown
+# tier appear in future, it must not be passed over silently - it could carry a
+# discount that the calculation would then be withholding.
+KNOWN_CHILD_TIERS = frozenset({"K1", "K3", "K4", "K5"})
+
+
+def unknown_child_tiers(data: pd.DataFrame) -> set[str]:
+    """Child tariff tiers present in the data whose condition is not known."""
+    if "Altersuntergruppe" not in data or "Altersklasse" not in data:
         return set()
-    kinder = daten[daten["Altersklasse"].isin(["AKL-KIN", "Kinder"])]
-    vorhanden = set(kinder["Altersuntergruppe"].dropna())
-    return {s for s in vorhanden if s not in BEKANNTE_KINDERSTUFEN}
+    children = data[data["Altersklasse"].isin(["AKL-KIN", CHILDREN])]
+    present = set(children["Altersuntergruppe"].dropna())
+    return {t for t in present if t not in KNOWN_CHILD_TIERS}
 
 
-def kinder_stufen_verteilung(anzahl_kinder: int, verfuegbar: set[str]) -> list[str]:
-    """Welche Tarifstufe jedes Kind bekommt, bei `anzahl_kinder` Kindern am selben Ort.
+def child_tier_schemes(child_count: int, available: set[str]) -> list[list[str]]:
+    """Which tariff tier each child gets, for `child_count` children in one place.
 
-    Die Bedeutung der Stufen steht in der Tarifliste des BAG (Tarife.xlsx,
-    Kategorie ALT):
+    The meaning of the tiers is in the BAG tariff list (Tarife.xlsx, category
+    ALT):
 
-        K1  ohne zusätzlichen Rabatt
-        K3  Rabatt ab dem 3. Kind
-        K4  Rabatt ab dem 2. Kind, gültig für alle Kinder
-        K5  Rabatt ab dem 3. Kind, gültig für alle Kinder
+        K1  no additional discount
+        K3  discount from the 3rd child
+        K4  discount from the 2nd child, valid for all children
+        K5  discount from the 3rd child, valid for all children
 
-    Damit lässt sich die Zuteilung aus der Kinderzahl ableiten, statt sie zu
-    erfragen. "Gültig für alle Kinder" heisst: Ist die Schwelle erreicht, gilt
-    der Rabatt für sämtliche Kinder, nicht erst ab dem n-ten. Achtung, K4 meint
-    das zweite Kind, nicht das vierte - die Ziffer ist eine Stufennummer.
+    That lets the assignment be derived from the number of children rather than
+    asked for. "Valid for all children" means: once the threshold is reached,
+    the discount applies to every child, not only from the nth onwards. Note
+    that K4 refers to the second child, not the fourth - the digit is a tier
+    number.
 
-    Gibt eine Liste mit einer Stufe je Kind zurück; die günstigste Variante
-    wählt der Aufrufer, weil sie von den Prämien des Versicherers abhängt.
+    Returns one scheme per entry, each with one tier per child; the caller picks
+    the cheapest, because that depends on the insurer's premiums.
     """
-    if anzahl_kinder <= 0:
+    if child_count <= 0:
         return []
 
-    kandidaten: list[list[str]] = [["K1"] * anzahl_kinder]
-    if "K4" in verfuegbar and anzahl_kinder >= 2:
-        kandidaten.append(["K4"] * anzahl_kinder)
-    if "K5" in verfuegbar and anzahl_kinder >= 3:
-        kandidaten.append(["K5"] * anzahl_kinder)
-    if "K3" in verfuegbar and anzahl_kinder >= 3:
-        # Nur die Kinder ab dem dritten bekommen den Rabatt.
-        kandidaten.append(["K1", "K1"] + ["K3"] * (anzahl_kinder - 2))
-    return kandidaten
+    candidates: list[list[str]] = [["K1"] * child_count]
+    if "K4" in available and child_count >= 2:
+        candidates.append(["K4"] * child_count)
+    if "K5" in available and child_count >= 3:
+        candidates.append(["K5"] * child_count)
+    if "K3" in available and child_count >= 3:
+        # Only the children from the third onwards get the discount.
+        candidates.append(["K1", "K1"] + ["K3"] * (child_count - 2))
+    return candidates
 
 
-def guenstigste_kinder_kombination(
-    praemie_je_stufe: dict[str, float], anzahl_kinder: int
+def cheapest_child_combination(
+    premium_per_tier: dict[str, float], child_count: int
 ) -> tuple[float, list[str]]:
-    """Billigste zulässige Stufenverteilung für `anzahl_kinder` Kinder.
+    """Cheapest permissible tier scheme for `child_count` children.
 
-    `praemie_je_stufe` enthält die Monatsprämien eines Versicherers je Stufe.
-    Zurück kommt die Monatssumme für alle Kinder und die zugehörige Verteilung.
+    `premium_per_tier` holds one insurer's monthly premiums per tier. Returns the
+    monthly total for all children and the scheme that produces it.
     """
-    if anzahl_kinder <= 0:
+    if child_count <= 0:
         return 0.0, []
 
-    beste: tuple[float, list[str]] | None = None
-    for verteilung in kinder_stufen_verteilung(anzahl_kinder, set(praemie_je_stufe)):
-        if any(stufe not in praemie_je_stufe for stufe in verteilung):
+    best: tuple[float, list[str]] | None = None
+    for scheme in child_tier_schemes(child_count, set(premium_per_tier)):
+        if any(tier not in premium_per_tier for tier in scheme):
             continue
-        summe = sum(praemie_je_stufe[stufe] for stufe in verteilung)
-        if beste is None or summe < beste[0]:
-            beste = (summe, verteilung)
-    return beste if beste else (0.0, [])
+        total = sum(premium_per_tier[tier] for tier in scheme)
+        if best is None or total < best[0]:
+            best = (total, scheme)
+    return best if best else (0.0, [])
 
 
-def _kind_jahreskosten(
-    praemie: float, franchise: int, krankheitskosten: float, umweltabgabe: float
+def _child_annual_costs(
+    premium: float,
+    deductible: int,
+    healthcare_costs: float,
+    environmental_rebate: float,
 ) -> float:
-    """Gesamtkosten eines Kindes für ein Jahr: Prämie plus Kostenbeteiligung."""
-    obergrenze = hoechstgrenze_selbstbehalt["Kinder"]
-    selbstbehalt = min(
-        max(0.0, krankheitskosten - franchise) * selbstbehalt_anteil, obergrenze
+    """Total costs for one child for a year: premium plus cost sharing."""
+    cap = coinsurance_cap[CHILDREN]
+    coinsurance = min(
+        max(0.0, healthcare_costs - deductible) * coinsurance_rate, cap
     )
     return (
-        12 * (praemie - umweltabgabe)
-        + min(krankheitskosten, franchise)
-        + selbstbehalt
+        12 * (premium - environmental_rebate)
+        + min(healthcare_costs, deductible)
+        + coinsurance
     )
 
 
-def kinder_beim_gleichen_versicherer(
-    daten: pd.DataFrame, kosten_je_kind: list[float], umweltabgabe: float
+def children_with_one_insurer(
+    data: pd.DataFrame, costs_per_child: list[float], environmental_rebate: float
 ) -> dict | None:
-    """Günstigstes Angebot, wenn alle Kinder beim gleichen Versicherer sind.
+    """Cheapest offer when all children are with the same insurer.
 
-    Das ist die Bedingung für jeden Geschwisterrabatt. Die Tarifliste des BAG
-    (Tarife.xlsx, Kategorie ALT) beschreibt vier Schemas, und zwar in allen vier
-    Sprachfassungen gleichlautend:
+    That is the condition for any sibling discount. The BAG tariff list
+    (Tarife.xlsx, category ALT) describes four schemes, worded identically in
+    all four language versions:
 
-        K1  ohne zusätzlichen Rabatt
-        K3  Rabatt ab dem 3. Kind
-        K4  Rabatt ab dem 2. Kind, gültig für alle Kinder
-        K5  Rabatt ab dem 3. Kind, gültig für alle Kinder
+        K1  no additional discount
+        K3  discount from the 3rd child
+        K4  discount from the 2nd child, valid for all children
+        K5  discount from the 3rd child, valid for all children
 
-    Der Zusatz "gültig für alle Kinder" steht bei K4 und K5, nicht bei K3. Zwei
-    Kinder bekommen also mit K4 beide den Rabatt, auch das erste; bei K3 bekommen
-    ihn erst das dritte und jedes weitere.
+    The qualifier "valid for all children" appears on K4 and K5, not on K3. Two
+    children therefore both get the discount under K4, the first one included;
+    under K3 only the third child and every further one gets it.
 
-    Entscheidend für die Rechnung: Das sind vier Schemas, von denen die Familie
-    eines wählt - kein Baukasten, aus dem sich jedes Kind das günstigste nimmt.
-    K4 für ein Kind und K5 für ein anderes wäre keine Mischform, die es zu kaufen
-    gibt. Deshalb wird über die Schemas iteriert und innerhalb eines Schemas nur
-    noch die Franchise je Kind frei gewählt.
+    What matters for the calculation: these are four schemes, of which the
+    family picks one - not a construction kit from which each child takes the
+    cheapest. K4 for one child and K5 for another is not a hybrid that can be
+    bought. The iteration therefore runs over the schemes, and within a scheme
+    only the deductible per child is chosen freely.
 
-    `daten` muss bereits auf Kinder, Wohnort, Unfalldeckung und Tarifmodelle
-    gefiltert sein.
+    `data` must already be filtered by children, location, accident cover and
+    tariff models.
     """
-    anzahl = len(kosten_je_kind)
-    if anzahl == 0 or daten.empty:
+    count = len(costs_per_child)
+    if count == 0 or data.empty:
         return None
 
-    # Eine Stufe, deren Bedingung wir nicht kennen, wird unten nicht
-    # berücksichtigt. Das darf nicht unbemerkt bleiben.
-    unbekannt = {
-        s for s in set(daten["Altersuntergruppe"].dropna())
-        if s not in BEKANNTE_KINDERSTUFEN
+    # A tier whose condition we do not know is not considered below. That must
+    # not go unnoticed.
+    unknown = {
+        t for t in set(data["Altersuntergruppe"].dropna())
+        if t not in KNOWN_CHILD_TIERS
     }
 
-    bestes: dict | None = None
-    for (versicherer, tarif), gruppe in daten.groupby(
+    best: dict | None = None
+    for (insurer, tariff), group in data.groupby(
         ["Versicherername", "Tarifbezeichnung"]
     ):
-        vorhanden = set(gruppe["Altersuntergruppe"].dropna())
-        for schema in kinder_stufen_verteilung(anzahl, vorhanden):
-            gesamt = 0.0
-            aufteilung = []
-            for stufe, krankheitskosten in zip(schema, kosten_je_kind):
-                moeglich = gruppe[gruppe["Altersuntergruppe"] == stufe]
-                if moeglich.empty:
-                    aufteilung = []
+        available = set(group["Altersuntergruppe"].dropna())
+        for scheme in child_tier_schemes(count, available):
+            total = 0.0
+            per_child = []
+            for tier, healthcare_costs in zip(scheme, costs_per_child):
+                possible = group[group["Altersuntergruppe"] == tier]
+                if possible.empty:
+                    per_child = []
                     break
-                kosten = moeglich.apply(
-                    lambda z: _kind_jahreskosten(
-                        z["Prämie"], int(z["Franchise"]), krankheitskosten, umweltabgabe
+                costs = possible.apply(
+                    lambda row: _child_annual_costs(
+                        row["Prämie"],
+                        int(row["Franchise"]),
+                        healthcare_costs,
+                        environmental_rebate,
                     ),
                     axis=1,
                 )
-                beste_zeile = moeglich.loc[kosten.idxmin()]
-                gesamt += float(kosten.min())
-                aufteilung.append(
+                best_row = possible.loc[costs.idxmin()]
+                total += float(costs.min())
+                per_child.append(
                     {
-                        "franchise": int(beste_zeile["Franchise"]),
-                        "stufe": stufe,
-                        "kosten": float(kosten.min()),
+                        "deductible": int(best_row["Franchise"]),
+                        "tier": tier,
+                        "costs": float(costs.min()),
                     }
                 )
-            if not aufteilung:
+            if not per_child:
                 continue
-            if bestes is None or gesamt < bestes["total"]:
-                bestes = {
-                    "versicherer": versicherer,
-                    "tarif": tarif,
-                    "total": gesamt,
-                    "je_kind": aufteilung,
-                    "schema": list(schema),
+            if best is None or total < best["total"]:
+                best = {
+                    "insurer": insurer,
+                    "tariff": tariff,
+                    "total": total,
+                    "per_child": per_child,
+                    "scheme": list(scheme),
                 }
-    if bestes is not None:
-        bestes["unbekannte_stufen"] = sorted(unbekannt)
-    return bestes
+    if best is not None:
+        best["unknown_tiers"] = sorted(unknown)
+    return best
