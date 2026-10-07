@@ -48,6 +48,23 @@ def configure_page() -> None:
           h2 { font-size: 1.6rem !important; }
           h3 { font-size: 1.25rem !important; }
 
+          /* The language switch reads as text, not as a control: muted grey,
+             no border, no fill, brightening to the accent on hover. */
+          [class*="st-key-lang_"] button {
+              background: transparent !important;
+              border: none !important;
+              color: rgba(250, 250, 250, 0.45) !important;
+              font-size: 0.9rem !important;
+              padding: 0 !important;
+              min-height: 0 !important;
+              transition: color 0.3s;
+          }
+          [class*="st-key-lang_"] button:hover { color: #4da6ff !important; }
+          [class*="st-key-lang_"] button p {
+              font-weight: 300 !important;
+              font-size: 0.9rem !important;
+          }
+
           [data-testid="stMultiSelectTagsContainer"] span[data-tag] {
               background-color: rgba(250, 250, 250, 0.14) !important;
               color: inherit !important;

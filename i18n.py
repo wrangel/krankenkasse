@@ -89,21 +89,16 @@ def t(key: str, **kwargs) -> str:
 
 
 def language_picker() -> None:
-    """The selector, at the very top of the page."""
-    codes = list(LANGUAGES)
-    current = current_language()
-    chosen = st.radio(
-        # Collapsed, so this is only read by screen readers - which is exactly
-        # why it must not be German-only. All four at once needs no key and is
-        # right whatever the page is currently set to.
-        "Sprache / Langue / Lingua / Language",
-        codes,
-        index=codes.index(current) if current in codes else 0,
-        format_func=lambda c: LANGUAGES[c],
-        horizontal=True,
-        key="language_picker",
-        label_visibility="collapsed",
-    )
-    if chosen != current:
-        set_language(chosen)
-        st.rerun()
+    """The language switch, at the very top.
+
+    Only the languages you are *not* reading are offered. Showing all four with
+    one of them marked is a form control; showing the three alternatives is a
+    choice, and it needs no label, no radio and no explanation - which language
+    you are in is evident from the page itself.
+    """
+    others = [c for c in LANGUAGES if c != current_language()]
+    columns = st.columns([1] * len(others) + [max(1, 12 - len(others))])
+    for column, code in zip(columns, others):
+        if column.button(LANGUAGES[code], key=f"lang_{code}", width="stretch"):
+            set_language(code)
+            st.rerun()
