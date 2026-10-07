@@ -12,12 +12,15 @@ import streamlit.components.v1 as components
 
 from common import age_group_for_age, premiums
 from constants import (
+    ADULTS,
     CHILD_SUBGROUPS,
     CHILDREN,
     CONTACT_EMAIL,
     OPENDATA_URL,
     PRIMINFO_URL,
     REPO_URL,
+    coinsurance_cap,
+    coinsurance_rate,
     environmental_rebate_default,
 )
 from theme import apply_person_colours, colour_for_person, configure_page
@@ -40,6 +43,20 @@ st.caption(
     "Krankheitskosten, die du erwartest, und beschränkt auf die Tarifmodelle, die für "
     "dich in Frage kommen. Sie nennt Versicherer, Modell und Franchise, und was die "
     "Alternativen kosten würden."
+)
+
+# What "Gesamtkosten" means, before the first one is shown. The figures come
+# from the constants rather than the sentence, so the text cannot drift from
+# what is actually computed.
+st.caption(
+    f"**Gesamtkosten heisst hier: Prämien + Franchise + Selbstbehalt** – also "
+    f"alles, was du in einem Jahr selber bezahlst. Die Prämie allein ist die "
+    f"falsche Grösse, denn die tiefste Prämie hat immer die höchste Franchise; "
+    f"ob sich das lohnt, hängt an deinen Krankheitskosten. Der Selbstbehalt "
+    f"beträgt {coinsurance_rate:.0%} der Kosten oberhalb der Franchise, aber "
+    f"höchstens **{coinsurance_cap[ADULTS]} CHF pro Jahr** "
+    f"({coinsurance_cap[CHILDREN]} CHF bei Kindern) – darüber zahlt die "
+    f"Krankenkasse alles."
 )
 st.info(
     f"**Prämienjahr {int(raw['Geschäftsjahr'].max())}** · Datenquelle: BAG-Prämiendaten "
