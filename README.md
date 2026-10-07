@@ -84,10 +84,10 @@ entry path, the Dockerfile `CMD`, `dev.sh`, the `streamlit run app.py` match in
 Requires Python 3.12 or newer.
 
 ```bash
-git clone https://github.com/wrangel/grundversicherungsrechner.git
-cd grundversicherungsrechner
-python3 -m venv ~/.venvs/grundversicherungsrechner
-~/.venvs/grundversicherungsrechner/bin/pip install -r requirements.txt
+git clone https://github.com/wrangel/viaprima.git
+cd viaprima
+python3 -m venv ~/.venvs/viaprima
+~/.venvs/viaprima/bin/pip install -r requirements.txt
 ```
 
 The virtual environment deliberately sits outside the project folder — that way it is
@@ -99,7 +99,7 @@ project (`python3 -m venv venv`) works just as well.
 ### Graphical interface
 
 ```bash
-~/.venvs/grundversicherungsrechner/bin/streamlit run app.py
+~/.venvs/viaprima/bin/streamlit run app.py
 ```
 
 Opens <http://localhost:8501>. The household is entered as a list of people, one box per
@@ -154,8 +154,8 @@ a translator is ever found.
 ### Command line
 
 ```bash
-~/.venvs/grundversicherungsrechner/bin/python main.py
-~/.venvs/grundversicherungsrechner/bin/python main.py --canton BE --environmental-rebate 4.75
+~/.venvs/viaprima/bin/python main.py
+~/.venvs/viaprima/bin/python main.py --canton BE --environmental-rebate 4.75
 ```
 
 Options: `--canton`, `--region`, `--environmental-rebate`, `--max-costs`.
@@ -470,7 +470,7 @@ PORT=8502 make test
 Docker Hub. On the Synology afterwards:
 
 ```bash
-docker pull wrangel/grundversicherungsrechner:1.0
+docker pull wrangel/viaprima:1.0
 ```
 
 `make check` runs the tests and the data-source monitor without touching Docker.
@@ -535,7 +535,7 @@ There, things are only pulled and restarted, never built. In the Task Scheduler 
 user-defined script:
 
 ```bash
-bash /volume1/homes/Matthias/Drive/Programming/grundversicherungsrechner/scripts/syno-deploy.sh
+bash /volume1/homes/Matthias/Drive/Programming/viaprima/scripts/syno-deploy.sh
 ```
 
 The script pulls exactly the tag written in `docker-compose.yml`, brings the stack back up,

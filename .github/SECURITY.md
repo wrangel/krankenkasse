@@ -10,7 +10,7 @@ security finding reaches me privately instead of arriving as a public issue.
 
 Use GitHub's private vulnerability reporting:
 
-**[Report a vulnerability](https://github.com/wrangel/grundversicherungsrechner/security/advisories/new)**
+**[Report a vulnerability](https://github.com/wrangel/viaprima/security/advisories/new)**
 
 That opens a private advisory visible only to me, so the problem can be fixed
 before it is described anywhere public.
@@ -62,7 +62,7 @@ will usually be closed without a detailed reply.
 ## Scope
 
 In scope: this repository's source, and the deployed instance at
-<https://grundversicherungsrechner.ch>.
+<https://viaprima.ch>.
 
 Out of scope: the third-party services this depends on — the BAG's data
 delivery via opendata.swiss, Docker Hub, Streamlit itself, and Let's Encrypt —

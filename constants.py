@@ -135,9 +135,7 @@ REGIONS = {
 # abstractaltitudes uses: one alias covering both projects, rather than a new
 # addy.io username per project.
 CONTACT_EMAIL = "contact@abstractaltitudes.anonaddy.com"
-# The repository as it is called today. This moves when the project is
-# renamed; until then, pointing at the future name gives visitors a 404.
-REPO_URL = "https://github.com/wrangel/krankenkasse"
+REPO_URL = "https://github.com/wrangel/viaprima"
 OPENDATA_URL = "https://opendata.swiss/de/dataset/health-insurance-premiums"
 COFFEE_URL = "https://buymeacoffee.com/wrangel"
 # The other things I have built, so the two sites point at each other.

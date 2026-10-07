@@ -3,7 +3,7 @@ set -e
 
 # To be run on the Synology (Task Scheduler, user-defined script):
 #
-#   bash /volume1/homes/Matthias/Drive/Programming/grundversicherungsrechner/scripts/syno-deploy.sh
+#   bash /volume1/homes/Matthias/Drive/Programming/viaprima/scripts/syno-deploy.sh
 #
 # Building and publishing happen on the Mac via "make prod". This script only
 # pulls and restarts - it never builds. The Synology lacks everything needed for
@@ -12,19 +12,19 @@ set -e
 # The file reaches the NAS through Synology Drive, not through git. It can
 # therefore be older than the version on the Mac; the line below says which one
 # actually ran.
-SCRIPT_VERSION="2026-10-06c"
+SCRIPT_VERSION="2026-10-07-viaprima"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-PROJECT_DIR="${PROJECT_DIR:-/volume1/homes/Matthias/Drive/Programming/grundversicherungsrechner}"
+PROJECT_DIR="${PROJECT_DIR:-/volume1/homes/Matthias/Drive/Programming/viaprima}"
 COMPOSE_FILE="${PROJECT_DIR}/docker-compose.yml"
-IMAGE="wrangel/grundversicherungsrechner"
+IMAGE="wrangel/viaprima"
 # The container name comes from the project name pinned in
 # docker-compose.yml, so it no longer depends on the folder name.
-SERVICE="grundversicherungsrechner-app-1"
+SERVICE="viaprima-app-1"
 
 echo -e "${GREEN}syno-deploy.sh ${SCRIPT_VERSION}${NC}"
 [[ -f "$COMPOSE_FILE" ]] || { echo -e "${RED}No compose file at $COMPOSE_FILE${NC}"; exit 1; }
@@ -116,7 +116,7 @@ fi
 echo -e "${GREEN}Clearing out old images...${NC}"
 echo "   before:"
 docker images --format '     {{.Repository}}:{{.Tag}}  {{.Size}}  ({{.CreatedSince}})' \
-  | grep grundversicherungsrechner || echo "     (none)"
+  | grep viaprima || echo "     (none)"
 
 # The superseded version loses its tag when the new one is pulled and becomes
 # dangling. That is where most of the space sits.
@@ -125,6 +125,6 @@ echo "     ${reclaimed:-nothing to reclaim}"
 
 echo "   after:"
 docker images --format '     {{.Repository}}:{{.Tag}}  {{.Size}}  ({{.CreatedSince}})' \
-  | grep grundversicherungsrechner || echo "     (none)"
+  | grep viaprima || echo "     (none)"
 
 echo -e "${GREEN}Done. The app is running on port ${PORT:-8501} of the NAS.${NC}"

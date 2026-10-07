@@ -54,6 +54,7 @@ if not restore(available_tariff_types(raw)):
 st.session_state.setdefault("people", [dict(DEFAULT_PERSON)])
 
 st.title(t("title"))
+st.subheader(t("subtitle"))
 st.caption(t("lead"))
 
 # What "Gesamtkosten" means, before the first one is shown. The figures come

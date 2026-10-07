@@ -12,7 +12,7 @@ from i18n import t
 def configure_page() -> None:
     """Call once per run, before anything else."""
     st.set_page_config(
-        page_title=t("title"),
+        page_title=t("page_title"),
         page_icon="🏥",
         layout="wide",
     )

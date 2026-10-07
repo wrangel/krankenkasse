@@ -33,7 +33,7 @@ from streamlit_js_eval import streamlit_js_eval
 from constants import DEFAULT_PERSON, DEFAULT_POSTCODE
 from i18n import FALLBACK, current_language, set_language
 
-STORAGE_KEY = "grundversicherungsrechner.inputs.v1"
+STORAGE_KEY = "viaprima.inputs.v1"
 
 # Only what the visitor typed. Deliberately not the computed results: those are
 # cheap to recompute and would go stale against new premium data.
