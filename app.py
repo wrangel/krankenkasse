@@ -48,8 +48,8 @@ st.caption(
 # from the constants rather than the sentence, so the text cannot drift from
 # what is actually computed.
 st.caption(
-    f"**Gesamtkosten heisst hier: Prämien + Franchise + Selbstbehalt** – also "
-    f"alles, was du in einem Jahr selber bezahlst. Die Prämie allein ist die "
+    f"**Gesamtkosten sind Prämien + Franchise + Selbstbehalt** – alles, was du "
+    f"im Jahr für die Grundversicherung selber bezahlst. Die Prämie allein ist die "
     f"falsche Grösse, denn die tiefste Prämie hat immer die höchste Franchise; "
     f"ob sich das lohnt, hängt an deinen Krankheitskosten. Der Selbstbehalt "
     f"beträgt {coinsurance_rate:.0%} der Kosten oberhalb der Franchise, aber "
