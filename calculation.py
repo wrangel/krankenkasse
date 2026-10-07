@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 
 from constants import (
-    AGE_CLASSES,
+    AGE_CLASS_LABELS,
     TARIFF_TYPES,
     ADULTS,
     CACHE_DIR,
@@ -197,7 +197,6 @@ def get_data(
     """Filter the BAG premium data by canton, region, age group and accident
     cover, and normalise deductible, premium and age class."""
     accident_cover = accident_cover or dict(_ACCIDENT_DEFAULT)
-    class_per_group = {name: code for code, name in AGE_CLASSES.items()}
 
     base = df[(df["Kanton"] == canton) & (df["Region"] == region)]
     if tariff_types:
@@ -205,9 +204,8 @@ def get_data(
 
     parts = []
     for age_group in age_groups:
-        code = class_per_group[age_group]
         part = base[
-            (base["Altersklasse"] == code)
+            (base["Altersklasse"] == age_group)
             & (base["Unfalleinschluss"] == accident_cover[age_group])
         ]
         if age_group == CHILDREN and child_subgroups:
@@ -230,7 +228,10 @@ def get_data(
     ].copy()
     result["Franchise"] = result["Franchise"].str.extract(r"FRA-(\d+)")[0].astype(int)
     result["Prämie"] = result["Prämie"].astype(float)
-    result["Zielgruppe"] = result["Altersklasse"].map(AGE_CLASSES)
+    # Same values as "Altersklasse" now that identity is the code. Kept as a
+    # separate column because the grouping and filtering downstream name it,
+    # and collapsing the two is a tidy-up for its own commit, not this one.
+    result["Zielgruppe"] = result["Altersklasse"]
 
     names = insurer_names()
     result["Versicherername"] = (
@@ -463,13 +464,13 @@ def household_offers(
     parts: dict[str, pd.Series] = {}
     if household.adults:
         parts[ADULTS] = (
-            _price_series(base, "AKL-ERW", accident_cover[ADULTS], deductible_adults)
+            _price_series(base, ADULTS, accident_cover[ADULTS], deductible_adults)
             * household.adults
         )
     if household.young_adults:
         parts[YOUNG_ADULTS] = (
             _price_series(
-                base, "AKL-JUG", accident_cover[YOUNG_ADULTS], deductible_young_adults
+                base, YOUNG_ADULTS, accident_cover[YOUNG_ADULTS], deductible_young_adults
             )
             * household.young_adults
         )
@@ -477,7 +478,7 @@ def household_offers(
         count = household.children.count(subgroup)
         parts[f"Kinder {subgroup}"] = (
             _price_series(
-                base, "AKL-KIN", accident_cover[CHILDREN], deductible_children, subgroup
+                base, CHILDREN, accident_cover[CHILDREN], deductible_children, subgroup
             )
             * count
         )
@@ -530,12 +531,13 @@ def display_results(
     for r in results:
         if r.tipping_point is None:
             print(
-                f"\n{r.age_group}: the lowest deductible ({r.lowest_deductible} CHF) "
+                f"\n{AGE_CLASS_LABELS[r.age_group]}: the lowest deductible "
+                f"({r.lowest_deductible} CHF) "
                 f"never pays off within the range examined."
             )
         else:
             print(
-                f"\nFor {r.age_group}, the lowest deductible "
+                f"\nFor {AGE_CLASS_LABELS[r.age_group]}, the lowest deductible "
                 f"({r.lowest_deductible} CHF) pays off arithmetically from "
                 f"{r.tipping_point} CHF of healthcare costs."
             )
@@ -566,7 +568,10 @@ def display_results(
             end = min(r.costs.index[-1], r.tipping_point + window)
             print(r.costs.loc[start:end].round(2).to_markdown())
 
-        print(f"\nOptimal deductible by healthcare costs ({r.age_group}):")
+        print(
+            f"\nOptimal deductible by healthcare costs "
+            f"({AGE_CLASS_LABELS[r.age_group]}):"
+        )
         print(r.segments.to_markdown(index=False))
 
 
@@ -582,7 +587,7 @@ def unknown_child_tiers(data: pd.DataFrame) -> set[str]:
     """Child tariff tiers present in the data whose condition is not known."""
     if "Altersuntergruppe" not in data or "Altersklasse" not in data:
         return set()
-    children = data[data["Altersklasse"].isin(["AKL-KIN", CHILDREN])]
+    children = data[data["Altersklasse"] == CHILDREN]
     present = set(children["Altersuntergruppe"].dropna())
     return {t for t in present if t not in KNOWN_CHILD_TIERS}
 

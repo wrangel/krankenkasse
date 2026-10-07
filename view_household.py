@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from common import chf
-from constants import CHILDREN
+from constants import AGE_CLASS_LABELS, CHILDREN
 
 
 def household_total(
@@ -79,7 +79,7 @@ def household_total(
                 # Number and age class kept apart: "1. Erwachsene" reads like a
                 # female person, whereas the class is what is meant.
                 "Nr.": i,
-                "Altersklasse": r["age_group"],
+                "Altersklasse": AGE_CLASS_LABELS[r["age_group"]],
                 "Ort": r["town"],
                 "Franchise": r["deductible"],
                 "Versicherer": r["insurer"],

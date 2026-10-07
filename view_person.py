@@ -426,7 +426,9 @@ def person_view(
     st.download_button(
         "Kostenmatrix als CSV",
         r.costs.to_csv().encode("utf-8"),
-        file_name=f"kostenmatrix_{age_group.lower()}_{canton}.csv",
+        # The code, not the label: a download name should not change
+        # when the interface language does.
+        file_name=f"kostenmatrix_{age_group.removeprefix('AKL-').lower()}_{canton}.csv",
         mime="text/csv",
         key=f"csv_{key}",
     )

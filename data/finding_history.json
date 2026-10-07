@@ -4,7 +4,7 @@
     "recorded_on": "2026-10-07",
     "canton": "ZH",
     "region": "PR-REG CH1",
-    "Erwachsene": {
+    "AKL-ERW": {
       "optimal": [
         300,
         2500
@@ -17,7 +17,7 @@
       ],
       "tipping_point": 1893
     },
-    "Kinder": {
+    "AKL-KIN": {
       "optimal": [
         0,
         600

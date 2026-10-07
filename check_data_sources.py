@@ -41,7 +41,15 @@ import urllib.error
 import urllib.request
 from datetime import date
 
-from constants import DATA_DIR, HISTORY_FILE, STATE_FILE, premiums_url
+from constants import (
+    ADULTS,
+    AGE_CLASS_LABELS,
+    CHILDREN,
+    DATA_DIR,
+    HISTORY_FILE,
+    STATE_FILE,
+    premiums_url,
+)
 from refresh_insurers import DIRECTORY_URL
 from calculation import cheapest_premiums, compute_tipping_point, get_data, load_premiums
 
@@ -196,9 +204,10 @@ def print_history(history: list[dict]) -> None:
     print(f"  {'Year':<6} {'Adults: optimal':<24} {'Tip.':>6}   "
           f"{'Children: optimal':<18} {'Tip.':>6}")
     for entry in history:
-        # The keys are the age class labels from constants.AGE_CLASSES.
-        adults = entry.get("Erwachsene", {})
-        children = entry.get("Kinder", {})
+        # Keyed by age class code, so the series stays readable whatever the
+        # interface language is.
+        adults = entry.get(ADULTS, {})
+        children = entry.get(CHILDREN, {})
         print(
             f"  {entry.get('premium_year', '?'):<6} "
             f"{str(adults.get('optimal', '-')):<24} "

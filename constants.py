@@ -71,27 +71,28 @@ coinsurance_rate = 0.1
 # expects only CHF 200.
 min_cost_range = 10000
 
-AGE_CLASSES = {
-    "AKL-ERW": "Erwachsene",
-    "AKL-JUG": "Junge Erwachsene",
-    "AKL-KIN": "Kinder",
+# Age classes. Identity is the BAG's own code; the German wording is a label
+# hanging off it.
+#
+# These used to be one and the same - ADULTS was the string "Erwachsene", which
+# keyed coinsurance_cap, filled the "Zielgruppe" column, named a download, and
+# was printed on the page. That works exactly as long as there is one language.
+# Translating the label would have silently changed a dictionary key and a
+# column value, so the two are separated here before any translation begins.
+#
+# Rule from here: compare, group and key on the code; call AGE_CLASS_LABELS
+# only where something is shown to a person.
+ADULTS = "AKL-ERW"
+YOUNG_ADULTS = "AKL-JUG"
+CHILDREN = "AKL-KIN"
+
+AGE_CLASS_LABELS = {
+    ADULTS: "Erwachsene",
+    YOUNG_ADULTS: "Junge Erwachsene",
+    CHILDREN: "Kinder",
 }
 
-# Named access to the above. Everywhere else the code used to spell the string
-# "Kinder" out in full - a rename like "Jugendliche" -> "Junge Erwachsene" then
-# has to be hunted down one occurrence at a time.
-#
-# Note that these values are German *display labels* that double as internal
-# identity: they key coinsurance_cap, they end up in the "Zielgruppe" column,
-# and they are shown to the user. The translation layer will have to split the
-# two - identity by BAG code, label by lookup. It is the natural moment for it,
-# because a translation layer needs that lookup anyway.
-ADULTS = AGE_CLASSES["AKL-ERW"]
-YOUNG_ADULTS = AGE_CLASSES["AKL-JUG"]
-CHILDREN = AGE_CLASSES["AKL-KIN"]
-
-# Statutory annual cap on the coinsurance share (Art. 103 KVV), keyed by age
-# class label.
+# Statutory annual cap on the coinsurance share (Art. 103 KVV), by age class.
 coinsurance_cap = {
     ADULTS: 700,
     YOUNG_ADULTS: 700,

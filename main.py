@@ -3,6 +3,7 @@
 import argparse
 
 from constants import (
+    AGE_CLASS_LABELS,
     canton_default,
     environmental_rebate_default,
     min_cost_range,
@@ -40,11 +41,13 @@ if __name__ == "__main__":
     cheapest = cheapest_premiums(data)
 
     print("\nCheapest premiums per deductible:")
-    print(
-        cheapest[
-            ["Zielgruppe", "Franchise", "Prämie", "Versicherername", "Tarifbezeichnung"]
-        ].to_markdown(index=False)
-    )
+    # The frame carries age class codes; a person reading a terminal wants the
+    # words.
+    shown = cheapest[
+        ["Zielgruppe", "Franchise", "Prämie", "Versicherername", "Tarifbezeichnung"]
+    ].copy()
+    shown["Zielgruppe"] = shown["Zielgruppe"].map(AGE_CLASS_LABELS)
+    print(shown.to_markdown(index=False))
 
     display_results(
         compute_tipping_point(cheapest, args.environmental_rebate, args.max_costs)
