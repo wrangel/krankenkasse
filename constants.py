@@ -140,6 +140,15 @@ REGIONS = {
     "PR-REG CH3": "Region 3",
 }
 
+# Contact and provenance, shown in the footer and used in the README and
+# SECURITY.md. The address is an alias (addy.io), never the real mailbox - the
+# same arrangement as abstractaltitudes. If it ever gets harvested it can be
+# switched off without changing the real address.
+CONTACT_EMAIL = "contact@grundversicherungsrechner.anonaddy.com"
+REPO_URL = "https://github.com/wrangel/grundversicherungsrechner"
+OPENDATA_URL = "https://opendata.swiss/de/dataset/health-insurance-premiums"
+PRIMINFO_URL = "https://www.priminfo.admin.ch"
+
 # Defaults for the CLI run
 canton_default = "ZH"
 region_default = "PR-REG CH1"

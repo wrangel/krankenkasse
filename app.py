@@ -5,11 +5,21 @@ people, show each person's report, and the household total at the end. The
 computation is in calculation.py, the drawing in the view_* modules.
 """
 
+from datetime import date
+
 import streamlit as st
 import streamlit.components.v1 as components
 
 from common import age_group_for_age, premiums
-from constants import CHILD_SUBGROUPS, CHILDREN, environmental_rebate_default
+from constants import (
+    CHILD_SUBGROUPS,
+    CHILDREN,
+    CONTACT_EMAIL,
+    OPENDATA_URL,
+    PRIMINFO_URL,
+    REPO_URL,
+    environmental_rebate_default,
+)
 from theme import apply_person_colours, colour_for_person, configure_page
 from calculation import children_with_one_insurer, get_data
 from view_household import household_total
@@ -243,3 +253,26 @@ if right.button("Prämiendaten neu laden"):
     st.cache_data.clear()
     premiums(0)
     st.rerun()
+
+st.markdown("---")
+
+# Contact and provenance. The address is an alias, not the real mailbox - see
+# CONTACT_EMAIL in constants.py. Saying what the reply is *not* keeps the
+# expectation straight: this is a calculation tool, and an individual answer
+# about somebody's own policy would be the advice the page disclaims.
+st.caption(
+    f"**Fehler gefunden, Frage, Rückmeldung?** "
+    f"[Schreib mir]({f'mailto:{CONTACT_EMAIL}'}) – gerne auch, wenn eine Zahl "
+    f"nicht stimmt. Keine Beratung zu einzelnen Policen."
+)
+st.caption(
+    f"[Quellcode auf GitHub]({REPO_URL}) · "
+    f"Prämiendaten vom BAG über [opendata.swiss]({OPENDATA_URL}) · "
+    f"amtlicher Vergleich auf [priminfo.admin.ch]({PRIMINFO_URL}) · "
+    f"gebaut mit [Streamlit](https://streamlit.io)"
+)
+st.caption(
+    f"© 2023–{date.today().year} Matthias Wettstein · "
+    f"[MIT-Lizenz]({REPO_URL}/blob/main/LICENSE) · "
+    f"Rechenhilfe, keine Finanz- oder Versicherungsberatung."
+)

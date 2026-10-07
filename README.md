@@ -370,6 +370,19 @@ typically a multiple of the gap between neighbouring steps.
 
 The tool is a calculation aid and not financial or insurance advice.
 
+## Contact
+
+Questions, corrections, or a number that looks wrong:
+[contact@grundversicherungsrechner.anonaddy.com](mailto:contact@grundversicherungsrechner.anonaddy.com)
+
+Corrections are genuinely welcome — the whole point of computing from the
+official data is that an error is findable. What this address is not is
+insurance advice about an individual policy; see the disclaimer above.
+
+That address is an alias, not a mailbox. Security findings go through
+[private vulnerability reporting](.github/SECURITY.md) rather than a public
+issue.
+
 ## Licence
 
 [MIT](LICENSE) — Copyright (c) 2023-2026 Matthias Wettstein.
