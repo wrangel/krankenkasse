@@ -233,7 +233,7 @@ st.markdown("---")
 # anywhere on the page.
 with st.expander("Was diese Rechnung nicht berücksichtigt"):
     st.markdown(
-        """
+        f"""
 Diese Anwendung ist eine **Rechenhilfe und keine Finanz- oder
 Versicherungsberatung**. Sie rechnet aus den amtlichen Prämiendaten, was die
 angegebene Person bei den angegebenen Krankheitskosten zahlen würde – mehr nicht.
@@ -256,7 +256,7 @@ Welche Versicherung zu jemandem passt, hängt an Dingen, die hier nicht vorkomme
   Betrag nicht.
 
 Massgebend sind die Angaben der Versicherer und das offizielle
-[priminfo.admin.ch](https://www.priminfo.admin.ch). Für Entscheide mit Folgen
+[priminfo.admin.ch]({PRIMINFO_URL}). Für Entscheide mit Folgen
 lohnt sich eine Beratung bei einer unabhängigen Stelle.
         """
     )
@@ -284,6 +284,20 @@ st.caption(
     "öffentlich publizierte Kurzformel für die Stufen 300 und 2500 kommt auf den "
     "Franken genau auf dasselbe Ergebnis. Sie vergleicht allerdings nur diese "
     "beiden Stufen; die dazwischen rechnet erst diese App durch."
+)
+
+# The PHARM category. Worth stating plainly: the vocabulary and the data
+# disagree, and the app quietly departs from what priminfo offers, so it should
+# say why rather than leave someone wondering where Apothekenmodelle went.
+st.caption(
+    "† **Apothekenmodelle fehlen als eigene Kategorie.** Das BAG führt fünf "
+    "Modellkategorien, und priminfo.admin.ch bietet alle fünf zur Auswahl an – "
+    "darunter PHARM. In den Prämiendaten für 2027 steht jedoch schweizweit keine "
+    "einzige Zeile mit PHARM. Apothekenmodelle gibt es durchaus – PharMed, "
+    "Favorit Medpharm, casamed pharm, KPTwin.win –, das BAG legt sie aber unter "
+    "PRAXIS und FLEX ab. Wer bei priminfo nach PHARM filtert, blendet damit genau "
+    "diese Modelle aus. Diese App bietet deshalb nur die Kategorien an, die in den "
+    "Daten tatsächlich vorkommen."
 )
 
 # Why the thing exists. It belongs next to the contact line: someone who writes

@@ -510,7 +510,8 @@ def person_form(person: dict, person_count: int, raw) -> dict | None:
         format_func=lambda m: TARIFF_TYPES[m],
         key=f"models_{person_id}",
         help="Das Standardmodell lässt die Arztwahl frei; die übrigen schränken sie "
-        "ein und sind dafür günstiger.",
+        "ein und sind dafür günstiger. Angeboten werden nur die Kategorien, die in "
+        "den Prämiendaten auch wirklich vorkommen – siehe † unten auf der Seite.",
     )
 
     # Today's contract - so the evaluation can say whether switching is worth it

@@ -147,7 +147,11 @@ REGIONS = {
 CONTACT_EMAIL = "contact@grundversicherungsrechner.anonaddy.com"
 REPO_URL = "https://github.com/wrangel/grundversicherungsrechner"
 OPENDATA_URL = "https://opendata.swiss/de/dataset/health-insurance-premiums"
-PRIMINFO_URL = "https://www.priminfo.admin.ch"
+# The premium comparison itself, not the homepage: someone following this link
+# wants the official figures, and landing on a front page makes them hunt.
+# The /de/ segment is language-specific and will need to follow the user's
+# choice once the translation layer exists.
+PRIMINFO_URL = "https://www.priminfo.admin.ch/de/praemien"
 
 # Defaults for the CLI run
 canton_default = "ZH"
