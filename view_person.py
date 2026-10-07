@@ -24,7 +24,12 @@ from constants import (
     coinsurance_rate,
     min_cost_range,
 )
-from calculation import cheapest_premiums, compute_tipping_point, get_data
+from calculation import (
+    available_tariff_types,
+    cheapest_premiums,
+    compute_tipping_point,
+    get_data,
+)
 
 
 def person_summary(
@@ -497,10 +502,11 @@ def person_form(person: dict, person_count: int, raw) -> dict | None:
         "Therapien – alles, was über die Grundversicherung läuft.",
     )
 
+    offered = available_tariff_types(raw)
     tariff_types = st.multiselect(
         "Tarifmodelle",
-        list(TARIFF_TYPES),
-        default=list(TARIFF_TYPES),
+        offered,
+        default=offered,
         format_func=lambda m: TARIFF_TYPES[m],
         key=f"models_{person_id}",
         help="Das Standardmodell lässt die Arztwahl frei; die übrigen schränken sie "
