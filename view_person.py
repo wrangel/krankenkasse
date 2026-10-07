@@ -469,9 +469,13 @@ def person_form(person: dict, person_count: int, raw) -> dict | None:
 
     location = choose_location(person_id, top[0])
 
+    # Same reason as the postcode above: seed, never value= next to key=. This
+    # one does not warn yet only because the restore does not cover age; it
+    # would the moment it did.
+    age_key = f"age_{person_id}"
+    st.session_state.setdefault(age_key, int(person["age"]))
     age = top[1].number_input(
-        t("form.age"), min_value=0, max_value=120, value=int(person["age"]), step=1,
-        key=f"age_{person_id}",
+        t("form.age"), min_value=0, max_value=120, step=1, key=age_key
     )
     age_group = age_group_for_age(int(age))
 
@@ -494,12 +498,16 @@ def person_form(person: dict, person_count: int, raw) -> dict | None:
     )
 
     offered = available_tariff_types(raw)
+    # Seeded rather than passed as default=, for the same reason as the
+    # postcode and the age: default= next to key= makes Streamlit guess which
+    # of the two should win when a restored selection is already in state.
+    models_key = f"models_{person_id}"
+    st.session_state.setdefault(models_key, offered)
     tariff_types = st.multiselect(
         t("form.tariff_models"),
         offered,
-        default=offered,
         format_func=lambda m: t(f"tariff.{m}"),
-        key=f"models_{person_id}",
+        key=models_key,
         placeholder=t("form.tariff_models_placeholder"),
         help=t("form.tariff_models_help"),
     )

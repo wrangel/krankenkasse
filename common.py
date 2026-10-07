@@ -78,9 +78,15 @@ def choose_location(key: int, column=None) -> tuple[str, str, str] | None:
         target.error(t("form.regions_missing"))
         return None
 
+    # Seed session_state once instead of passing value= alongside key=.
+    # Streamlit warns when a widget is given both, and it is right to: the
+    # restored entry and the default disagree, and which one wins is not
+    # obvious from the call. Seeding makes session_state the single source and
+    # leaves a restored postcode untouched.
+    postcode_key = f"postcode_{key}"
+    st.session_state.setdefault(postcode_key, DEFAULT_POSTCODE)
     postcode = target.text_input(
-        t("form.postcode"), value=DEFAULT_POSTCODE, max_chars=4,
-        key=f"postcode_{key}",
+        t("form.postcode"), max_chars=4, key=postcode_key
     ).strip()
     entries = mapping.get(postcode)
     if not entries:
