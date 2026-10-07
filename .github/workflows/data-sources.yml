@@ -1,0 +1,48 @@
+name: Data sources
+
+# Watches the two BAG sources. They break in different ways:
+#
+# * The premium comparison sits at a fixed path and never disappears - its
+#   contents are silently replaced once a year. A reachability test on its own
+#   would therefore sleep right through the change of premium year.
+# * The insurer register carries a hash and the year in its path and runs into a
+#   404 every year.
+#
+# check_data_sources.py therefore also checks the premium year, the columns and
+# the value ranges against data_state.json. If the run fails, GitHub sends the
+# usual notification to the repository owner.
+#
+# Cadence: the BAG publishes the following year's premiums at the end of
+# September. September and October are therefore checked daily, otherwise
+# weekly.
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"        # all year: Mondays 06:00 UTC
+    - cron: "0 6 * 9,10 *"     # September/October: daily 06:00 UTC
+  workflow_dispatch:           # can be triggered by hand at any time
+
+jobs:
+  check-sources:
+    name: check-sources
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check the data sources against data_state.json
+        run: python check_data_sources.py

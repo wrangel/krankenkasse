@@ -1,128 +1,130 @@
 #!/bin/bash
 set -e
 
-# Auf der Synology auszuführen (Aufgabenplaner, benutzerdefiniertes Skript):
+# To be run on the Synology (Task Scheduler, user-defined script):
 #
-#   bash /volume1/homes/Matthias/Drive/Programming/krankenkasse/scripts/syno-deploy.sh
+#   bash /volume1/homes/Matthias/Drive/Programming/grundversicherungsrechner/scripts/syno-deploy.sh
 #
-# Gebaut und veröffentlicht wird auf dem Mac mit "make prod". Dieses Skript holt
-# nur und startet neu - es baut nie. Auf der Synology fehlt dafür auch alles
-# Nötige.
+# Building and publishing happen on the Mac via "make prod". This script only
+# pulls and restarts - it never builds. The Synology lacks everything needed for
+# that anyway.
 #
-# Die Datei erreicht die NAS über Synology Drive, nicht über git. Sie kann also
-# älter sein als die Fassung auf dem Mac; die Zeile unten sagt, welche gelaufen
-# ist.
-SCRIPT_VERSION="2026-10-06"
+# The file reaches the NAS through Synology Drive, not through git. It can
+# therefore be older than the version on the Mac; the line below says which one
+# actually ran.
+SCRIPT_VERSION="2026-10-06c"
 
-GRUEN='\033[0;32m'
-GELB='\033[1;33m'
-ROT='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m'
 
-PROJEKT_DIR="${PROJEKT_DIR:-/volume1/homes/Matthias/Drive/Programming/krankenkasse}"
-COMPOSE_DATEI="${PROJEKT_DIR}/docker-compose.yml"
-ABBILD="wrangel/krankenkasse"
-DIENST="krankenkasse-app-1"
+PROJECT_DIR="${PROJECT_DIR:-/volume1/homes/Matthias/Drive/Programming/grundversicherungsrechner}"
+COMPOSE_FILE="${PROJECT_DIR}/docker-compose.yml"
+IMAGE="wrangel/grundversicherungsrechner"
+# The container name comes from the project name pinned in
+# docker-compose.yml, so it no longer depends on the folder name.
+SERVICE="grundversicherungsrechner-app-1"
 
-echo -e "${GRUEN}syno-deploy.sh ${SCRIPT_VERSION}${NC}"
-[[ -f "$COMPOSE_DATEI" ]] || { echo -e "${ROT}Keine Compose-Datei unter $COMPOSE_DATEI${NC}"; exit 1; }
+echo -e "${GREEN}syno-deploy.sh ${SCRIPT_VERSION}${NC}"
+[[ -f "$COMPOSE_FILE" ]] || { echo -e "${RED}No compose file at $COMPOSE_FILE${NC}"; exit 1; }
 
-# Compose v2 ist ein Unterbefehl von docker, v1 war ein eigenes Programm. Erst v2
-# versuchen, damit das über Aktualisierungen des Container Managers hinweg läuft.
+# Compose v2 is a subcommand of docker, v1 was a program of its own. Try v2
+# first, so this survives updates to the Container Manager.
 if docker compose version >/dev/null 2>&1; then
   COMPOSE="docker compose"
 else
   COMPOSE="docker-compose"
 fi
-echo "   verwendet: $COMPOSE"
-COMPOSE_BEFEHL=($COMPOSE -f "$COMPOSE_DATEI")
+echo "   using: $COMPOSE"
+COMPOSE_CMD=($COMPOSE -f "$COMPOSE_FILE")
 
 # ==============================================================================
-# Holen
+# Pull
 #
-# "compose pull" liest die Compose-Datei und holt genau die Marke, die dort
-# steht. Kein Raten über die Markenliste von Docker Hub - bei abstractaltitudes
-# hatte das dazu geführt, dass eine beliebige sha-Marke geholt wurde, während
-# die tatsächlich verwendete nie aufgefrischt wurde.
+# "compose pull" reads the compose file and fetches exactly the tag written
+# there. No guessing against Docker Hub's tag list - with abstractaltitudes that
+# had led to some arbitrary sha tag being pulled while the one actually in use
+# was never refreshed.
 # ==============================================================================
-echo -e "${GRUEN}Hole das Abbild aus der Compose-Datei...${NC}"
-"${COMPOSE_BEFEHL[@]}" pull
+echo -e "${GREEN}Pulling the image named in the compose file...${NC}"
+"${COMPOSE_CMD[@]}" pull
 
-# down + up statt restart: Das baut das Netz neu auf. Auf dieser NAS ist die
-# Bridge wiederholt ohne ihre iptables-FORWARD-Regeln zurückgekommen, womit die
-# Container keinen Weg nach draussen mehr hatten. Für diese App ist das
-# besonders heikel - sie holt ihre Prämiendaten beim BAG.
-echo -e "${GRUEN}Stapel neu aufsetzen...${NC}"
-"${COMPOSE_BEFEHL[@]}" down
+# down + up rather than restart: that rebuilds the network. On this NAS the
+# bridge has repeatedly come back without its iptables FORWARD rules, leaving
+# the containers with no route out. For this app that is especially awkward - it
+# fetches its premium data from the BAG.
+echo -e "${GREEN}Bringing the stack back up...${NC}"
+"${COMPOSE_CMD[@]}" down
 docker network prune -f >/dev/null 2>&1 || true
-# --no-build: Auf der NAS wird nicht gebaut. Fehlt das Abbild, soll das Skript
-# scheitern und nicht anfangen, pandas zu übersetzen.
-"${COMPOSE_BEFEHL[@]}" up -d --no-build
+# --no-build: nothing is built on the NAS. If the image is missing, the script
+# should fail rather than start compiling pandas.
+"${COMPOSE_CMD[@]}" up -d --no-build
 
-# HINWEIS: Hier stand bei abstractaltitudes einmal "docker volume prune -f". Das
-# löscht jedes unbenutzte Volume auf der NAS, also auch fremde Daten. Hier wäre
-# es zusätzlich selbstschädigend: Im Volume praemien-cache liegt die 12-MB-Datei
-# des BAG. Ohne sie kostet jeder Start den vollen Download.
+# NOTE: abstractaltitudes once had "docker volume prune -f" here. That deletes
+# every unused volume on the NAS, other people's data included. Here it would
+# also be self-defeating: the premium-cache volume holds the BAG's 12 MB file.
+# Without it, every start pays for the full download.
 
 # ==============================================================================
-# Prüfen
+# Check
 #
-# "Container läuft" heisst hier nicht "App antwortet": Streamlit hört, bevor es
-# die Prämiendaten geladen hat. Der Gesundheitsendpunkt unterscheidet das.
+# "container is running" does not mean "app responds": Streamlit listens before
+# it has loaded the premium data. The health endpoint tells the two apart.
 # ==============================================================================
-echo -e "${GRUEN}Warte, bis die App antwortet...${NC}"
-bereit=false
+echo -e "${GREEN}Waiting for the app to respond...${NC}"
+ready=false
 for _ in $(seq 1 45); do
   sleep 2
-  if docker exec "$DIENST" python -c \
+  if docker exec "$SERVICE" python -c \
       "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')" \
       >/dev/null 2>&1; then
-    bereit=true
+    ready=true
     break
   fi
 done
 
-if [[ "$bereit" != "true" ]]; then
-  echo -e "${ROT}Die App ist in 90 Sekunden nicht bereit geworden.${NC}"
-  echo -e "${GELB}   Protokoll ansehen mit: docker logs $DIENST${NC}"
+if [[ "$ready" != "true" ]]; then
+  echo -e "${RED}The app did not become ready within 90 seconds.${NC}"
+  echo -e "${YELLOW}   Look at the log with: docker logs $SERVICE${NC}"
   exit 1
 fi
-echo -e "${GRUEN}App antwortet.${NC}"
+echo -e "${GREEN}App responds.${NC}"
 
-# Diese App ist ohne Internet wertlos - sie holt die Prämiendaten beim BAG. Nach
-# dem Neuaufbau des Netzes lohnt sich die ausdrückliche Probe.
-echo -e "${GRUEN}Prüfe, ob der Container nach draussen kommt...${NC}"
-if docker exec "$DIENST" python -c \
+# This app is worthless without internet - it fetches the premium data from the
+# BAG. After the network has been rebuilt, an explicit probe is worth it.
+echo -e "${GREEN}Checking that the container can reach the outside...${NC}"
+if docker exec "$SERVICE" python -c \
     "import urllib.request; urllib.request.urlopen('https://opendata.bagnet.ch', timeout=20)" \
     >/dev/null 2>&1; then
-  echo -e "${GRUEN}Verbindung zum BAG steht.${NC}"
+  echo -e "${GREEN}Connection to the BAG is up.${NC}"
 else
-  echo -e "${GELB}Der Container erreicht opendata.bagnet.ch nicht.${NC}"
-  echo -e "${GELB}   Die App läuft, kann aber keine Prämiendaten holen. Meist ist das${NC}"
-  echo -e "${GELB}   das Netz nach dem Neuaufbau - oder die Namensauflösung. Zum Prüfen:${NC}"
-  echo -e "${GELB}     docker exec $DIENST python -c \"import socket; print(socket.gethostbyname('opendata.bagnet.ch'))\"${NC}"
+  echo -e "${YELLOW}The container cannot reach opendata.bagnet.ch.${NC}"
+  echo -e "${YELLOW}   The app runs but cannot fetch premium data. Usually this is${NC}"
+  echo -e "${YELLOW}   the network after the rebuild - or name resolution. To check:${NC}"
+  echo -e "${YELLOW}     docker exec $SERVICE python -c \"import socket; print(socket.gethostbyname('opendata.bagnet.ch'))\"${NC}"
 fi
 
 # ==============================================================================
-# Aufräumen - zuletzt, damit ein Fehlschlag oben jeden Rückfallpunkt stehen lässt.
+# Clean up - last, so that a failure above leaves every fallback standing.
 #
-# Nur Abbilder dieses Projekts. "docker system prune -af" würde jedes unbenutzte
-# Abbild auf der NAS entfernen, auch die anderer Container. "docker rmi" ohne -f
-# weigert sich, ein benutztes Abbild zu löschen - die laufende Fassung ist damit
-# von selbst sicher.
+# This project's images only. "docker system prune -af" would remove every
+# unused image on the NAS, including other containers'. "docker rmi" without -f
+# refuses to delete an image in use - the running version is therefore safe by
+# itself.
 # ==============================================================================
-echo -e "${GRUEN}Räume alte Abbilder auf...${NC}"
-echo "   vorher:"
+echo -e "${GREEN}Clearing out old images...${NC}"
+echo "   before:"
 docker images --format '     {{.Repository}}:{{.Tag}}  {{.Size}}  ({{.CreatedSince}})' \
-  | grep krankenkasse || echo "     (keine)"
+  | grep grundversicherungsrechner || echo "     (none)"
 
-# Die abgelöste Fassung verliert beim Holen der neuen ihre Marke und wird
-# hängend. Dort liegt der meiste Platz.
-befreit=$(docker image prune -f 2>/dev/null | tail -1)
-echo "     ${befreit:-nichts freizugeben}"
+# The superseded version loses its tag when the new one is pulled and becomes
+# dangling. That is where most of the space sits.
+reclaimed=$(docker image prune -f 2>/dev/null | tail -1)
+echo "     ${reclaimed:-nothing to reclaim}"
 
-echo "   nachher:"
+echo "   after:"
 docker images --format '     {{.Repository}}:{{.Tag}}  {{.Size}}  ({{.CreatedSince}})' \
-  | grep krankenkasse || echo "     (keine)"
+  | grep grundversicherungsrechner || echo "     (none)"
 
-echo -e "${GRUEN}Fertig. Die App läuft auf Port ${PORT:-8501} der NAS.${NC}"
+echo -e "${GREEN}Done. The app is running on port ${PORT:-8501} of the NAS.${NC}"

@@ -1,35 +1,35 @@
 [
   {
-    "praemienjahr": 2027,
-    "erfasst_am": "2026-10-01",
-    "kanton": "ZH",
+    "premium_year": 2027,
+    "recorded_on": "2026-10-06",
+    "canton": "ZH",
     "region": "PR-REG CH1",
     "Erwachsene": {
       "optimal": [
         300,
         2500
       ],
-      "nie_optimal": [
+      "never_optimal": [
         500,
         1000,
         1500,
         2000
       ],
-      "kipppunkt": 1893
+      "tipping_point": 1893
     },
     "Kinder": {
       "optimal": [
         0,
         600
       ],
-      "nie_optimal": [
+      "never_optimal": [
         100,
         200,
         300,
         400,
         500
       ],
-      "kipppunkt": 467
+      "tipping_point": 467
     }
   }
 ]

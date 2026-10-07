@@ -1,35 +1,42 @@
+# The project name is pinned rather than derived from the directory name.
+# Compose defaults to the folder it finds docker-compose.yml in, which would
+# make the container name - and so the docker exec calls in
+# scripts/syno-deploy.sh - break the moment the checkout is renamed or moved.
+name: grundversicherungsrechner
+
 services:
   app:
-    # Die Synology läuft auf x86_64 - deshalb ist linux/amd64 die Vorgabe, sonst
-    # baut ein Apple-Rechner ein arm64-Abbild, das dort nicht startet (gleicher
-    # Grund wie bei abstractaltitudes).
+    # The Synology runs on x86_64 - hence linux/amd64 as the default, otherwise
+    # an Apple machine builds an arm64 image that will not start there (same
+    # reason as in abstractaltitudes).
     #
-    # Zum Prüfen auf dem eigenen Rechner setzt scripts/test.sh ZIELPLATTFORM auf
-    # die Architektur des Macs: Ein amd64-Abbild läuft dort nur emuliert, und
-    # pandas stürzt darin ab.
-    platform: ${ZIELPLATTFORM:-linux/amd64}
+    # For a local trial, scripts/test.sh sets TARGET_PLATFORM to the Mac's own
+    # architecture: an amd64 image only runs emulated there, and pandas crashes
+    # inside it.
+    platform: ${TARGET_PLATFORM:-linux/amd64}
     build:
       context: .
       dockerfile: Dockerfile
-    image: wrangel/krankenkasse:1.0
+    image: wrangel/grundversicherungsrechner:1.0
     ports:
-      # Nur an localhost binden. Der Reverse Proxy der Synology läuft auf der NAS
-      # selbst und erreicht den Container darüber; von aussen ist er damit nicht
-      # direkt erreichbar. Ohne die Bindung an 127.0.0.1 wäre die App unter
-      # NAS-IP:8501 offen - ohne TLS, am Proxy vorbei.
+      # Bind to localhost only. The Synology's reverse proxy runs on the NAS
+      # itself and reaches the container that way; from outside it is therefore
+      # not directly reachable. Without the binding to 127.0.0.1 the app would
+      # be open at NAS-IP:8501 - no TLS, bypassing the proxy.
       #
-      # Für den Zugriff aus dem Heimnetz, etwa zum Prüfen von einem anderen
-      # Rechner: BIND=0.0.0.0 docker compose up -d
+      # For access from the home network, e.g. to check from another machine:
+      # BIND=0.0.0.0 docker compose up -d
       - "${BIND:-127.0.0.1}:${PORT:-8501}:8501"
     restart: unless-stopped
     networks:
       - app-network
     volumes:
-      # Die Prämiendatei des BAG überlebt damit einen Neustart. Ohne das Volume
-      # kostet jeder Start rund sechs Sekunden fürs Einlesen.
-      - praemien-cache:/app/.cache
+      # This is what lets the BAG premium file survive a restart. Without the
+      # volume every start costs about six seconds of parsing.
+      - premium-cache:/app/.cache
     environment:
-      # Streamlit schreibt sonst in ein Home, das der Dienstbenutzer nicht hat.
+      # Otherwise Streamlit writes into a home directory the service user has
+      # not got.
       - HOME=/app
     deploy:
       resources:
@@ -43,4 +50,4 @@ networks:
     driver: bridge
 
 volumes:
-  praemien-cache:
+  premium-cache:

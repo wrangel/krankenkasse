@@ -1,0 +1,243 @@
+"""Arithmetic tests on invented premiums - no network, no BAG.
+
+Why: otherwise CI only checks that the dependencies install and that every
+module compiles. But the whole app is a chain of computation over pandas. If the
+behaviour of ``groupby``, ``idxmin`` or ``str.extract`` changed, a wrong tipping
+point would come out without complaint and the check would stay green. These
+tests close exactly that gap - above all for the monthly Dependabot PRs.
+
+The expected values are worked out by hand, not read off the code. Otherwise the
+test would only confirm whatever the program already does.
+
+    python test_calculation.py     # runs without pytest
+    pytest test_calculation.py     # also works, if available
+"""
+
+from __future__ import annotations
+
+import pandas as pd
+
+from constants import ADULTS, CHILDREN
+from calculation import (
+    cheapest_child_combination,
+    cheapest_premiums,
+    child_tier_schemes,
+    children_cost_sharing,
+    compute_tipping_point,
+    get_data,
+)
+
+# --------------------------------------------------------------------------
+# Invented starting position
+#
+# Adults, environmental rebate 0, coinsurance 10% up to at most CHF 700:
+#
+#     costs(d, k) = 12 · premium(d) + min(k, d) + min(max(0, k − d) · 0.1, 700)
+#
+# With premiums 500.00 (D300) and 380.00 (D2500), for 300 ≤ k < 2500:
+#
+#     costs(300, k) − costs(2500, k)
+#       = 12·(500−380) + 300 + 0.1·(k−300) − k
+#       = 1440 + 270 − 0.9·k
+#
+# That reaches zero at k = 1710 / 0.9 = 1900. Both variants cost exactly
+# CHF 6460.00 there. Deductible 1000 at 460.00 is chosen so that it never wins:
+# at low costs it does not beat the 2500, at high costs not the 300.
+# --------------------------------------------------------------------------
+
+PREMIUMS_ADULTS = {300: 500.00, 1000: 460.00, 2500: 380.00}
+EXPECTED_TIPPING_POINT = 1900
+COSTS_AT_TIPPING_POINT = 6460.00
+
+
+def _raw_data(premiums: dict[int, float], age_class: str = "AKL-ERW") -> pd.DataFrame:
+    """Build a table in the shape get_data expects."""
+    return pd.DataFrame(
+        [
+            {
+                "Kanton": "ZH",
+                "Region": "PR-REG CH1",
+                "Altersklasse": age_class,
+                "Altersuntergruppe": None if age_class == "AKL-ERW" else "K1",
+                "Unfalleinschluss": "OHN-UNF" if age_class == "AKL-ERW" else "MIT-UNF",
+                "Tariftyp": "TAR-BASE",
+                "Tarifbezeichnung": "Testtarif",
+                "Versicherer": 8,
+                "Franchise": f"FRA-{deductible}",
+                "Prämie": premium,
+            }
+            for deductible, premium in premiums.items()
+        ]
+    )
+
+
+def _result(premiums=None, environmental_rebate: float = 0.0, max_costs: int = 10000):
+    data = get_data(_raw_data(premiums or PREMIUMS_ADULTS), age_groups=(ADULTS,))
+    return compute_tipping_point(
+        cheapest_premiums(data), environmental_rebate, max_costs
+    )[0]
+
+
+def test_get_data_normalises_deductible_and_premium():
+    """FRA-300 has to become the number 300 - everything else hangs off that."""
+    data = get_data(_raw_data(PREMIUMS_ADULTS), age_groups=(ADULTS,))
+    assert sorted(data["Franchise"]) == [300, 1000, 2500]
+    assert data["Franchise"].dtype.kind == "i", "deductible must be an integer"
+    assert data["Zielgruppe"].unique().tolist() == [ADULTS]
+
+
+def test_cheapest_premiums_takes_the_lowest_per_deductible():
+    """Where several offers share a deductible, the cheapest wins."""
+    # ignore_index, because the real data comes from a read_excel with a unique
+    # index; cheapest_premiums uses .loc on the index values.
+    raw = pd.concat(
+        [_raw_data({300: 500.00}), _raw_data({300: 444.00}), _raw_data({2500: 380.00})],
+        ignore_index=True,
+    )
+    cheapest = cheapest_premiums(get_data(raw, age_groups=(ADULTS,)))
+    premium_300 = cheapest.loc[cheapest["Franchise"] == 300, "Prämie"].iloc[0]
+    assert premium_300 == 444.00
+
+
+def test_cost_formula_matches_the_hand_calculation():
+    """Spot checks against values worked out by hand, cap of 700 included."""
+    r = _result()
+    # k = 0: premium only
+    assert r.costs.loc[0, 300] == 12 * 500.00
+    # k = 1900: 6000 + 300 deductible + 160 coinsurance
+    assert r.costs.loc[1900, 300] == COSTS_AT_TIPPING_POINT
+    # k = 1900 at D2500: 4560 + 1900, no coinsurance yet
+    assert r.costs.loc[1900, 2500] == COSTS_AT_TIPPING_POINT
+    # k = 10000 at D300: coinsurance at the cap (9700 · 0.1 > 700)
+    assert r.costs.loc[10000, 300] == 12 * 500.00 + 300 + 700
+
+
+def test_tipping_point_is_the_hand_calculated_value():
+    r = _result()
+    assert r.tipping_point == EXPECTED_TIPPING_POINT
+    # Just below, the high deductible must win; just above, the low one.
+    assert r.optimal.loc[EXPECTED_TIPPING_POINT - 1] == 2500
+    assert r.optimal.loc[EXPECTED_TIPPING_POINT + 1] == 300
+
+
+def test_middle_deductible_is_never_optimal():
+    """The central finding of the README and the interface."""
+    r = _result()
+    assert r.never_optimal == [1000]
+    assert sorted(set(r.optimal)) == [300, 2500]
+
+
+def test_environmental_rebate_does_not_move_the_tipping_point():
+    """It relieves every deductible equally and leaves the ordering untouched."""
+    without = _result(environmental_rebate=0.0)
+    with_rebate = _result(environmental_rebate=12.50)
+    assert without.tipping_point == with_rebate.tipping_point
+    # The absolute costs do fall, by 12 · 12.50 = 150.
+    assert without.costs.loc[0, 300] - with_rebate.costs.loc[0, 300] == 150.0
+
+
+def test_spread_and_advantage_measure_different_things():
+    """max_advantage compares against the next best step, max_spread against the
+    worst - confusing the two was once a false statement."""
+    r = _result()
+    assert r.max_spread > r.max_advantage
+    # At k = 0, D300 is dearest and D2500 cheapest: 6000 − 4560.
+    assert r.spread.loc[0] == 12 * 500.00 - 12 * 380.00
+
+
+def test_family_cap_under_art_93_para_3_kvv():
+    """Several children with the same insurer: at most 2 × (deductible + 350)."""
+    # One child, CHF 5000 of costs, deductible 600:
+    # 600 + min(4400 · 0.1, 350) = 600 + 350 = 950, uncapped.
+    amount, capped = children_cost_sharing([5000.0], 600)
+    assert (amount, capped) == (950.0, False)
+
+    # Two children: 1900 - exactly the limit, so not yet capped.
+    amount, capped = children_cost_sharing([5000.0] * 2, 600)
+    assert amount == 1900.0 and not capped
+
+    # Three children: 2850 uncapped, cut to 2 × (600 + 350) = 1900.
+    amount, capped = children_cost_sharing([5000.0] * 3, 600)
+    assert (amount, capped) == (1900.0, True)
+
+
+def test_children_have_the_lower_coinsurance_cap():
+    """For children the cap is 350 rather than 700 (Art. 103 para. 2 KVV)."""
+    data = get_data(
+        _raw_data({0: 120.00, 600: 90.00}, age_class="AKL-KIN"),
+        age_groups=(CHILDREN,),
+    )
+    r = compute_tipping_point(cheapest_premiums(data), 0.0, 10000)[0]
+    # k = 10000, deductible 0: 12 · 120 + 0 + min(1000, 350) = 1440 + 350
+    assert r.costs.loc[10000, 0] == 12 * 120.00 + 350
+
+
+def test_child_tiers_follow_the_official_conditions():
+    """The four schemes of the BAG tariff list, worded identically in every
+    language version:
+
+    K1 no discount; K3 from the 3rd child; K4 from the 2nd child, valid for all
+    children; K5 from the 3rd child, valid for all children. The qualifier
+    "valid for all children" sits on K4 and K5, not on K3 - the whole assignment
+    hangs off that.
+    """
+    all_tiers = {"K1", "K3", "K4", "K5"}
+
+    # One child: no discount reachable, whatever the insurer carries.
+    assert child_tier_schemes(1, all_tiers) == [["K1"]]
+
+    # Two children: only K4 applies - and then to both, the first one included.
+    schemes = child_tier_schemes(2, all_tiers)
+    assert ["K4", "K4"] in schemes
+    assert not any("K3" in s or "K5" in s for s in schemes)
+
+    # Three children: K5 for all three, K3 only for the third.
+    schemes = child_tier_schemes(3, all_tiers)
+    assert ["K5", "K5", "K5"] in schemes
+    assert ["K1", "K1", "K3"] in schemes
+
+    # Every scheme is uniform: either one tier for all, or the K3 pattern. They
+    # are never mixed - K4 for one child and K5 for the next is not something
+    # that can be bought.
+    for count in (2, 3, 4, 5):
+        for scheme in child_tier_schemes(count, all_tiers):
+            assert len(set(scheme)) == 1 or set(scheme) == {"K1", "K3"}
+
+    # Where an insurer does not carry a tier, it does not appear.
+    assert child_tier_schemes(3, {"K1"}) == [["K1", "K1", "K1"]]
+
+
+def test_cheapest_child_combination_picks_the_cheapest():
+    """Which tier wins depends on the premiums, not on the tier number."""
+    # K4 is barely cheaper here, K5 markedly so: from three children K5 wins.
+    premiums = {"K1": 120.0, "K3": 48.0, "K4": 118.0, "K5": 90.0}
+    assert cheapest_child_combination(premiums, 1) == (120.0, ["K1"])
+    assert cheapest_child_combination(premiums, 2) == (236.0, ["K4", "K4"])
+    assert cheapest_child_combination(premiums, 3) == (270.0, ["K5", "K5", "K5"])
+
+    # Without discount tiers it stays on the standard tariff.
+    assert cheapest_child_combination({"K1": 100.0}, 3) == (300.0, ["K1"] * 3)
+
+    # No children, no costs.
+    assert cheapest_child_combination(premiums, 0) == (0.0, [])
+
+
+def main() -> int:
+    tests = [
+        value for name, value in sorted(globals().items()) if name.startswith("test_")
+    ]
+    failures = 0
+    for test in tests:
+        try:
+            test()
+        except AssertionError as problem:
+            failures += 1
+            print(f"FAILED  {test.__name__}\n        {problem}")
+        else:
+            print(f"ok      {test.__name__}")
+    print(f"\n{len(tests) - failures} of {len(tests)} tests passed.")
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,46 +1,46 @@
 #!/bin/bash
-# Örtliche Probe im Container - gebaut für die Architektur dieses Rechners.
+# Local trial in a container - built for this machine's architecture.
 #
-# Wichtig: Nicht für linux/amd64 bauen. Auf einem Apple-Rechner liefe ein solches
-# Abbild nur emuliert, und pandas stürzt darin mit "qemu: uncaught target
-# signal 11" ab. Für die Synology baut scripts/prod.sh.
+# Important: do not build for linux/amd64. On an Apple machine such an image
+# would only run emulated, and pandas crashes inside it with "qemu: uncaught
+# target signal 11". For the Synology, use scripts/prod.sh.
 set -e
 
 cd "$(dirname "$0")/.."
-source scripts/port_freigeben.sh
+source scripts/free_port.sh
 
 PORT="${PORT:-8501}"
 export PORT
 
-echo "Starte Docker, falls nötig..."
+echo "Starting Docker if needed..."
 open --background -a Docker 2>/dev/null || true
 while ! docker info >/dev/null 2>&1; do
-  echo "warte auf Docker..."
+  echo "waiting for Docker..."
   sleep 2
 done
 
 ARCH="$(uname -m)"
 case "$ARCH" in
-  arm64|aarch64) ZIELPLATTFORM="linux/arm64" ;;
-  *)             ZIELPLATTFORM="linux/amd64" ;;
+  arm64|aarch64) TARGET_PLATFORM="linux/arm64" ;;
+  *)             TARGET_PLATFORM="linux/amd64" ;;
 esac
-export ZIELPLATTFORM
-echo "Baue für $ZIELPLATTFORM (Architektur dieses Rechners)."
+export TARGET_PLATFORM
+echo "Building for $TARGET_PLATFORM (this machine's architecture)."
 
-port_freigeben "$PORT" || exit 1
+free_port "$PORT" || exit 1
 
 docker compose up --build -d
 
-echo "Warte auf die App..."
+echo "Waiting for the app..."
 for _ in $(seq 1 60); do
   if curl -sf http://localhost:$PORT/_stcore/health >/dev/null 2>&1; then
-    echo "Läuft auf http://localhost:$PORT"
+    echo "Running on http://localhost:$PORT"
     open "http://localhost:$PORT" 2>/dev/null || true
     exit 0
   fi
   sleep 2
 done
 
-echo "Die App ist nicht hochgekommen. Protokoll:"
+echo "The app did not come up. Log:"
 docker compose logs --tail 40
 exit 1

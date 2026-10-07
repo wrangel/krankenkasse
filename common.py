@@ -1,0 +1,121 @@
+"""Shared building blocks: loading data, formatting numbers, location, age class.
+
+Everything several views need that is not a view of its own.
+"""
+
+import json
+
+import pandas as pd
+import streamlit as st
+
+from constants import ADULTS, CHILDREN, REGIONS_FILE, YOUNG_ADULTS
+from calculation import load_premiums
+
+
+# The message says why it takes a moment and that it only takes it once. On the
+# first call after a restart the BAG file is parsed - noticeably slow on the
+# Synology - and is then held ready in parsed form.
+@st.cache_data(
+    show_spinner="Lade die Prämiendaten des BAG. Beim ersten Aufruf dauert das "
+    "einen Moment, danach geht es schnell."
+)
+def premiums(max_age_days: int):
+    return load_premiums(max_age_days)
+
+
+def chf(amount: float, decimals: int = 0) -> str:
+    return f"{amount:,.{decimals}f}".replace(",", "'")
+
+
+@st.cache_data
+def regions_by_postcode() -> dict[str, list[dict]]:
+    """Postcode -> possible canton/region combinations (refresh_regions.py)."""
+    if not REGIONS_FILE.exists():
+        return {}
+    return json.loads(REGIONS_FILE.read_text(encoding="utf-8"))
+
+
+def age_group_for_age(age: int) -> str:
+    """The premium age class under the KVG.
+
+    For premiums the KVG knows exactly three classes (Art. 61 para. 3 KVG,
+    names per the BAG's "Erläuterungen zu den Prämiendaten"):
+
+        up to 18    Kinder             (AKA_01_KIN)
+        19 - 25     Junge Erwachsene   (AKA_02_JUG)
+        26 and up   Erwachsene         (AKA_03_ERW)
+
+    There is no class called "Jugendliche", and for premium purposes a
+    fourteen-year-old is a child - not only up to 12. Note that the step is by
+    year of birth, not by birthday (Art. 89 para. 3 KVV); this app simplifies
+    and works with the age.
+    """
+    if age <= 18:
+        return CHILDREN
+    if age <= 25:
+        return YOUNG_ADULTS
+    return ADULTS
+
+
+def choose_location(key: int, column=None) -> tuple[str, str, str] | None:
+    """Ask for the postcode and look up canton and premium region.
+
+    The premium region helps determine the premium, but hardly anyone knows
+    which one they live in - everyone knows their postcode. Roughly every
+    twelfth postcode does lie in more than one region or canton, though; in that
+    case the town is asked for as well, rather than silently taking the first.
+
+    Returns (canton, region, label) or None if nothing matches.
+    """
+    target = column if column is not None else st
+    mapping = regions_by_postcode()
+    if not mapping:
+        target.error(
+            "Die Zuordnung der Postleitzahlen fehlt. Einmalig erzeugen mit "
+            "`python refresh_regions.py`."
+        )
+        return None
+
+    postcode = target.text_input(
+        "Postleitzahl", value="8001", max_chars=4, key=f"postcode_{key}"
+    ).strip()
+    entries = mapping.get(postcode)
+    if not entries:
+        if postcode:
+            target.warning(f"Zur PLZ {postcode} ist keine Prämienregion bekannt.")
+        return None
+
+    variants = {(e["canton"], e["region"]) for e in entries}
+    if len(variants) > 1:
+        chosen = target.selectbox(
+            "Ortschaft",
+            entries,
+            format_func=lambda e: f"{e['town']} ({e['canton']}, Region {e['region']})",
+            key=f"town_{key}",
+            help="Diese Postleitzahl liegt in mehreren Prämienregionen.",
+        )
+    else:
+        chosen = entries[0]
+
+    return (
+        chosen["canton"],
+        f"PR-REG CH{chosen['region']}",
+        f"{postcode} {chosen['town']} ({chosen['canton']}, Region {chosen['region']})",
+    )
+
+
+def with_gap_to_cheapest(
+    table: pd.DataFrame, column: str, new_column: str
+) -> pd.DataFrame:
+    """Insert, right next to `column`, the gap to the cheapest offer.
+
+    The cheapest gets 0, every other one the surcharge against it. Only that
+    makes it visible whether a rank is a real lead or a rounding difference.
+    """
+    values = table[column]
+    table.insert(
+        table.columns.get_loc(column) + 1,
+        new_column,
+        (values - values.min()).round(2),
+    )
+    return table
