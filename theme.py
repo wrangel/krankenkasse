@@ -10,7 +10,7 @@ import streamlit as st
 def configure_page() -> None:
     """Call once per run, before anything else."""
     st.set_page_config(
-        page_title="Grundversicherung: die günstigste Prämie finden",
+        page_title="Grundversicherung: die günstigste Lösung für deine Situation",
         page_icon="🏥",
         layout="wide",
     )

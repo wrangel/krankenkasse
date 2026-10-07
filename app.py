@@ -1,4 +1,4 @@
-"""Grundversicherung: die günstigste Prämie finden - entry point.
+"""Grundversicherung: die günstigste Lösung für deine Situation - entry point.
 
 Only the sequence lives here: set up the page, load the data, collect the
 people, show each person's report, and the household total at the end. The
@@ -36,7 +36,7 @@ st.session_state.setdefault(
 
 raw = premiums(7)
 
-st.title("Grundversicherung: die günstigste Prämie finden")
+st.title("Grundversicherung: die günstigste Lösung für deine Situation")
 st.caption(
     "**Du sagst, was du im Jahr an Arztkosten erwartest. Die App rechnet den Rest** – "
     "Versicherer, Modell und Franchise mit den tiefsten Gesamtkosten, für jede Person "
