@@ -108,7 +108,7 @@ def person_view(
     right.metric("Gesamtkosten pro Jahr", f"{chf(at_expected.min())} CHF")
     st.caption(
         "Prämien plus Franchise und Selbstbehalt, beim **günstigsten verfügbaren "
-        "Angebot** – die Übersicht dazu steht weiter unten."
+        "Angebot** – die Übersicht dazu befindet sich weiter unten."
     )
 
     st.subheader("Kostenverlauf")
@@ -222,7 +222,7 @@ def person_view(
     # separate topics.
     parts = [
         f"Die **rote Linie** steht bei deinen erwarteten Krankheitskosten "
-        f"({chf(expected_costs)} CHF) – den Betrag trägst du oben ein. Fett "
+        f"({chf(expected_costs)} CHF); du kannst den Betrag oben anpassen. Fett "
         f"gezeichnet ist die dort günstigste Franchise."
     ]
     if r.tipping_point is None:
