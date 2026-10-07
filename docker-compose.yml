@@ -34,6 +34,21 @@ services:
       # This is what lets the BAG premium file survive a restart. Without the
       # volume every start costs about six seconds of parsing.
       - premium-cache:/app/.cache
+    # Resolve names directly instead of through Docker's embedded resolver.
+    #
+    # Measured on the NAS, inside the container: a raw TCP connection to
+    # 1.1.1.1:443 succeeded while gethostbyname() returned EAI_AGAIN. So the
+    # route out was fine and only name resolution was broken - 127.0.0.11
+    # could not reach whatever the NAS has configured upstream. Recreating the
+    # bridge did not help, which is what distinguishes this from the missing
+    # iptables FORWARD rules that abstractaltitudes used to hit.
+    #
+    # This app is worthless without the BAG, so it should not depend on the
+    # host's resolver configuration staying healthy.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+
     environment:
       # Otherwise Streamlit writes into a home directory the service user has
       # not got.

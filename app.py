@@ -40,7 +40,16 @@ configure_page()
 # thing drawn is already in the chosen language.
 language_picker()
 
-raw = premiums(7)
+# A visitor must not be shown a traceback with our file paths in it. The BAG
+# can be unreachable for reasons that are nobody's fault - and on the NAS it
+# was, when the container could route out but not resolve names. urllib's
+# URLError is an OSError, so this catches the network failures without
+# swallowing genuine bugs.
+try:
+    raw = premiums(7)
+except OSError:
+    st.error(t("error.data_unavailable"))
+    st.stop()
 
 # Put back what this browser had last time, before a single widget is drawn -
 # otherwise the form renders with defaults and then visibly rewrites itself.
