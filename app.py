@@ -41,7 +41,8 @@ st.caption(
     "**Du sagst, was du im Jahr an Arztkosten erwartest. Die App rechnet den Rest** – "
     "Versicherer, Modell und Franchise mit den tiefsten Gesamtkosten, für jede Person "
     "im Haushalt und beschränkt auf die Tarifmodelle, die für dich in Frage kommen. "
-    "Gerechnet wird aus den amtlichen Prämiendaten der **Grundversicherung**."
+    "Auch Geschwisterrabatte für mehrere Kinder sind berücksichtigt. Gerechnet wird "
+    "aus den amtlichen Prämiendaten der **Grundversicherung**."
 )
 
 # What "Gesamtkosten" means, before the first one is shown. The figures come
