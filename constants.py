@@ -147,6 +147,7 @@ REGIONS = {
 CONTACT_EMAIL = "contact@grundversicherungsrechner.anonaddy.com"
 REPO_URL = "https://github.com/wrangel/grundversicherungsrechner"
 OPENDATA_URL = "https://opendata.swiss/de/dataset/health-insurance-premiums"
+COFFEE_URL = "https://buymeacoffee.com/wrangel"
 # The premium comparison itself, not the homepage: someone following this link
 # wants the official figures, and landing on a front page makes them hunt.
 # The /de/ segment is language-specific and will need to follow the user's

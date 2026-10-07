@@ -16,6 +16,7 @@ from constants import (
     ADULTS,
     CHILD_SUBGROUPS,
     CHILDREN,
+    COFFEE_URL,
     CONTACT_EMAIL,
     DEFAULT_PERSON,
     OPENDATA_URL,
@@ -338,6 +339,15 @@ st.caption(
 # CONTACT_EMAIL in constants.py. Saying what the reply is *not* keeps the
 # expectation straight: this is a calculation tool, and an individual answer
 # about somebody's own policy would be the advice the page disclaims.
+# Kept to one quiet line, and placed after the explanation of why the app
+# exists rather than before it: the ask reads very differently once someone
+# knows it was built for one family and given away.
+st.caption(
+    f"Die App ist kostenlos, werbefrei und sammelt keine Daten. Wenn sie dir "
+    f"geholfen hat, kannst du mir [einen Kaffee ausgeben]({COFFEE_URL}) – "
+    f"nötig ist es nicht."
+)
+
 st.caption(
     f"**Fehler gefunden, Frage, Rückmeldung?** "
     f"[Schreib mir]({f'mailto:{CONTACT_EMAIL}'}) – gerne auch, wenn eine Zahl "
