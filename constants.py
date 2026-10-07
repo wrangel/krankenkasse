@@ -86,6 +86,10 @@ ADULTS = "AKL-ERW"
 YOUNG_ADULTS = "AKL-JUG"
 CHILDREN = "AKL-KIN"
 
+# German labels for the command line and the monitoring, which are developer
+# tools and not translated. Everything the web interface shows comes from
+# locales/ instead - see i18n.t and the age_class.* keys, which must agree with
+# these three words for German.
 AGE_CLASS_LABELS = {
     ADULTS: "Erwachsene",
     YOUNG_ADULTS: "Junge Erwachsene",
@@ -99,40 +103,24 @@ coinsurance_cap = {
     CHILDREN: 350,
 }
 
-# Age subgroups for children - the sibling discounts. The labels come from the
-# BAG tariff list (Tarife.xlsx on opendata.swiss, category ALT); they are
-# therefore officially documented rather than guessed. Note that K4 means the
-# discount from the SECOND child onwards, not the fourth.
-CHILD_SUBGROUPS = {
-    "K1": "ohne zusätzlichen Rabatt",
-    "K3": "Rabatt ab dem 3. Kind",
-    "K4": "Rabatt ab dem 2. Kind, gültig für alle Kinder",
-    "K5": "Rabatt ab dem 3. Kind, gültig für alle Kinder",
-}
+# Age subgroups for children - the sibling discounts. The codes come from the
+# BAG tariff list (Tarife.xlsx on opendata.swiss, category ALT); what each one
+# means is set out in calculation.child_tier_schemes. Codes only: anything
+# shown to a person lives in locales/.
+CHILD_SUBGROUPS = ("K1", "K3", "K4", "K5")
 
 # Default: the standard tier only, which every insurer carries unconditionally.
 CHILD_SUBGROUPS_DEFAULT = ("K1",)
 
-# Tariff types from premium year 2027 on. This is not a mere rename: up to 2026
-# there were TAR-BASE, TAR-HAM, TAR-HMO and TAR-DIV, now there are five
-# differently cut categories (per the BAG's "Erläuterungen zu den
-# Prämiendaten"). An old -> new mapping would be guesswork and is omitted.
-TARIFF_TYPES = {
-    "BASE": "Standardmodell (freie Arztwahl)",
-    "PRAXIS": "Praxis- und Hausarztmodelle",
-    "FLEX": "Flexible Modelle",
-    "TEL_DIG": "Telemedizin und digitale Modelle",
-    "PHARM": "Apothekenmodelle",
-}
-
-# Short forms for tables where the full names are too wide.
-TARIFF_TYPES_SHORT = {
-    "BASE": "Standard",
-    "PRAXIS": "Praxis",
-    "FLEX": "Flex",
-    "TEL_DIG": "Telemed",
-    "PHARM": "Apotheke",
-}
+# Tariff types from premium year 2027 on, in the order they are offered. This
+# is not a mere rename of the old TAR-BASE / TAR-HAM / TAR-HMO / TAR-DIV: they
+# are five differently cut categories (per the BAG's "Erläuterungen zu den
+# Prämiendaten"), and an old -> new mapping would be guesswork.
+#
+# The list is the full vocabulary. What a visitor is actually offered comes
+# from calculation.available_tariff_types, because a category can be defined
+# and shipped empty - PHARM is, in 2027.
+TARIFF_TYPES = ("BASE", "PRAXIS", "FLEX", "TEL_DIG", "PHARM")
 
 REGIONS = {
     "PR-REG CH0": "Region 0",
@@ -142,10 +130,11 @@ REGIONS = {
 }
 
 # Contact and provenance, shown in the footer and used in the README and
-# SECURITY.md. The address is an alias (addy.io), never the real mailbox - the
-# same arrangement as abstractaltitudes. If it ever gets harvested it can be
-# switched off without changing the real address.
-CONTACT_EMAIL = "contact@grundversicherungsrechner.anonaddy.com"
+# SECURITY.md. The address is an addy.io alias, never the real mailbox, so it
+# can be switched off if it is ever harvested. It is the same alias
+# abstractaltitudes uses: one alias covering both projects, rather than a new
+# addy.io username per project.
+CONTACT_EMAIL = "contact@abstractaltitudes.anonaddy.com"
 REPO_URL = "https://github.com/wrangel/grundversicherungsrechner"
 OPENDATA_URL = "https://opendata.swiss/de/dataset/health-insurance-premiums"
 COFFEE_URL = "https://buymeacoffee.com/wrangel"

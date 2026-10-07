@@ -31,12 +31,38 @@ import streamlit as st
 from streamlit_js_eval import streamlit_js_eval
 
 from constants import DEFAULT_PERSON, DEFAULT_POSTCODE
+from i18n import FALLBACK, current_language, set_language
 
 STORAGE_KEY = "grundversicherungsrechner.inputs.v1"
 
 # Only what the visitor typed. Deliberately not the computed results: those are
 # cheap to recompute and would go stale against new premium data.
 _PERSON_FIELDS = ("id", "age", "accident", "costs")
+
+# What a stored person has to look like to be trusted. The JSON being
+# well-formed says nothing about its contents: a payload written by an older
+# version of this app is perfectly valid JSON and can still carry a value the
+# current code will never understand. That happened during development, when a
+# half-finished change wrote the accident cover as the German word "ohne"
+# instead of the code OHN-UNF - and the form then restored it without a
+# murmur. Anything that fails these checks is dropped and the defaults apply.
+_ACCIDENT_VALUES = {"MIT-UNF", "OHN-UNF"}
+
+
+def _valid_person(person: object) -> bool:
+    if not isinstance(person, dict):
+        return False
+    try:
+        person_id, age, costs = person["id"], person["age"], person["costs"]
+        accident = person["accident"]
+    except (KeyError, TypeError):
+        return False
+    return (
+        isinstance(person_id, int) and person_id > 0
+        and isinstance(age, int) and 0 <= age <= 120
+        and isinstance(costs, int) and 0 <= costs <= 10_000_000
+        and accident in _ACCIDENT_VALUES
+    )
 
 _RESTORED = "_restore_done"
 _PENDING = "_restore_pending"
@@ -62,6 +88,7 @@ def _collect() -> dict:
             {k: p[k] for k in _PERSON_FIELDS if k in p} for p in people
         ],
         "widgets": widgets,
+        "language": current_language(),
     }
 
 
@@ -88,8 +115,14 @@ def restore(offered_tariff_types: list[str]) -> bool:
 
     try:
         data = json.loads(stored)
+        # The language is restored even if the rest turns out unusable: it is
+        # the one choice that should survive regardless.
+        if isinstance(data, dict) and data.get("language"):
+            set_language(data["language"])
         people = data["people"]
         assert isinstance(people, list) and people
+        assert all(_valid_person(p) for p in people)
+        assert len({p["id"] for p in people}) == len(people)
     except (ValueError, KeyError, AssertionError, TypeError):
         # Written by an older version, hand-edited, or truncated. Not worth a
         # message to the visitor - they simply get the defaults.
@@ -103,7 +136,12 @@ def restore(offered_tariff_types: list[str]) -> bool:
         person_id = key.rsplit("_", 1)[-1]
         if not person_id.isdigit() or int(person_id) not in valid_ids:
             continue
+        if key.startswith("postcode_"):
+            if not (isinstance(value, str) and value.isdigit() and len(value) == 4):
+                continue
         if key.startswith("models_"):
+            if not isinstance(value, list):
+                continue
             # A tariff category can disappear between visits - PHARM did. A
             # multiselect raises if its default is not among the options.
             value = [t for t in value if t in offered_tariff_types]
@@ -121,6 +159,8 @@ def _is_pristine(data: dict, offered_tariff_types: list[str]) -> bool:
     after a button that promises nothing will be. A visitor who has typed
     nothing also gets nothing stored.
     """
+    if data.get("language", FALLBACK) != FALLBACK:
+        return False  # a chosen language is worth remembering on its own
     if data["people"] != [DEFAULT_PERSON]:
         return False
     person_id = DEFAULT_PERSON["id"]

@@ -131,6 +131,26 @@ has touched is not stored at all, and *Eingaben vergessen* at the foot of the
 page deletes it. See [SECURITY.md](.github/SECURITY.md) for why cookies and
 query parameters were both rejected.
 
+The interface is available in German, French, Italian and English, chosen at
+the top of the page and remembered with the rest of your entries. The
+catalogues are one JSON file per language in [`locales/`](locales), flat dotted
+keys; German is the fallback, so a key missing from another language shows the
+German text rather than a gap.
+
+Two things are deliberately not translated. Insurer names and tariff names come
+from the BAG file in German and have no other source — a French page will still
+say *Sanitas Grundversicherungen AG — TelMed Basic*. And the DataFrame column
+names stay German, because they are what lands in the CSV exports: an export
+whose columns are named differently depending on the reader's interface
+language cannot be compared with a colleague's. Only the header shown on screen
+is translated, through `common.header`.
+
+Romansh is absent on purpose. The BAG publishes no Romansh source text, the
+written standard is contested (Rumantsch Grischun against the five idioms), and
+a visibly machine-translated page about money and health would serve Romansh
+speakers worse than the German one they can already read. The layer is ready if
+a translator is ever found.
+
 ### Command line
 
 ```bash
@@ -405,7 +425,7 @@ The tool is a calculation aid and not financial or insurance advice.
 ## Contact
 
 Questions, corrections, or a number that looks wrong:
-[contact@grundversicherungsrechner.anonaddy.com](mailto:contact@grundversicherungsrechner.anonaddy.com)
+[contact@abstractaltitudes.anonaddy.com](mailto:contact@abstractaltitudes.anonaddy.com)
 
 Corrections are genuinely welcome — the whole point of computing from the
 official data is that an error is findable. What this address is not is

@@ -3,8 +3,9 @@
 import pandas as pd
 import streamlit as st
 
-from common import chf
-from constants import AGE_CLASS_LABELS, CHILDREN
+from common import chf, header
+from constants import CHILDREN
+from i18n import t
 
 
 def household_total(
@@ -27,24 +28,18 @@ def household_total(
     premiums = sum(r["annual_premium"] for r in results)
 
     st.markdown("---")
-    st.header("Gesamtkosten des Haushalts")
+    st.header(t("household.heading"))
 
     columns = st.columns(3)
-    columns[0].metric("Pro Jahr", f"{chf(total)} CHF")
-    columns[1].metric("Pro Monat", f"{chf(total / 12, 2)} CHF")
-    columns[2].metric("Personen", str(len(results)))
-    st.caption(
-        f"Summe über alle Personen: Prämien ({chf(premiums)} CHF) plus Franchise und "
-        f"Selbstbehalt bei den jeweils angegebenen Krankheitskosten, je zum "
-        f"günstigsten Angebot."
-    )
+    columns[0].metric(t("household.per_year"), f"{chf(total)} CHF")
+    columns[1].metric(t("household.per_month"), f"{chf(total / 12, 2)} CHF")
+    columns[2].metric(t("household.people"), str(len(results)))
+    st.caption(t("household.caption", premiums=chf(premiums)))
 
     if shared and shared.get("unknown_tiers"):
         st.warning(
-            f"Die Prämiendaten führen für Kinder die Tarifstufe(n) "
-            f"**{', '.join(shared['unknown_tiers'])}**, deren Bedingungen "
-            f"hier nicht bekannt sind. Sie bleiben in der Rechnung unberücksichtigt – "
-            f"der Geschwisterrabatt könnte also höher ausfallen als unten gezeigt."
+            t("household.unknown_tiers",
+              tiers=", ".join(shared["unknown_tiers"]))
         )
 
     if shared:
@@ -52,24 +47,18 @@ def household_total(
         tiers = ", ".join(c["tier"] for c in shared["per_child"])
         if saving > 0:
             st.info(
-                f"**Geschwisterrabatt: {chf(saving)} CHF pro Jahr – aber nur bei "
-                f"einem gemeinsamen Versicherer.**\n\n"
-                f"- Jedes Kind einzeln beim für es günstigsten Anbieter, ohne "
-                f"Rabatt: **{chf(children_separately)} CHF**\n"
-                f"- Alle {child_count} Kinder bei **{shared['insurer']} – "
-                f"{shared['tariff']}**, Tarifstufen {tiers}: "
-                f"**{chf(shared['total'])} CHF**\n\n"
-                f"K3, K4 und K5 gelten nur für Kinder derselben Familie beim "
-                f"gleichen Versicherer. Rabatt und freie Wahl pro Kind schliessen "
-                f"sich also aus. Oben eingerechnet ist die günstigere Variante.",
+                t("household.sibling_discount",
+                  saving=chf(saving), separate=chf(children_separately),
+                  count=child_count, insurer=shared["insurer"],
+                  tariff=shared["tariff"], tiers=tiers,
+                  total=chf(shared["total"])),
                 icon="👪",
             )
         else:
             st.info(
-                f"**Ein gemeinsamer Versicherer für die Kinder lohnt sich hier "
-                f"nicht.** Jedes Kind einzeln zum günstigsten Anbieter kostet "
-                f"{chf(children_separately)} CHF, alle zusammen bei "
-                f"{shared['insurer']} {chf(shared['total'])} CHF.",
+                t("household.sibling_not_worth",
+                  separate=chf(children_separately), insurer=shared["insurer"],
+                  total=chf(shared["total"])),
                 icon="👪",
             )
 
@@ -79,7 +68,7 @@ def household_total(
                 # Number and age class kept apart: "1. Erwachsene" reads like a
                 # female person, whereas the class is what is meant.
                 "Nr.": i,
-                "Altersklasse": AGE_CLASS_LABELS[r["age_group"]],
+                "Altersklasse": t(f'age_class.{r["age_group"]}'),
                 "Ort": r["town"],
                 "Franchise": r["deductible"],
                 "Versicherer": r["insurer"],
@@ -95,10 +84,20 @@ def household_total(
         hide_index=True,
         width="stretch",
         column_config={
-            "Nr.": st.column_config.NumberColumn(format="%d", width="small"),
-            "Franchise": st.column_config.NumberColumn(format="%d", width="small"),
-            "Kosten/Jahr": st.column_config.NumberColumn(format="%.0f", width="small"),
-            "Kosten/Monat": st.column_config.NumberColumn(format="%.2f", width="small"),
+            "Nr.": header("Nr.", kind=st.column_config.NumberColumn,
+                          format="%d", width="small"),
+            "Altersklasse": header("Altersklasse"),
+            "Ort": header("Ort"),
+            "Franchise": header("Franchise", kind=st.column_config.NumberColumn,
+                                format="%d", width="small"),
+            "Versicherer": header("Versicherer"),
+            "Tarif": header("Tarif"),
+            "Kosten/Jahr": header("Kosten/Jahr",
+                                  kind=st.column_config.NumberColumn,
+                                  format="%.0f", width="small"),
+            "Kosten/Monat": header("Kosten/Monat",
+                                   kind=st.column_config.NumberColumn,
+                                   format="%.2f", width="small"),
         },
     )
 
@@ -107,7 +106,7 @@ def household_total(
     total_row = pd.DataFrame(
         [{
             "Nr.": None,
-            "Altersklasse": "Total",
+            "Altersklasse": t("household.total_row"),
             "Ort": "",
             "Franchise": None,
             "Versicherer": "",
@@ -117,7 +116,7 @@ def household_total(
         }]
     )
     st.download_button(
-        "Haushalt als CSV",
+        t("household.csv_button"),
         pd.concat([overview, total_row], ignore_index=True)
         .to_csv(index=False)
         .encode("utf-8"),
@@ -126,9 +125,4 @@ def household_total(
     )
 
     if child_count >= 2:
-        st.caption(
-            "Zusätzlich begrenzt Art. 93 Abs. 3 KVV die Kostenbeteiligung aller "
-            "Kinder beim gleichen Versicherer auf das Zweifache des Höchstbetrages "
-            "je Kind – diese Deckelung ist oben **nicht** berücksichtigt, die reale "
-            "Belastung kann also tiefer ausfallen."
-        )
+        st.caption(t("household.family_cap_note"))

@@ -6,11 +6,13 @@ rules that override Streamlit's defaults.
 
 import streamlit as st
 
+from i18n import t
+
 
 def configure_page() -> None:
     """Call once per run, before anything else."""
     st.set_page_config(
-        page_title="Grundversicherung: die günstigste Lösung für deine Situation",
+        page_title=t("title"),
         page_icon="🏥",
         layout="wide",
     )
@@ -21,6 +23,31 @@ def configure_page() -> None:
     st.markdown(
         """
         <style>
+          /* One text size for the whole page.
+             Streamlit renders st.caption at 0.875rem and markdown at 1rem, so
+             the explanatory paragraphs - which carry most of the meaning here -
+             came out visibly smaller than the info box right beneath them. The
+             captions are not asides; they are the text. Same size, and a little
+             more contrast than the default muted grey so a long paragraph is
+             comfortable rather than merely legible. */
+          [data-testid="stCaptionContainer"],
+          [data-testid="stCaptionContainer"] p,
+          [data-testid="stCaptionContainer"] li {
+              font-size: 1rem !important;
+              line-height: 1.65 !important;
+              color: rgba(250, 250, 250, 0.78) !important;
+          }
+          [data-testid="stMarkdownContainer"] p,
+          [data-testid="stMarkdownContainer"] li {
+              font-size: 1rem;
+              line-height: 1.65;
+          }
+          /* The title was set against a 0.875rem body; at a full-size body it
+             overpowers the page. */
+          h1 { font-size: 2.1rem !important; line-height: 1.25 !important; }
+          h2 { font-size: 1.6rem !important; }
+          h3 { font-size: 1.25rem !important; }
+
           [data-testid="stMultiSelectTagsContainer"] span[data-tag] {
               background-color: rgba(250, 250, 250, 0.14) !important;
               color: inherit !important;

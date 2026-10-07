@@ -14,12 +14,18 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from common import age_group_for_age, chf, choose_location, with_gap_to_cheapest
+from common import (
+    age_group_for_age,
+    chf,
+    choose_location,
+    header,
+    with_gap_to_cheapest,
+)
+from i18n import t
 from constants import (
     ADULTS,
     CHILD_SUBGROUPS,
     TARIFF_TYPES,
-    TARIFF_TYPES_SHORT,
     coinsurance_cap,
     coinsurance_rate,
     min_cost_range,
@@ -91,7 +97,7 @@ def person_view(
     )
     cheapest = cheapest_premiums(data)
     if cheapest.empty:
-        st.warning("Für diese Auswahl gibt es keine Prämien.")
+        st.warning(t("warn.no_premiums"))
         return None
 
     # The computation always covers a range that includes the costs entered -
@@ -100,7 +106,7 @@ def person_view(
     cost_range = max(min_cost_range, int(expected_costs) + 2000)
     results = compute_tipping_point(cheapest, environmental_rebate, cost_range)
     if not results:
-        st.warning("Für diese Auswahl lässt sich nichts berechnen.")
+        st.warning(t("warn.nothing_to_compute"))
         return None
     r = results[0]
 
@@ -109,26 +115,23 @@ def person_view(
     at_expected = r.costs.loc[expected_costs]
     best_deductible = int(at_expected.idxmin())
     left, right = st.columns(2)
-    left.metric("Günstigste Franchise", f"{best_deductible} CHF")
-    right.metric("Gesamtkosten pro Jahr", f"{chf(at_expected.min())} CHF")
-    st.caption(
-        "Prämien plus Franchise und Selbstbehalt, beim **günstigsten verfügbaren "
-        "Angebot** – die Übersicht dazu befindet sich weiter unten."
-    )
+    left.metric(t("metric.cheapest_deductible"), f"{best_deductible} CHF")
+    right.metric(t("metric.total_per_year"), f"{chf(at_expected.min())} CHF")
+    st.caption(t("metric.caption"))
 
-    st.subheader("Kostenverlauf")
+    st.subheader(t("chart.heading"))
     curves = r.costs.reset_index().melt(
         id_vars="Krankheitskosten", var_name="Franchise", value_name="Jahreskosten"
     )
     dominated = set(r.never_optimal)
     curves["Rolle"] = [
-        "nie optimal" if d in dominated else "kommt in Frage"
+        t("chart.role_never") if d in dominated else t("chart.role_relevant")
         for d in curves["Franchise"]
     ]
     # The deductible that is cheapest at the current costs is drawn in bold - so
     # you can see at a glance which curve is yours.
     curves["Auswahl"] = [
-        "günstigste Wahl" if d == best_deductible else "andere"
+        t("chart.choice_best") if d == best_deductible else t("chart.choice_other")
         for d in curves["Franchise"]
     ]
     curves["Franchise"] = curves["Franchise"].astype(str)
@@ -171,22 +174,26 @@ def person_view(
         alt.Chart(curves)
         .mark_line()
         .encode(
-            x=alt.X("Krankheitskosten:Q", title="Jährliche Krankheitskosten (CHF)"),
+            x=alt.X("Krankheitskosten:Q", title=t("chart.x_axis")),
             y=alt.Y(
                 "Jahreskosten:Q",
-                title="Gesamtkosten pro Jahr (CHF)",
+                title=t("chart.y_axis"),
                 scale=alt.Scale(zero=False),
             ),
             color=alt.Color("Franchise:N", sort=None, title="Franchise"),
             strokeWidth=alt.StrokeWidth(
                 "Auswahl:N",
-                scale=alt.Scale(domain=["günstigste Wahl", "andere"], range=[4, 1.5]),
-                legend=alt.Legend(title="bei deinen Kosten"),
+                scale=alt.Scale(
+                    domain=[t("chart.choice_best"), t("chart.choice_other")],
+                    range=[4, 1.5],
+                ),
+                legend=alt.Legend(title=t("chart.legend_choice")),
             ),
             opacity=alt.Opacity(
                 "Rolle:N",
                 scale=alt.Scale(
-                    domain=["kommt in Frage", "nie optimal"], range=[1.0, 0.3]
+                    domain=[t("chart.role_relevant"), t("chart.role_never")],
+                    range=[1.0, 0.3],
                 ),
                 legend=None,
             ),
@@ -206,7 +213,7 @@ def person_view(
             .encode(x="k:Q")
         )
     here = pd.DataFrame(
-        {"k": [expected_costs], "beschriftung": ["Deine erwarteten Krankheitskosten"]}
+        {"k": [expected_costs], "beschriftung": [t("chart.your_costs")]}
     )
     chart += alt.Chart(here).mark_rule(color="#ff4b4b", size=3).encode(x="k:Q")
     chart += (
@@ -225,47 +232,36 @@ def person_view(
     # One caption instead of two: both explained the same picture - the vertical
     # lines and the faded curves - and two paragraphs in a row read like two
     # separate topics.
-    parts = [
-        f"Die **rote Linie** steht bei deinen erwarteten Krankheitskosten "
-        f"({chf(expected_costs)} CHF); du kannst den Betrag oben anpassen. Fett "
-        f"gezeichnet ist die dort günstigste Franchise."
-    ]
+    parts = [t("chart.cap_red_line", amount=chf(expected_costs))]
     if r.tipping_point is None:
-        parts.append(
-            f"Die tiefste Franchise ({r.lowest_deductible} CHF) lohnt sich im "
-            f"gezeigten Bereich nie."
-        )
+        parts.append(t("chart.cap_no_tipping", deductible=r.lowest_deductible))
     else:
         parts.append(
-            f"Die **grau gestrichelte Linie** ist der Kipppunkt\\*: Ab "
-            f"**{chf(r.tipping_point)} CHF** lohnt sich die Franchise "
-            f"{r.lowest_deductible} CHF, darunter die Franchise "
-            f"{r.segments.iloc[0]['Franchise']} CHF. Zwischen bester und schlechtester "
-            f"Franchise liegen bis zu **{chf(r.max_spread)} CHF pro Jahr**."
+            t(
+                "chart.cap_tipping",
+                tipping=chf(r.tipping_point),
+                low=r.lowest_deductible,
+                other=r.segments.iloc[0]["Franchise"],
+                spread=chf(r.max_spread),
+            )
         )
         if expected_costs > r.tipping_point:
-            parts.append(
-                "Oberhalb des Kipppunkts ändert sich die Empfehlung nicht mehr – "
-                "egal wie hoch die Kosten steigen."
-            )
+            parts.append(t("chart.cap_above_tipping"))
     if r.never_optimal:
         winners = sorted(set(r.optimal))
         parts.append(
-            f"Nur die Franchisen "
-            f"**{' und '.join(f'{w} CHF' for w in winners)}** sind hier je die "
-            f"günstigste Wahl; die blass gezeichneten Stufen "
-            f"{', '.join(str(d) for d in r.never_optimal)} CHF sind bei *keinen* "
-            f"Krankheitskosten optimal."
+            t(
+                "chart.cap_never_optimal",
+                winners=t("chart.and").join(f"{w} CHF" for w in winners),
+                never=", ".join(str(d) for d in r.never_optimal),
+            )
         )
     else:
-        parts.append(
-            "In diesen Daten ist jede Franchisenstufe irgendwo die günstigste – "
-            "sonst gewinnen nur die höchste und die tiefste."
-        )
+        parts.append(t("chart.cap_all_optimal"))
     st.caption(" ".join(parts))
 
     # ------------------------------- Deductibles compared at the given costs
-    st.subheader("Kosten pro Franchise")
+    st.subheader(t("table.costs_per_deductible"))
     comparison = (
         at_expected.rename("Kosten/Jahr")
         .reset_index()
@@ -283,26 +279,22 @@ def person_view(
         hide_index=True,
         width="stretch",
         column_config={
-            "Franchise": st.column_config.NumberColumn(format="%d", width="small"),
-            "Kosten/Jahr": st.column_config.NumberColumn(format="%.0f", width="small"),
-            "Mehrkosten/Jahr": st.column_config.NumberColumn(
-                format="%.0f", width="small"
-            ),
-            "Kosten/Monat": st.column_config.NumberColumn(format="%.2f", width="small"),
-            "Mehrkosten/Monat": st.column_config.NumberColumn(
-                format="%.2f", width="small"
-            ),
+            c: header(c, kind=st.column_config.NumberColumn, format=f, width="small")
+            for c, f in [
+                ("Franchise", "%d"),
+                ("Kosten/Jahr", "%.0f"),
+                ("Mehrkosten/Jahr", "%.0f"),
+                ("Kosten/Monat", "%.2f"),
+                ("Mehrkosten/Monat", "%.2f"),
+            ]
         },
     )
 
     group_data = data[data["Zielgruppe"] == age_group]
 
     # ----------------------- The best offers for the deductible that applies
-    st.subheader(f"Die günstigsten Angebote für Franchise {best_deductible} CHF")
-    st.caption(
-        f"Das ist die Franchise, die bei {chf(expected_costs)} CHF Krankheitskosten "
-        f"am günstigsten kommt. Sortiert nach Prämie, die sieben günstigsten."
-    )
+    st.subheader(t("offers.heading", deductible=best_deductible))
+    st.caption(t("offers.caption", costs=chf(expected_costs)))
     # The full ranking for this deductible - seven are shown, but today's
     # contract should appear even when it sits further down. Otherwise you only
     # see what is on offer, never where you stand.
@@ -331,7 +323,7 @@ def person_view(
         ["Rang", "Versicherername", "Tarifbezeichnung", "Tariftyp", "Prämie"]
     ].reset_index(drop=True)
     if offers.empty:
-        st.info("Für diese Franchise gibt es keine Angebote.")
+        st.info(t("offers.none"))
     else:
         offers = offers.rename(
             columns={
@@ -343,13 +335,13 @@ def person_view(
         offers["Prämie/Jahr"] = (offers["Prämie"] * 12).round(0)
         offers = with_gap_to_cheapest(offers, "Prämie/Jahr", "Mehrkosten/Jahr")
         offers["Prämie/Monat"] = offers["Prämie"].round(2)
-        offers["Typ"] = offers["Typ"].map(TARIFF_TYPES_SHORT)
+        offers["Typ"] = offers["Typ"].map(lambda c: t(f"tariff_short.{c}"))
         columns = ["Rang", "Versicherer", "Tarif", "Typ", "Prämie/Jahr",
                    "Mehrkosten/Jahr", "Prämie/Monat"]
         # Only create the marker column when there is something to mark -
         # otherwise an empty column sits there asking what it is missing.
         marker = [
-            "◀ jetziger Versicherer"
+            t("offers.current_marker")
             if current and i == current[0] and t == current[1]
             else ""
             for i, t in zip(shown["Versicherername"], shown["Tarifbezeichnung"])
@@ -364,43 +356,45 @@ def person_view(
             hide_index=True,
             width="stretch",
             column_config={
-                "Rang": st.column_config.NumberColumn(format="%d", width="small"),
-                "Versicherer": st.column_config.TextColumn(width="medium"),
-                "Tarif": st.column_config.TextColumn(width="small"),
-                "Typ": st.column_config.TextColumn(width="small"),
-                "Prämie/Jahr": st.column_config.NumberColumn(
-                    format="%.0f", width="small"
-                ),
-                "Mehrkosten/Jahr": st.column_config.NumberColumn(
-                    format="%.0f", width="small"
-                ),
-                "Prämie/Monat": st.column_config.NumberColumn(
-                    format="%.2f", width="small"
-                ),
-                "": st.column_config.TextColumn(width="medium"),
+                "Rang": header("Rang", kind=st.column_config.NumberColumn,
+                               format="%d", width="small"),
+                "Versicherer": header("Versicherer",
+                                      kind=st.column_config.TextColumn,
+                                      width="medium"),
+                "Tarif": header("Tarif", kind=st.column_config.TextColumn,
+                                width="small"),
+                "Typ": header("Typ", kind=st.column_config.TextColumn,
+                              width="small"),
+                "Prämie/Jahr": header("Prämie/Jahr",
+                                      kind=st.column_config.NumberColumn,
+                                      format="%.0f", width="small"),
+                "Mehrkosten/Jahr": header("Mehrkosten/Jahr",
+                                          kind=st.column_config.NumberColumn,
+                                          format="%.0f", width="small"),
+                "Prämie/Monat": header("Prämie/Monat",
+                                       kind=st.column_config.NumberColumn,
+                                       format="%.2f", width="small"),
+                "": st.column_config.TextColumn("", width="medium"),
             },
         )
 
         if current and current_rank is None:
             st.caption(
-                f"**{current[0]} – {current[1]}** führt für die Franchise "
-                f"{best_deductible} CHF kein Angebot, das zu den gewählten "
-                f"Tarifmodellen passt."
+                t("offers.current_missing", insurer=current[0],
+                  tariff=current[1], deductible=best_deductible)
             )
         elif current_rank == 1:
             st.success(
-                f"Du hast auch {premium_year} den günstigsten Anbieter für dieses "
-                f"Szenario: **{current[0]} – {current[1]}**. Ein Wechsel würde nichts "
-                f"sparen."
+                t("offers.current_best", year=premium_year,
+                  insurer=current[0], tariff=current[1])
             )
         elif current_rank is not None:
             extra = (
                 float(current_row["Prämie"]) - float(ranking.iloc[0]["Prämie"])
             ) * 12
             st.info(
-                f"Dein heutiger Vertrag **{current[0]} – {current[1]}** liegt auf Rang "
-                f"{current_rank} von {len(ranking)}. Der günstigste Anbieter für "
-                f"dieses Szenario kostet **{chf(extra)} CHF pro Jahr weniger**."
+                t("offers.current_rank", insurer=current[0], tariff=current[1],
+                  rank=current_rank, total=len(ranking), saving=chf(extra))
             )
 
         free_choice = group_data[
@@ -409,22 +403,19 @@ def person_view(
         ]
         # offers carries the short form in the column "Typ"; group_data still
         # holds the raw value in "Tariftyp".
-        if not free_choice.empty and offers["Typ"].iloc[0] != TARIFF_TYPES_SHORT["BASE"]:
+        if not free_choice.empty and offers["Typ"].iloc[0] != t("tariff_short.BASE"):
             cheapest_monthly = float(offers["Prämie/Monat"].iloc[0])
             free_monthly = float(free_choice["Prämie"].min())
             # Only the number gets the Swiss thousands separator - a replace on
             # the whole sentence would also swap out the commas in the text.
             surcharge_year = chf((free_monthly - cheapest_monthly) * 12)
             st.caption(
-                f"Das günstigste Angebot ist ein Modell mit **eingeschränkter "
-                f"Arztwahl**. Das günstigste Standardmodell mit freier Arztwahl kostet "
-                f"**{surcharge_year} CHF pro Jahr mehr** ({free_monthly:.2f} statt "
-                f"{cheapest_monthly:.2f} CHF im Monat). Ob die Einschränkung das wert "
-                f"ist, bewertet dieses Werkzeug nicht."
+                t("offers.restricted_choice", surcharge=surcharge_year,
+                  free=f"{free_monthly:.2f}", cheapest=f"{cheapest_monthly:.2f}")
             )
 
     st.download_button(
-        "Kostenmatrix als CSV",
+        t("download.cost_matrix"),
         r.costs.to_csv().encode("utf-8"),
         # The code, not the label: a download name should not change
         # when the interface language does.
@@ -479,41 +470,37 @@ def person_form(person: dict, person_count: int, raw) -> dict | None:
     location = choose_location(person_id, top[0])
 
     age = top[1].number_input(
-        "Alter", min_value=0, max_value=120, value=int(person["age"]), step=1,
+        t("form.age"), min_value=0, max_value=120, value=int(person["age"]), step=1,
         key=f"age_{person_id}",
     )
     age_group = age_group_for_age(int(age))
 
     accident = top[2].radio(
-        "Unfalldeckung",
+        t("form.accident"),
         ["MIT-UNF", "OHN-UNF"],
         index=1 if age_group == ADULTS else 0,
-        format_func=lambda a: "mit" if a == "MIT-UNF" else "ohne",
+        format_func=lambda a: t("form.accident_with") if a == "MIT-UNF" else t("form.accident_without"),
         horizontal=True,
         key=f"accident_{person_id}",
-        help="Wer mindestens acht Stunden pro Woche bei demselben Arbeitgeber "
-        "arbeitet, ist dort gegen Unfall versichert.",
+        help=t("form.accident_help"),
     )
 
     costs_key = f"costs_{person_id}"
     st.session_state.setdefault(costs_key, int(person["costs"]))
     costs = top[3].number_input(
-        "Erwartete Krankheitskosten pro Jahr (CHF)",
+        t("form.expected_costs"),
         min_value=0, step=100, key=costs_key,
-        help="Der wichtigste Wert neben dem Alter. Arztbesuche, Medikamente, "
-        "Therapien – alles, was über die Grundversicherung läuft.",
+        help=t("form.expected_costs_help"),
     )
 
     offered = available_tariff_types(raw)
     tariff_types = st.multiselect(
-        "Tarifmodelle",
+        t("form.tariff_models"),
         offered,
         default=offered,
-        format_func=lambda m: TARIFF_TYPES[m],
+        format_func=lambda m: t(f"tariff.{m}"),
         key=f"models_{person_id}",
-        help="Das Standardmodell lässt die Arztwahl frei; die übrigen schränken sie "
-        "ein und sind dafür günstiger. Angeboten werden nur die Kategorien, die in "
-        "den Prämiendaten auch wirklich vorkommen – siehe † unten auf der Seite.",
+        help=t("form.tariff_models_help"),
     )
 
     # Today's contract - so the evaluation can say whether switching is worth it
@@ -526,30 +513,28 @@ def person_form(person: dict, person_count: int, raw) -> dict | None:
         if available:
             today = st.columns(2)
             current_insurer = today[0].selectbox(
-                "Jetziger Versicherer",
+                t("form.current_insurer"),
                 [None, *available],
-                format_func=lambda v: "– noch keiner / unbekannt –" if v is None else v,
+                format_func=lambda v: t("form.current_insurer_none") if v is None else v,
                 key=f"current_insurer_{person_id}",
-                help="Optional. Damit zeigt die Tabelle unten, auf welchem Rang dein "
-                "heutiger Vertrag liegt.",
+                help=t("form.current_insurer_help"),
             )
             if current_insurer:
                 models = available[current_insurer]
                 current_model = today[1].selectbox(
-                    "Jetziges Modell", models, key=f"current_model_{person_id}"
+                    t("form.current_model"), models,
+                    key=f"current_model_{person_id}",
                 )
 
     if location is None:
-        st.warning(
-            "Ohne gültige Postleitzahl lässt sich für diese Person nichts rechnen."
-        )
+        st.warning(t("form.no_postcode_warning"))
 
     # The delete button used to sit in the same row as the tariff models, right
     # next to their own delete and expand icons - a misclick there removes the
     # whole person without asking. It now stands on its own, bottom right.
     if person_count > 1:
         _, bottom_right = st.columns([5, 1])
-        if bottom_right.button("Person entfernen", key=f"remove_{person_id}"):
+        if bottom_right.button(t("form.remove_person"), key=f"remove_{person_id}"):
             st.session_state["people"] = [
                 p for p in st.session_state["people"] if p["id"] != person_id
             ]

@@ -16,7 +16,7 @@ That opens a private advisory visible only to me, so the problem can be fixed
 before it is described anywhere public.
 
 If you would rather not use GitHub, email
-`contact@grundversicherungsrechner.anonaddy.com` with "security" in the
+`contact@abstractaltitudes.anonaddy.com` with "security" in the
 subject.
 
 ## What this application holds

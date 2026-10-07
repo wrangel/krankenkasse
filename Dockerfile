@@ -23,10 +23,11 @@ COPY --from=build /install /usr/local
 
 # Only what is needed at runtime. Tests, check scripts and the tools for
 # refreshing the reference data do not belong in the image.
-COPY app.py common.py theme.py persistence.py ./
+COPY app.py common.py theme.py persistence.py i18n.py ./
 COPY view_person.py view_household.py ./
 COPY calculation.py constants.py main.py ./
 COPY data/insurers.json data/premium_regions.json ./data/
+COPY locales/ ./locales/
 
 # The BAG premium file is fetched on first use and stored here. Mounted as a
 # volume it survives a container restart - otherwise every start costs the six
