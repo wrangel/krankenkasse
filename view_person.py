@@ -500,6 +500,7 @@ def person_form(person: dict, person_count: int, raw) -> dict | None:
         default=offered,
         format_func=lambda m: t(f"tariff.{m}"),
         key=f"models_{person_id}",
+        placeholder=t("form.tariff_models_placeholder"),
         help=t("form.tariff_models_help"),
     )
 

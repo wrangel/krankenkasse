@@ -19,6 +19,8 @@ from constants import (
     CHILDREN,
     COFFEE_URL,
     CONTACT_EMAIL,
+    GITHUB_PROFILE_URL,
+    OTHER_APPS_URL,
     DEFAULT_PERSON,
     OPENDATA_URL,
     PRIMINFO_URL,
@@ -281,6 +283,7 @@ st.caption(t("motivation"))
 st.caption(t("footer.coffee", url=COFFEE_URL))
 
 st.caption(t("footer.contact", mailto=f"mailto:{CONTACT_EMAIL}"))
+st.caption(t("footer.other_apps", apps=OTHER_APPS_URL, github=GITHUB_PROFILE_URL))
 st.caption(
     t("footer.provenance", repo=REPO_URL, opendata=OPENDATA_URL,
       priminfo=PRIMINFO_URL)
