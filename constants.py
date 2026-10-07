@@ -153,6 +153,13 @@ OPENDATA_URL = "https://opendata.swiss/de/dataset/health-insurance-premiums"
 # choice once the translation layer exists.
 PRIMINFO_URL = "https://www.priminfo.admin.ch/de/praemien"
 
+# The form's starting state. Named because three places need to agree on it:
+# app.py seeds session_state with it, common.py offers the postcode, and
+# persistence.py compares against it to decide whether there is anything worth
+# storing on the visitor's machine.
+DEFAULT_PERSON = {"id": 1, "age": 40, "accident": "OHN-UNF", "costs": 1000}
+DEFAULT_POSTCODE = "8001"
+
 # Defaults for the CLI run
 canton_default = "ZH"
 region_default = "PR-REG CH1"

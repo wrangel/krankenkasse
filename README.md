@@ -124,6 +124,13 @@ two children onwards it also compares free choice per child against all children
 insurer, which is the only way any sibling discount is available, and reports the family
 cap on cost sharing. The whole household can be downloaded as CSV with a total row.
 
+Entries are kept in the browser's `localStorage`, so a reload does not discard
+them. That store never leaves the machine — it is not a cookie, so it is never
+attached to a request and never reaches the server or its logs. A form nobody
+has touched is not stored at all, and *Eingaben vergessen* at the foot of the
+page deletes it. See [SECURITY.md](.github/SECURITY.md) for why cookies and
+query parameters were both rejected.
+
 ### Command line
 
 ```bash

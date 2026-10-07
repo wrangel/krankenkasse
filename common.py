@@ -8,7 +8,7 @@ import json
 import pandas as pd
 import streamlit as st
 
-from constants import ADULTS, CHILDREN, REGIONS_FILE, YOUNG_ADULTS
+from constants import ADULTS, CHILDREN, DEFAULT_POSTCODE, REGIONS_FILE, YOUNG_ADULTS
 from calculation import load_premiums
 
 
@@ -77,7 +77,7 @@ def choose_location(key: int, column=None) -> tuple[str, str, str] | None:
         return None
 
     postcode = target.text_input(
-        "Postleitzahl", value="8001", max_chars=4, key=f"postcode_{key}"
+        "Postleitzahl", value=DEFAULT_POSTCODE, max_chars=4, key=f"postcode_{key}"
     ).strip()
     entries = mapping.get(postcode)
     if not entries:

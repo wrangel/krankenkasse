@@ -10,12 +10,14 @@ from datetime import date
 import streamlit as st
 import streamlit.components.v1 as components
 
+from calculation import available_tariff_types, children_with_one_insurer, get_data
 from common import age_group_for_age, premiums
 from constants import (
     ADULTS,
     CHILD_SUBGROUPS,
     CHILDREN,
     CONTACT_EMAIL,
+    DEFAULT_PERSON,
     OPENDATA_URL,
     PRIMINFO_URL,
     REPO_URL,
@@ -23,18 +25,25 @@ from constants import (
     coinsurance_rate,
     environmental_rebate_default,
 )
+from persistence import handle_forget, request_forget, restore, save
 from theme import apply_person_colours, colour_for_person, configure_page
-from calculation import children_with_one_insurer, get_data
 from view_household import household_total
 from view_person import person_form, person_summary, person_view
 
 configure_page()
 
-st.session_state.setdefault(
-    "people", [{"id": 1, "age": 40, "accident": "OHN-UNF", "costs": 1000}]
-)
-
 raw = premiums(7)
+
+# Put back what this browser had last time, before a single widget is drawn -
+# otherwise the form renders with defaults and then visibly rewrites itself.
+# The browser answers on the run after this one, so the first pass stops here.
+forgetting = handle_forget()
+
+if not restore(available_tariff_types(raw)):
+    st.spinner("Einen Moment…")
+    st.stop()
+
+st.session_state.setdefault("people", [dict(DEFAULT_PERSON)])
 
 st.title("Grundversicherung: die günstigste Lösung für deine Situation")
 st.caption(
@@ -153,6 +162,9 @@ st.session_state["people"] = [
     for p in updated
 ]
 
+if not forgetting:
+    save(available_tariff_types(raw))
+
 if st.button("➕ Weitere Person hinzufügen", key="add_person", width="stretch"):
     next_id = max((p["id"] for p in updated), default=0) + 1
     st.session_state["people"] = st.session_state["people"] + [
@@ -269,6 +281,18 @@ left.caption(
 if right.button("Prämiendaten neu laden"):
     st.cache_data.clear()
     premiums(0)
+    st.rerun()
+
+# Anything kept on the visitor's machine needs a way to be got rid of, in plain
+# sight rather than buried in browser settings.
+links, clear = st.columns([3, 1])
+links.caption(
+    "Deine Eingaben bleiben auf diesem Gerät gespeichert, damit ein Neuladen "
+    "sie nicht verwirft. Sie verlassen den Browser nicht – weder an diesen "
+    "Server noch an Dritte."
+)
+if clear.button("Eingaben vergessen", key="forget_inputs_button", width="stretch"):
+    request_forget()
     st.rerun()
 
 st.markdown("---")
