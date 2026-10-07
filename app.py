@@ -38,11 +38,10 @@ raw = premiums(7)
 
 st.title("Grundversicherung: die günstigste Prämie finden")
 st.caption(
-    "Diese App rechnet aus den amtlichen Prämiendaten, was die **Grundversicherung** "
-    "für dich am günstigsten kommt – für jede Person im Haushalt, bei den "
-    "Krankheitskosten, die du erwartest, und beschränkt auf die Tarifmodelle, die für "
-    "dich in Frage kommen. Sie nennt Versicherer, Modell und Franchise, und was die "
-    "Alternativen kosten würden."
+    "**Du sagst, was du im Jahr an Arztkosten erwartest. Die App rechnet den Rest** – "
+    "Versicherer, Modell und Franchise mit den tiefsten Gesamtkosten, für jede Person "
+    "im Haushalt und beschränkt auf die Tarifmodelle, die für dich in Frage kommen. "
+    "Gerechnet wird aus den amtlichen Prämiendaten der **Grundversicherung**."
 )
 
 # What "Gesamtkosten" means, before the first one is shown. The figures come
@@ -272,6 +271,29 @@ if right.button("Prämiendaten neu laden"):
     st.rerun()
 
 st.markdown("---")
+
+# The footnote for the asterisk on "Kipppunkt" in each person's chart caption.
+# It sits here once rather than under every chart - with four people in the
+# household the same paragraph would otherwise appear four times.
+st.caption(
+    "\\* Der Kipppunkt wird nicht aus einer Faustregel übernommen, sondern für "
+    "deine Region, deine Altersklasse und die tatsächlich angebotenen Tarife "
+    "gerechnet. Dass die mittleren Franchisen nie gewinnen, ist eine Beobachtung "
+    "aus diesen Daten – über Jahre hinweg gemacht und unabhängig bestätigt: Eine "
+    "öffentlich publizierte Kurzformel für die Stufen 300 und 2500 kommt auf den "
+    "Franken genau auf dasselbe Ergebnis. Sie vergleicht allerdings nur diese "
+    "beiden Stufen; die dazwischen rechnet erst diese App durch."
+)
+
+# Why the thing exists. It belongs next to the contact line: someone who writes
+# in should know who they are writing to and what question the tool grew out of.
+st.caption(
+    "**Warum es diese App gibt.** Ich wusste, dass höhere erwartete "
+    "Krankheitskosten eine tiefere Franchise sinnvoll machen, und umgekehrt, aber "
+    "ich wusste nicht, bei welchen Kosten sich welche Franchise lohnt, damit das "
+    "Wachstum der Gesundheitskosten für meine Familie minimiert werden konnte. "
+    "Dafür habe ich diese App entwickelt."
+)
 
 # Contact and provenance. The address is an alias, not the real mailbox - see
 # CONTACT_EMAIL in constants.py. Saying what the reply is *not* keeps the

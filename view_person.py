@@ -232,7 +232,7 @@ def person_view(
         )
     else:
         parts.append(
-            f"Die **grau gestrichelte Linie** ist der Kipppunkt: Ab "
+            f"Die **grau gestrichelte Linie** ist der Kipppunkt\\*: Ab "
             f"**{chf(r.tipping_point)} CHF** lohnt sich die Franchise "
             f"{r.lowest_deductible} CHF, darunter die Franchise "
             f"{r.segments.iloc[0]['Franchise']} CHF. Zwischen bester und schlechtester "

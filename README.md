@@ -319,9 +319,34 @@ nonetheless win nowhere is market behaviour, not a legal consequence — and pre
 anew every year. The observation can therefore stop holding at any time without anything
 having gone wrong.
 
-**The tipping point has been surprisingly stable so far.** For adults it lies between
-CHF 1,698 and 1,926 across Switzerland, in 32 of 44 cases between 1,700 and 1,950
-(ZH region 1: 1,893 for 2027, 1,892 for 2026).
+**The tipping point has been surprisingly stable so far.** For premium year 2027 it lies
+between CHF 1,706 and 1,900 for adults, and every one of the 42 canton/region combinations
+falls inside 1,700–1,950 (ZH region 1: 1,893; my own earlier runs put 2026 at 1,892, which
+predates the recorded series). For children the range is CHF 386 to 467.
+
+> **On the 42.** The BAG's `Kanton` column carries 28 values, not 26. `ZE` and `ZR` are the
+> categories for people insured in Switzerland but living abroad, not cantons. They cannot
+> be reached through the postcode lookup, so they never affect a user, but a national figure
+> computed naively over that column will quietly include them — and `ZE` carries adult
+> premiums around CHF 65, which drags the apparent national minimum down to 590. Every
+> figure in this section is computed over the 26 cantons' premium regions only.
+
+**Where this comes from.**\* The tipping point is not something I read somewhere. It came
+out of working the numbers for my own family, year after year, long before this app existed.
+The arithmetic does hold up independently: a published closed form for the 300/2500 pair,
+
+```
+S = 40/3 × (premium₃₀₀ − premium₂₅₀₀ + 22.5)
+```
+
+agrees with this tool to within a franc in all 42 combinations. Note what it cannot do,
+though. The low deductible is baked into that 22.5 — `40/3 × 22.5` is exactly 300 — so the
+formula only ever compares the two endpoints. Anyone applying it has already assumed the
+steps in between are irrelevant. This tool computes all of them and finds that they are,
+which is a different and stronger statement.
+
+\* Observation, not doctrine. See the caveat about the ordinance above: premiums are reset
+every year, and the day the middle steps start winning, this tool will say so.
 
 ## How seriously to take the tipping point
 
