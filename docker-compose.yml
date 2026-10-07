@@ -43,11 +43,15 @@ services:
     # bridge did not help, which is what distinguishes this from the missing
     # iptables FORWARD rules that abstractaltitudes used to hit.
     #
+    # abstractaltitudes carries the identical block on the same NAS, added in
+    # its MongoDB-connection bugfix for the same reason. Same order, so the two
+    # are comparable when one of them misbehaves.
+    #
     # This app is worthless without the BAG, so it should not depend on the
     # host's resolver configuration staying healthy.
     dns:
-      - 1.1.1.1
       - 8.8.8.8
+      - 1.1.1.1
 
     environment:
       # Otherwise Streamlit writes into a home directory the service user has
