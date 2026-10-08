@@ -44,6 +44,18 @@ def configure_page() -> None:
               min-height: 0 !important;
           }
 
+          /* Input fields came out at 14px while every label around them was
+             16px. The values someone types - postcode, age, expected costs -
+             are the most important text on the page and were the smallest on
+             it. */
+          [data-testid="stTextInput"] input,
+          [data-testid="stNumberInput"] input,
+          [data-testid="stSelectbox"] input,
+          [data-testid="stMultiSelect"] input,
+          [data-baseweb="select"] div {
+              font-size: 1rem !important;
+          }
+
           /* One text size for the whole page.
              Streamlit renders st.caption at 0.875rem and markdown at 1rem, so
              the explanatory paragraphs - which carry most of the meaning here -
