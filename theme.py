@@ -23,6 +23,27 @@ def configure_page() -> None:
     st.markdown(
         """
         <style>
+          /* The grey bar across the top of the page.
+             It is the streamlit_js_eval component - the bridge that reads
+             saved entries out of localStorage - rendering as an 8px iframe.
+             It has no visual job whatsoever.
+             Collapsed rather than display:none, because the iframe has to stay
+             in the document and keep running its JavaScript; hiding it
+             outright risks the browser never loading it, which would take
+             persistence down with it. Verified afterwards that entries still
+             survive a reload. */
+          iframe[data-testid="stCustomComponentV1"] {
+              height: 0 !important;
+              min-height: 0 !important;
+              border: none !important;
+              visibility: hidden;
+          }
+          .stElementContainer:has(> div > iframe[data-testid="stCustomComponentV1"]) {
+              margin: 0 !important;
+              padding: 0 !important;
+              min-height: 0 !important;
+          }
+
           /* One text size for the whole page.
              Streamlit renders st.caption at 0.875rem and markdown at 1rem, so
              the explanatory paragraphs - which carry most of the meaning here -
