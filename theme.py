@@ -48,6 +48,43 @@ def configure_page() -> None:
           h2 { font-size: 1.6rem !important; }
           h3 { font-size: 1.25rem !important; }
 
+          /* The footer, shared with abstractaltitudes. Same measurements as
+             its .finalFooter / .footerContent / .creditsList / .copyright:
+             centred, capped at 800px, a hairline rule above, links at 0.9rem
+             and 70% opacity brightening to the accent, copyright at 0.8rem,
+             40% opacity and a letterspace. Taken from that project rather than
+             invented, so the two sites recede in the same way. */
+          .brand-footer {
+              max-width: 800px;
+              margin: 4rem auto 0 auto;
+              padding: 2.5rem 1rem 1rem 1rem;
+              border-top: 1px solid rgba(255, 255, 255, 0.1);
+              text-align: center;
+          }
+          .brand-footer-credits {
+              font-size: 0.9rem;
+              font-weight: 300;
+              opacity: 0.7;
+              margin-bottom: 1.5rem;
+          }
+          .brand-footer-credits a {
+              color: inherit !important;
+              text-decoration: none !important;
+              transition: color 0.3s, opacity 0.3s;
+          }
+          .brand-footer-credits a:hover { color: #4da6ff !important; }
+          .brand-footer-copyright {
+              font-size: 0.8rem;
+              font-weight: 300;
+              opacity: 0.4;
+              letter-spacing: 1px;
+          }
+          .brand-footer-copyright a {
+              color: inherit !important;
+              text-decoration: none !important;
+          }
+          .brand-footer-copyright a:hover { color: #4da6ff !important; }
+
           /* The language switch reads as text, not as a control: muted grey,
              no border, no fill, brightening to the accent on hover. */
           [class*="st-key-lang_"] button {

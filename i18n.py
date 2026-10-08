@@ -27,6 +27,7 @@ Romansh speakers worse than the German one they can already read.
 """
 
 import json
+import re
 from functools import lru_cache
 
 import streamlit as st
@@ -105,3 +106,21 @@ def language_picker() -> None:
             if st.button(LANGUAGES[code], key=f"lang_{code}", width="stretch"):
                 set_language(code)
                 st.rerun()
+
+
+_LINK = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+_BOLD = re.compile(r"\*\*([^*]+)\*\*")
+
+
+def t_html(key: str, **kwargs) -> str:
+    """t(), rendered as HTML for use inside a raw HTML block.
+
+    Streamlit renders markdown, and it renders raw HTML, but it does not render
+    markdown *inside* raw HTML - the links in the footer came out as literal
+    [text](url). Translating the few markdown constructs the catalogues use
+    keeps the catalogues readable for whoever translates them: they write
+    [Quellcode](url), not an anchor tag.
+    """
+    text = t(key, **kwargs)
+    text = _LINK.sub(r'<a href="\2">\1</a>', text)
+    return _BOLD.sub(r"<strong>\1</strong>", text)

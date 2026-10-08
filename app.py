@@ -13,7 +13,7 @@ import streamlit.components.v1 as components
 
 from calculation import available_tariff_types, children_with_one_insurer, get_data
 from common import age_group_for_age, premiums
-from i18n import language_picker, t
+from i18n import language_picker, t, t_html
 from constants import (
     ADULTS,
     CHILD_SUBGROUPS,
@@ -302,12 +302,22 @@ st.caption(t("motivation"))
 st.caption(t("footer.coffee", url=COFFEE_URL))
 
 st.caption(t("footer.contact", mailto=f"mailto:{CONTACT_EMAIL}"))
-st.caption(t("footer.other_apps", apps=OTHER_APPS_URL, github=GITHUB_PROFILE_URL))
-st.caption(
-    t("footer.provenance", repo=REPO_URL, opendata=OPENDATA_URL,
-      priminfo=PRIMINFO_URL)
-)
-st.caption(
-    t("footer.copyright", year=date.today().year,
-      license=f"{REPO_URL}/blob/main/LICENSE")
+
+# The footer block from abstractaltitudes, same shape: a centred column no
+# wider than 800px, a hairline rule above it, credits and copyright recessive
+# rather than competing with the text. The paragraphs above stay at reading
+# size, because here they carry the Kipppunkt and PHARM footnotes - on a photo
+# portfolio the whole footer can afford to recede; here only part of it can.
+st.markdown(
+    f"""
+    <div class="brand-footer">
+      <div class="brand-footer-credits">{t_html("footer.credits",
+          repo=REPO_URL, opendata=OPENDATA_URL, priminfo=PRIMINFO_URL,
+          apps=OTHER_APPS_URL)}</div>
+      <div class="brand-footer-copyright">{t_html("footer.copyright",
+          year=date.today().year,
+          license=f"{REPO_URL}/blob/main/LICENSE")}</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )

@@ -435,6 +435,12 @@ That address is an alias, not a mailbox. Security findings go through
 [private vulnerability reporting](.github/SECURITY.md) rather than a public
 issue.
 
+## Design
+
+The palette, typography and footer are shared with
+[Abstract Altitudes](https://abstractaltitudes.com); [BRAND.md](BRAND.md) records
+what was taken from it and the one place the two deliberately differ.
+
 ## Licence
 
 [MIT](LICENSE) — Copyright (c) 2023-2026 Matthias Wettstein.
