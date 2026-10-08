@@ -23,6 +23,36 @@ def configure_page() -> None:
     st.markdown(
         """
         <style>
+          /* Give the page a measure.
+             Streamlit's wide layout lets text run the full window: measured at
+             106 characters per line in a 1024px window, and worse on a large
+             monitor. Comfortable is 60-75. Long lines are why a page reads as
+             unconsidered - the eye loses its place returning to the left edge -
+             and no amount of decoration fixes it.
+             Two caps, because the content wants two different widths: the page
+             as a whole stays wide enough for seven-column tables and the cost
+             chart, while running text is held to about 75 characters.
+             60ch, not 75ch: the ch unit is the width of "0", which is wider
+             than average lowercase, so 75ch measured out at 93 real
+             characters. Checked in the browser rather than assumed. */
+          [data-testid="stMainBlockContainer"] {
+              max-width: 1140px !important;
+              padding-left: 2rem !important;
+              padding-right: 2rem !important;
+          }
+          [data-testid="stCaptionContainer"] p,
+          [data-testid="stCaptionContainer"] li,
+          [data-testid="stMarkdownContainer"] > p,
+          [data-testid="stMarkdownContainer"] > ul {
+              max-width: 60ch;
+          }
+          /* The footnotes and the disclaimer are reference text rather than
+             the argument, so they can run a little wider without tiring. */
+          [data-testid="stExpander"] [data-testid="stMarkdownContainer"] > p,
+          [data-testid="stExpander"] [data-testid="stMarkdownContainer"] > ul {
+              max-width: 70ch;
+          }
+
           /* One text size for the whole page.
              Streamlit renders st.caption at 0.875rem and markdown at 1rem, so
              the explanatory paragraphs - which carry most of the meaning here -
