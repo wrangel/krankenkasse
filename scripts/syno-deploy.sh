@@ -12,7 +12,7 @@ set -e
 # The file reaches the NAS through Synology Drive, not through git. It can
 # therefore be older than the version on the Mac; the line below says which one
 # actually ran.
-SCRIPT_VERSION="2026-10-08-probe2"
+SCRIPT_VERSION="2026-10-08-pinned"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -98,6 +98,21 @@ echo -e "${GREEN}App responds.${NC}"
 # the three causes need three different fixes and they are indistinguishable
 # from the outside. Container Manager's terminal cannot be pasted into, so this
 # has to run itself.
+# The container cannot resolve names, so docker-compose.yml pins the BAG's
+# address in /etc/hosts. The NAS itself resolves perfectly well, so it can
+# check that the pin is still right - otherwise a change at the BAG would turn
+# into a silent outage weeks later.
+PINNED="$(grep -oE 'opendata\.bagnet\.ch:[0-9.]+' "$COMPOSE_FILE" | cut -d: -f2)"
+ACTUAL="$(getent hosts opendata.bagnet.ch | awk '{print $1}' | head -1)"
+if [[ -n "$PINNED" && -n "$ACTUAL" && "$PINNED" != "$ACTUAL" ]]; then
+  echo -e "${RED}The pinned BAG address is out of date.${NC}"
+  echo -e "${RED}   docker-compose.yml says $PINNED, DNS says $ACTUAL.${NC}"
+  echo -e "${RED}   Update extra_hosts in docker-compose.yml, or the app will${NC}"
+  echo -e "${RED}   keep talking to an address the BAG no longer uses.${NC}"
+elif [[ -n "$PINNED" ]]; then
+  echo "   pinned BAG address $PINNED still matches DNS"
+fi
+
 echo -e "${GREEN}Checking what the container can reach...${NC}"
 docker exec -i "$SERVICE" python - <<'PROBE'
 import socket, struct, random

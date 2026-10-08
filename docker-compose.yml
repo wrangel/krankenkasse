@@ -53,6 +53,24 @@ services:
       - 8.8.8.8
       - 1.1.1.1
 
+    # Pin the BAG's address, because DNS does not work from this container.
+    #
+    # Measured on the NAS: TCP to 1.1.1.1:443 succeeds, while UDP *and* TCP to
+    # port 53 both time out - against 8.8.8.8, against 1.1.1.1, and against
+    # Docker's own resolver at 127.0.0.11. So port 53 is blocked for this
+    # bridge while 443 is open, and no choice of resolver can help. It is not
+    # constant either: the probe in scripts/syno-deploy.sh saw resolution
+    # working moments after the network was created, and failing minutes later,
+    # so something re-applies the rule afterwards.
+    #
+    # This is a workaround, not the fix. The fix is a Synology firewall rule
+    # permitting DNS from the container bridge; until then the app would be
+    # down. syno-deploy.sh checks on every deploy that this address still
+    # matches what the NAS itself resolves, so a change at the BAG shows up as
+    # a warning rather than as an outage.
+    extra_hosts:
+      - "opendata.bagnet.ch:80.74.156.75"
+
     environment:
       # Otherwise Streamlit writes into a home directory the service user has
       # not got.
