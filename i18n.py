@@ -89,8 +89,12 @@ def t(key: str, **kwargs) -> str:
             return fallback
 
 
-def language_picker() -> None:
+def language_picker(container=None) -> None:
     """The language switch, at the very top.
+
+    Rendered into `container` so the caller can place it beside the wordmark
+    rather than above it - stacked at the top of the page it read as the first
+    thing on the site, which is not what it is.
 
     Only the languages you are *not* reading are offered. Showing all four with
     one of them marked is a form control; showing the three alternatives is a
@@ -98,14 +102,11 @@ def language_picker() -> None:
     you are in is evident from the page itself.
     """
     others = [c for c in LANGUAGES if c != current_language()]
-    # Stacked in a narrow column on the right, so the title keeps the full
-    # width of the page rather than starting below a row of links.
-    _, corner = st.columns([7, 1])
-    with corner:
-        for code in others:
-            if st.button(LANGUAGES[code], key=f"lang_{code}", width="stretch"):
-                set_language(code)
-                st.rerun()
+    target = container if container is not None else st
+    for code in others:
+        if target.button(LANGUAGES[code], key=f"lang_{code}", width="stretch"):
+            set_language(code)
+            st.rerun()
 
 
 _LINK = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")

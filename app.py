@@ -37,9 +37,6 @@ from view_person import person_form, person_summary, person_view
 
 configure_page()
 
-# The picker comes before anything else that produces text, so the very first
-# thing drawn is already in the chosen language.
-language_picker()
 
 # A visitor must not be shown a traceback with our file paths in it. The BAG
 # can be unreachable for reasons that are nobody's fault - and on the NAS it
@@ -71,7 +68,16 @@ if not restore(available_tariff_types(raw)):
 
 st.session_state.setdefault("people", [dict(DEFAULT_PERSON)])
 
-st.title(t("title"))
+# Wordmark and language switch on one row, the switch subordinate on the right.
+# Stacked above the title it read as the first thing on the site, which it is
+# not. The wordmark is markup rather than st.title so the two halves of the name
+# can be coloured - "via" plain, "prima" in the accent - which gives it presence
+# without needing a logo.
+head_left, head_right = st.columns([5, 1], vertical_alignment="center")
+head_left.markdown(
+    '<h1 class="wordmark">via<span class="accent">prima</span></h1>', unsafe_allow_html=True
+)
+language_picker(head_right)
 st.subheader(t("subtitle"))
 st.caption(t("lead"))
 
@@ -303,6 +309,10 @@ st.caption(t("footer.coffee", url=COFFEE_URL))
 
 st.caption(t("footer.contact", mailto=f"mailto:{CONTACT_EMAIL}"))
 
+# Own work gets its own line. The credits row below is attribution - data
+# sources and tools - and a sibling project does not belong in it.
+st.caption(t("footer.other_apps", apps=OTHER_APPS_URL))
+
 # The footer block from abstractaltitudes, same shape: a centred column no
 # wider than 800px, a hairline rule above it, credits and copyright recessive
 # rather than competing with the text. The paragraphs above stay at reading
@@ -312,8 +322,7 @@ st.markdown(
     f"""
     <div class="brand-footer">
       <div class="brand-footer-credits">{t_html("footer.credits",
-          repo=REPO_URL, opendata=OPENDATA_URL, priminfo=PRIMINFO_URL,
-          apps=OTHER_APPS_URL)}</div>
+          repo=REPO_URL, opendata=OPENDATA_URL, priminfo=PRIMINFO_URL)}</div>
       <div class="brand-footer-copyright">{t_html("footer.copyright",
           year=date.today().year,
           license=f"{REPO_URL}/blob/main/LICENSE")}</div>

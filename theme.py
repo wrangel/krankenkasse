@@ -42,8 +42,23 @@ def configure_page() -> None:
               font-size: 1rem;
               line-height: 1.65;
           }
-          /* The title was set against a 0.875rem body; at a full-size body it
-             overpowers the page. */
+          /* The wordmark. Larger and tighter than a heading, because it is a
+             name rather than a sentence: tracking pulled in so the letters sit
+             as one shape, and "prima" in the accent so the two words that make
+             up the name are legible as two words. No logo needed. */
+          h1.wordmark {
+              font-size: 3.6rem !important;
+              font-weight: 700 !important;
+              letter-spacing: -0.035em !important;
+              line-height: 1 !important;
+              margin: 0 0 0.1rem 0 !important;
+              padding: 0 !important;
+          }
+          /* .accent, not "span": Streamlit wraps heading text in a span of
+             its own, which a bare descendant selector matches - and then the
+             whole wordmark turns blue instead of half of it. */
+          h1.wordmark .accent { color: #4da6ff; }
+
           h1 { font-size: 2.1rem !important; line-height: 1.25 !important; }
           h2 { font-size: 1.6rem !important; }
           h3 { font-size: 1.25rem !important; }
@@ -102,6 +117,10 @@ def configure_page() -> None:
           [class*="st-key-lang_"] button div,
           [class*="st-key-lang_"] button p { text-align: right !important; }
           [class*="st-key-lang_"] { margin-bottom: -0.55rem !important; }
+          /* Smaller than the wordmark it sits beside, so the eye reaches the
+             name first. */
+          [class*="st-key-lang_"] button,
+          [class*="st-key-lang_"] button p { font-size: 0.82rem !important; }
           [class*="st-key-lang_"] button p {
               font-weight: 300 !important;
               font-size: 0.9rem !important;
