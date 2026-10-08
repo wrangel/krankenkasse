@@ -60,6 +60,11 @@ def configure_page() -> None:
               transition: color 0.3s;
           }
           [class*="st-key-lang_"] button:hover { color: #4da6ff !important; }
+          /* Right-aligned and tight, so three stacked links read as one small
+             block in the corner rather than three loose buttons. */
+          [class*="st-key-lang_"] button div,
+          [class*="st-key-lang_"] button p { text-align: right !important; }
+          [class*="st-key-lang_"] { margin-bottom: -0.55rem !important; }
           [class*="st-key-lang_"] button p {
               font-weight: 300 !important;
               font-size: 0.9rem !important;

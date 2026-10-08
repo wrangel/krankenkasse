@@ -28,6 +28,7 @@ COPY view_person.py view_household.py ./
 COPY calculation.py constants.py main.py ./
 COPY data/insurers.json data/premium_regions.json ./data/
 COPY locales/ ./locales/
+COPY scripts/docker-entrypoint.sh ./
 
 # The BAG premium file is fetched on first use and stored here. Mounted as a
 # volume it survives a container restart - otherwise every start costs the six
@@ -38,11 +39,14 @@ USER appuser
 EXPOSE 8501
 
 # Streamlit ships its own liveness endpoint.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+#
+# The start period covers the entrypoint's warm-up, not just Streamlit booting.
+# A genuinely cold start downloads 12 MB and parses 220,000 rows, which on the
+# Synology is minutes rather than seconds; at 40s Docker would call the
+# container unhealthy while it was doing exactly what it should.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=300s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"
 
-CMD ["streamlit", "run", "app.py", \
-     "--server.port=8501", \
-     "--server.address=0.0.0.0", \
-     "--server.headless=true", \
-     "--browser.gatherUsageStats=false"]
+# The entrypoint warms the premium cache first, so the first visitor after a
+# cold start does not wait for a 12 MB download and a 220,000-row parse.
+CMD ["./docker-entrypoint.sh"]

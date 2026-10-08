@@ -97,8 +97,11 @@ def language_picker() -> None:
     you are in is evident from the page itself.
     """
     others = [c for c in LANGUAGES if c != current_language()]
-    columns = st.columns([1] * len(others) + [max(1, 12 - len(others))])
-    for column, code in zip(columns, others):
-        if column.button(LANGUAGES[code], key=f"lang_{code}", width="stretch"):
-            set_language(code)
-            st.rerun()
+    # Stacked in a narrow column on the right, so the title keeps the full
+    # width of the page rather than starting below a row of links.
+    _, corner = st.columns([7, 1])
+    with corner:
+        for code in others:
+            if st.button(LANGUAGES[code], key=f"lang_{code}", width="stretch"):
+                set_language(code)
+                st.rerun()
