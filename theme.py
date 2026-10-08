@@ -32,11 +32,15 @@ def configure_page() -> None:
              Two caps, because the content wants two different widths: the page
              as a whole stays wide enough for seven-column tables and the cost
              chart, while running text is held to about 75 characters.
-             60ch, not 75ch: the ch unit is the width of "0", which is wider
-             than average lowercase, so 75ch measured out at 93 real
-             characters. Checked in the browser rather than assumed. */
+             A gentle cap, not a tight one. 60ch measured out at 74 real
+             characters, which is the textbook figure but looked squeezed
+             against a wide window - the column read as an accident rather
+             than a decision. 72ch lands near 90: still a clear improvement on
+             the 106 it started at, without the page looking pinched.
+             To remove the cap entirely, delete the two max-width rules below;
+             nothing else depends on them. */
           [data-testid="stMainBlockContainer"] {
-              max-width: 1140px !important;
+              max-width: 1040px !important;
               padding-left: 2rem !important;
               padding-right: 2rem !important;
           }
@@ -44,13 +48,17 @@ def configure_page() -> None:
           [data-testid="stCaptionContainer"] li,
           [data-testid="stMarkdownContainer"] > p,
           [data-testid="stMarkdownContainer"] > ul {
-              max-width: 60ch;
+              max-width: 72ch;
           }
+          /* The info box takes the same measure. Left full width it ran to the
+             edge while the prose beside it stopped at 57% of that, which made
+             the narrow column look like an accident rather than a decision. */
+          [data-testid="stAlertContainer"] { max-width: 76ch; }
           /* The footnotes and the disclaimer are reference text rather than
              the argument, so they can run a little wider without tiring. */
           [data-testid="stExpander"] [data-testid="stMarkdownContainer"] > p,
           [data-testid="stExpander"] [data-testid="stMarkdownContainer"] > ul {
-              max-width: 70ch;
+              max-width: 80ch;
           }
 
           /* One text size for the whole page.
@@ -106,6 +114,18 @@ def configure_page() -> None:
               border-top: 1px solid rgba(255, 255, 255, 0.1);
               text-align: center;
           }
+          .brand-footer-links {
+              font-size: 0.9rem;
+              font-weight: 300;
+              opacity: 0.7;
+              margin-bottom: 1.1rem;
+          }
+          .brand-footer-links a {
+              color: inherit !important;
+              text-decoration: none !important;
+              transition: color 0.3s;
+          }
+          .brand-footer-links a:hover { color: #4da6ff !important; }
           .brand-footer-credits {
               font-size: 0.9rem;
               font-weight: 300;

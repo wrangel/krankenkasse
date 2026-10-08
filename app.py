@@ -309,9 +309,7 @@ st.caption(t("footer.coffee", url=COFFEE_URL))
 
 st.caption(t("footer.contact", mailto=f"mailto:{CONTACT_EMAIL}"))
 
-# Own work gets its own line. The credits row below is attribution - data
-# sources and tools - and a sibling project does not belong in it.
-st.caption(t("footer.other_apps", apps=OTHER_APPS_URL))
+st.caption(t("footer.disclaimer"))
 
 # The footer block from abstractaltitudes, same shape: a centred column no
 # wider than 800px, a hairline rule above it, credits and copyright recessive
@@ -321,6 +319,8 @@ st.caption(t("footer.other_apps", apps=OTHER_APPS_URL))
 st.markdown(
     f"""
     <div class="brand-footer">
+      <div class="brand-footer-links">{t_html("footer.other_apps",
+          apps=OTHER_APPS_URL)}</div>
       <div class="brand-footer-credits">{t_html("footer.credits",
           repo=REPO_URL, opendata=OPENDATA_URL, priminfo=PRIMINFO_URL)}</div>
       <div class="brand-footer-copyright">{t_html("footer.copyright",
