@@ -12,7 +12,7 @@ set -e
 # The file reaches the NAS through Synology Drive, not through git. It can
 # therefore be older than the version on the Mac; the line below says which one
 # actually ran.
-SCRIPT_VERSION="2026-10-07-viaprima"
+SCRIPT_VERSION="2026-10-08-probe"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -93,17 +93,64 @@ echo -e "${GREEN}App responds.${NC}"
 
 # This app is worthless without internet - it fetches the premium data from the
 # BAG. After the network has been rebuilt, an explicit probe is worth it.
-echo -e "${GREEN}Checking that the container can reach the outside...${NC}"
-if docker exec "$SERVICE" python -c \
-    "import urllib.request; urllib.request.urlopen('https://opendata.bagnet.ch', timeout=20)" \
-    >/dev/null 2>&1; then
-  echo -e "${GREEN}Connection to the BAG is up.${NC}"
-else
-  echo -e "${YELLOW}The container cannot reach opendata.bagnet.ch.${NC}"
-  echo -e "${YELLOW}   The app runs but cannot fetch premium data. Usually this is${NC}"
-  echo -e "${YELLOW}   the network after the rebuild - or name resolution. To check:${NC}"
-  echo -e "${YELLOW}     docker exec $SERVICE python -c \"import socket; print(socket.gethostbyname('opendata.bagnet.ch'))\"${NC}"
-fi
+#
+# The probe reports which layer failed rather than just "cannot reach", because
+# the three causes need three different fixes and they are indistinguishable
+# from the outside. Container Manager's terminal cannot be pasted into, so this
+# has to run itself.
+echo -e "${GREEN}Checking what the container can reach...${NC}"
+docker exec -i "$SERVICE" python - <<'PROBE'
+import socket, struct, random
+
+def udp_dns(server):
+    """A real DNS query over UDP - which is what resolution actually uses."""
+    q = struct.pack('>HHHHHH', random.randint(0, 65535), 0x0100, 1, 0, 0, 0)
+    for part in b'opendata.bagnet.ch'.split(b'.'):
+        q += bytes([len(part)]) + part
+    q += b'\x00' + struct.pack('>HH', 1, 1)
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.settimeout(5)
+    try:
+        s.sendto(q, (server, 53))
+        s.recvfrom(512)
+        return True
+    except Exception:
+        return False
+
+def tcp(host, port):
+    try:
+        socket.create_connection((host, port), 5).close()
+        return True
+    except Exception:
+        return False
+
+routing = tcp('1.1.1.1', 443)
+pinned = udp_dns('8.8.8.8')
+embedded = udp_dns('127.0.0.11')
+try:
+    socket.gethostbyname('opendata.bagnet.ch')
+    resolves = True
+except Exception:
+    resolves = False
+
+print(f"     route out (1.1.1.1:443) : {'yes' if routing else 'NO'}")
+print(f"     DNS to 8.8.8.8 over UDP : {'yes' if pinned else 'NO'}")
+print(f"     Docker resolver .0.11   : {'yes' if embedded else 'NO'}")
+print(f"     name resolution works   : {'yes' if resolves else 'NO'}")
+if resolves:
+    print("     -> fine")
+elif not routing:
+    print("     -> no route out at all: the iptables FORWARD problem.")
+    print("        Recreate the network, or check the Synology firewall.")
+elif pinned:
+    print("     -> upstream DNS is reachable but resolution still fails.")
+    print("        The container predates the dns: block in docker-compose.yml.")
+    print("        Run this task again; it recreates the container.")
+else:
+    print("     -> UDP port 53 is blocked for this bridge, so pinning public")
+    print("        resolvers cannot work. Synology firewall, scoped to the")
+    print("        bridge subnet. Allow UDP 53 outbound for it.")
+PROBE
 
 # ==============================================================================
 # Clean up - last, so that a failure above leaves every fallback standing.
