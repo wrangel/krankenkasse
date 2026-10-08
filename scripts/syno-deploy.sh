@@ -12,7 +12,7 @@ set -e
 # The file reaches the NAS through Synology Drive, not through git. It can
 # therefore be older than the version on the Mac; the line below says which one
 # actually ran.
-SCRIPT_VERSION="2026-10-08-probe"
+SCRIPT_VERSION="2026-10-08-probe2"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -124,7 +124,22 @@ def tcp(host, port):
     except Exception:
         return False
 
+def fetch(url):
+    """What the app actually does, including the user agent admin.ch demands."""
+    import urllib.request
+    try:
+        req = urllib.request.Request(url, method='HEAD', headers={
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+                          'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 '
+                          'Safari/537.36'})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return f'HTTP {r.status}'
+    except Exception as e:
+        return f'{type(e).__name__}'
+
 routing = tcp('1.1.1.1', 443)
+bag_tcp = tcp('opendata.bagnet.ch', 443)
+bag_http = fetch('https://opendata.bagnet.ch/')
 pinned = udp_dns('8.8.8.8')
 embedded = udp_dns('127.0.0.11')
 try:
@@ -137,8 +152,15 @@ print(f"     route out (1.1.1.1:443) : {'yes' if routing else 'NO'}")
 print(f"     DNS to 8.8.8.8 over UDP : {'yes' if pinned else 'NO'}")
 print(f"     Docker resolver .0.11   : {'yes' if embedded else 'NO'}")
 print(f"     name resolution works   : {'yes' if resolves else 'NO'}")
-if resolves:
+print(f"     TCP to the BAG :443     : {'yes' if bag_tcp else 'NO'}")
+print(f"     HTTPS GET from the BAG  : {bag_http}")
+if resolves and bag_http.startswith("HTTP 2"):
     print("     -> fine")
+elif resolves and not bag_tcp:
+    print("     -> DNS is fine but the BAG refuses the connection.")
+    print("        Outbound 443 to 80.74.156.75 is blocked, or the BAG is down.")
+elif resolves:
+    print(f"     -> DNS and TCP fine, the request itself failed: {bag_http}")
 elif not routing:
     print("     -> no route out at all: the iptables FORWARD problem.")
     print("        Recreate the network, or check the Synology firewall.")

@@ -5,6 +5,7 @@ people, show each person's report, and the household total at the end. The
 computation is in calculation.py, the drawing in the view_* modules.
 """
 
+import sys
 from datetime import date
 
 import streamlit as st
@@ -47,7 +48,15 @@ language_picker()
 # swallowing genuine bugs.
 try:
     raw = premiums(7)
-except OSError:
+except OSError as problem:
+    # The visitor gets a sentence; the log gets the cause. Without this the
+    # friendly message hides exactly the detail needed to fix the outage - and
+    # it did, for one round of debugging.
+    print(
+        f"BAG download failed: {type(problem).__name__}: {problem}",
+        file=sys.stderr,
+        flush=True,
+    )
     st.error(t("error.data_unavailable"))
     st.stop()
 
