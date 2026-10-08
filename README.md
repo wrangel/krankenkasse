@@ -84,10 +84,10 @@ entry path, the Dockerfile `CMD`, `dev.sh`, the `streamlit run app.py` match in
 Requires Python 3.12 or newer.
 
 ```bash
-git clone https://github.com/wrangel/grundversicherungsrechner.git
-cd grundversicherungsrechner
-python3 -m venv ~/.venvs/grundversicherungsrechner
-~/.venvs/grundversicherungsrechner/bin/pip install -r requirements.txt
+git clone https://github.com/wrangel/viaprima.git
+cd viaprima
+python3 -m venv ~/.venvs/viaprima
+~/.venvs/viaprima/bin/pip install -r requirements.txt
 ```
 
 The virtual environment deliberately sits outside the project folder — that way it is
@@ -99,7 +99,7 @@ project (`python3 -m venv venv`) works just as well.
 ### Graphical interface
 
 ```bash
-~/.venvs/grundversicherungsrechner/bin/streamlit run app.py
+~/.venvs/viaprima/bin/streamlit run app.py
 ```
 
 Opens <http://localhost:8501>. The household is entered as a list of people, one box per
@@ -124,11 +124,38 @@ two children onwards it also compares free choice per child against all children
 insurer, which is the only way any sibling discount is available, and reports the family
 cap on cost sharing. The whole household can be downloaded as CSV with a total row.
 
+Entries are kept in the browser's `localStorage`, so a reload does not discard
+them. That store never leaves the machine — it is not a cookie, so it is never
+attached to a request and never reaches the server or its logs. A form nobody
+has touched is not stored at all, and *Eingaben vergessen* at the foot of the
+page deletes it. See [SECURITY.md](.github/SECURITY.md) for why cookies and
+query parameters were both rejected.
+
+The interface is available in German, French, Italian and English, chosen at
+the top of the page and remembered with the rest of your entries. The
+catalogues are one JSON file per language in [`locales/`](locales), flat dotted
+keys; German is the fallback, so a key missing from another language shows the
+German text rather than a gap.
+
+Two things are deliberately not translated. Insurer names and tariff names come
+from the BAG file in German and have no other source — a French page will still
+say *Sanitas Grundversicherungen AG — TelMed Basic*. And the DataFrame column
+names stay German, because they are what lands in the CSV exports: an export
+whose columns are named differently depending on the reader's interface
+language cannot be compared with a colleague's. Only the header shown on screen
+is translated, through `common.header`.
+
+Romansh is absent on purpose. The BAG publishes no Romansh source text, the
+written standard is contested (Rumantsch Grischun against the five idioms), and
+a visibly machine-translated page about money and health would serve Romansh
+speakers worse than the German one they can already read. The layer is ready if
+a translator is ever found.
+
 ### Command line
 
 ```bash
-~/.venvs/grundversicherungsrechner/bin/python main.py
-~/.venvs/grundversicherungsrechner/bin/python main.py --canton BE --environmental-rebate 4.75
+~/.venvs/viaprima/bin/python main.py
+~/.venvs/viaprima/bin/python main.py --canton BE --environmental-rebate 4.75
 ```
 
 Options: `--canton`, `--region`, `--environmental-rebate`, `--max-costs`.
@@ -398,7 +425,7 @@ The tool is a calculation aid and not financial or insurance advice.
 ## Contact
 
 Questions, corrections, or a number that looks wrong:
-[contact@grundversicherungsrechner.anonaddy.com](mailto:contact@grundversicherungsrechner.anonaddy.com)
+[contact@abstractaltitudes.anonaddy.com](mailto:contact@abstractaltitudes.anonaddy.com)
 
 Corrections are genuinely welcome — the whole point of computing from the
 official data is that an error is findable. What this address is not is
@@ -443,7 +470,7 @@ PORT=8502 make test
 Docker Hub. On the Synology afterwards:
 
 ```bash
-docker pull wrangel/grundversicherungsrechner:1.0
+docker pull wrangel/viaprima:1.0
 ```
 
 `make check` runs the tests and the data-source monitor without touching Docker.
@@ -508,7 +535,7 @@ There, things are only pulled and restarted, never built. In the Task Scheduler 
 user-defined script:
 
 ```bash
-bash /volume1/homes/Matthias/Drive/Programming/grundversicherungsrechner/scripts/syno-deploy.sh
+bash /volume1/homes/Matthias/Drive/Programming/viaprima/scripts/syno-deploy.sh
 ```
 
 The script pulls exactly the tag written in `docker-compose.yml`, brings the stack back up,

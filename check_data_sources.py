@@ -41,7 +41,15 @@ import urllib.error
 import urllib.request
 from datetime import date
 
-from constants import DATA_DIR, HISTORY_FILE, STATE_FILE, premiums_url
+from constants import (
+    ADULTS,
+    AGE_CLASS_LABELS,
+    CHILDREN,
+    DATA_DIR,
+    HISTORY_FILE,
+    STATE_FILE,
+    premiums_url,
+)
 from refresh_insurers import DIRECTORY_URL
 from calculation import cheapest_premiums, compute_tipping_point, get_data, load_premiums
 
@@ -84,6 +92,12 @@ def current_state() -> dict:
             str(s) for s in raw["Altersuntergruppe"].dropna().unique()
         ),
         "deductibles": sorted(str(d) for d in raw["Franchise"].dropna().unique()),
+        # Watched because the 2027 switch replaced this vocabulary wholesale,
+        # and because a category can be defined but shipped empty - PHARM is
+        # listed by priminfo and absent from the file. The interface derives
+        # its options from the data, so a category appearing or vanishing
+        # silently changes what users can pick.
+        "tariff_types": sorted(str(t) for t in raw["Tariftyp"].dropna().unique()),
         "canton_count": int(raw["Kanton"].nunique()),
     }
 
@@ -105,7 +119,18 @@ def compare(expected: dict, found: dict) -> list[str]:
         ("age_classes", "Age classes"),
         ("age_subgroups", "Age subgroups for children"),
         ("deductibles", "Deductible steps"),
+        ("tariff_types", "Tariff types"),
     ]:
+        if field not in expected:
+            # A field added to the watch list after the state was last
+            # recorded. There is nothing to compare against yet; say so and
+            # move on, rather than dying on a KeyError and taking the rest of
+            # the comparison with it.
+            deviations.append(
+                f"{label} are newly watched and have no recorded baseline. "
+                f"Check them, then record the state with --write."
+            )
+            continue
         missing = sorted(set(expected[field]) - set(found[field]))
         added = sorted(set(found[field]) - set(expected[field]))
         if missing or added:
@@ -179,9 +204,10 @@ def print_history(history: list[dict]) -> None:
     print(f"  {'Year':<6} {'Adults: optimal':<24} {'Tip.':>6}   "
           f"{'Children: optimal':<18} {'Tip.':>6}")
     for entry in history:
-        # The keys are the age class labels from constants.AGE_CLASSES.
-        adults = entry.get("Erwachsene", {})
-        children = entry.get("Kinder", {})
+        # Keyed by age class code, so the series stays readable whatever the
+        # interface language is.
+        adults = entry.get(ADULTS, {})
+        children = entry.get(CHILDREN, {})
         print(
             f"  {entry.get('premium_year', '?'):<6} "
             f"{str(adults.get('optimal', '-')):<24} "

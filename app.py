@@ -5,17 +5,24 @@ people, show each person's report, and the household total at the end. The
 computation is in calculation.py, the drawing in the view_* modules.
 """
 
+import sys
 from datetime import date
 
 import streamlit as st
 import streamlit.components.v1 as components
 
+from calculation import available_tariff_types, children_with_one_insurer, get_data
 from common import age_group_for_age, premiums
+from i18n import language_picker, t
 from constants import (
     ADULTS,
     CHILD_SUBGROUPS,
     CHILDREN,
+    COFFEE_URL,
     CONTACT_EMAIL,
+    GITHUB_PROFILE_URL,
+    OTHER_APPS_URL,
+    DEFAULT_PERSON,
     OPENDATA_URL,
     PRIMINFO_URL,
     REPO_URL,
@@ -23,49 +30,69 @@ from constants import (
     coinsurance_rate,
     environmental_rebate_default,
 )
+from persistence import handle_forget, request_forget, restore, save
 from theme import apply_person_colours, colour_for_person, configure_page
-from calculation import children_with_one_insurer, get_data
 from view_household import household_total
 from view_person import person_form, person_summary, person_view
 
 configure_page()
 
-st.session_state.setdefault(
-    "people", [{"id": 1, "age": 40, "accident": "OHN-UNF", "costs": 1000}]
-)
+# The picker comes before anything else that produces text, so the very first
+# thing drawn is already in the chosen language.
+language_picker()
 
-raw = premiums(7)
+# A visitor must not be shown a traceback with our file paths in it. The BAG
+# can be unreachable for reasons that are nobody's fault - and on the NAS it
+# was, when the container could route out but not resolve names. urllib's
+# URLError is an OSError, so this catches the network failures without
+# swallowing genuine bugs.
+try:
+    raw = premiums(7)
+except OSError as problem:
+    # The visitor gets a sentence; the log gets the cause. Without this the
+    # friendly message hides exactly the detail needed to fix the outage - and
+    # it did, for one round of debugging.
+    print(
+        f"BAG download failed: {type(problem).__name__}: {problem}",
+        file=sys.stderr,
+        flush=True,
+    )
+    st.error(t("error.data_unavailable"))
+    st.stop()
 
-st.title("Grundversicherung: die günstigste Lösung für deine Situation")
-st.caption(
-    "**Du sagst, was du im Jahr an Arztkosten erwartest. Die App rechnet den Rest** – "
-    "Versicherer, Modell und Franchise mit den tiefsten Gesamtkosten, für jede Person "
-    "im Haushalt und beschränkt auf die Tarifmodelle, die für dich in Frage kommen. "
-    "Auch Geschwisterrabatte für mehrere Kinder sind berücksichtigt. Gerechnet wird "
-    "aus den amtlichen Prämiendaten der **Grundversicherung**."
-)
+# Put back what this browser had last time, before a single widget is drawn -
+# otherwise the form renders with defaults and then visibly rewrites itself.
+# The browser answers on the run after this one, so the first pass stops here.
+forgetting = handle_forget()
+
+if not restore(available_tariff_types(raw)):
+    st.spinner(t("loading.moment"))
+    st.stop()
+
+st.session_state.setdefault("people", [dict(DEFAULT_PERSON)])
+
+st.title(t("title"))
+st.subheader(t("subtitle"))
+st.caption(t("lead"))
 
 # What "Gesamtkosten" means, before the first one is shown. The figures come
 # from the constants rather than the sentence, so the text cannot drift from
 # what is actually computed.
 st.caption(
-    f"**Gesamtkosten sind Prämien + Franchise + Selbstbehalt** – alles, was du "
-    f"im Jahr für die Grundversicherung selber bezahlst. Die Prämie allein ist die "
-    f"falsche Grösse, denn die tiefste Prämie hat immer die höchste Franchise; "
-    f"ob sich das lohnt, hängt an deinen Krankheitskosten. Der Selbstbehalt "
-    f"beträgt {coinsurance_rate:.0%} der Kosten oberhalb der Franchise, aber "
-    f"höchstens **{coinsurance_cap[ADULTS]} CHF pro Jahr** "
-    f"({coinsurance_cap[CHILDREN]} CHF bei Kindern) – darüber zahlt die "
-    f"Krankenkasse alles."
+    t(
+        "total_costs_explainer",
+        rate=f"{coinsurance_rate:.0%}",
+        cap_adult=coinsurance_cap[ADULTS],
+        cap_child=coinsurance_cap[CHILDREN],
+    )
 )
 st.info(
-    f"**Prämienjahr {int(raw['Geschäftsjahr'].max())}** · Datenquelle: BAG-Prämiendaten "
-    f"über opendata.swiss · Rückerstattung Umweltabgaben "
-    f"**{environmental_rebate_default * 12:.2f} CHF pro Jahr** "
-    f"({environmental_rebate_default:.2f} pro Monat), für alle Versicherten gleich und "
-    f"bereits von den Prämien abgezogen.\n\n"
-    f"**Rechenhilfe, keine Finanz- oder Versicherungsberatung.** Was nicht "
-    f"berücksichtigt ist, steht unten auf der Seite.",
+    t(
+        "data_banner",
+        year=int(raw["Geschäftsjahr"].max()),
+        rebate_year=f"{environmental_rebate_default * 12:.2f}",
+        rebate_month=f"{environmental_rebate_default:.2f}",
+    ),
     icon="ℹ️",
 )
 
@@ -92,7 +119,7 @@ for number, person in enumerate(people, start=1):
         head = st.columns([6, 2])
         head[0].markdown(
             f"<span style='color:{colour_for_person(number)}'>●</span> "
-            f"**{number}. Person**",
+            f"**{t('person.heading', n=number)}**",
             unsafe_allow_html=True,
         )
 
@@ -101,7 +128,7 @@ for number, person in enumerate(people, start=1):
         open_key = f"open_{person['id']}"
         is_open = st.session_state.setdefault(open_key, number == 1)
         if head[1].button(
-            "Einklappen" if is_open else "Ausklappen",
+                t("person.collapse") if is_open else t("person.expand"),
             key=f"toggle_{person['id']}",
             width="stretch",
         ):
@@ -118,11 +145,8 @@ for number, person in enumerate(people, start=1):
         tiers = ("K1",)
         if age_group == CHILDREN and is_open and len(child_ids) > 1:
             st.caption(
-                f"Kind {child_ids.index(person['id']) + 1} von {len(child_ids)}. "
-                f"Unten steht dieses Kind einzeln gerechnet, zum Normaltarif K1. "
-                f"Geschwisterrabatte gibt es nur, wenn **alle** Kinder beim "
-                f"gleichen Versicherer sind – dazu der eigene Abschnitt weiter "
-                f"unten."
+                t("person.child_note",
+                  i=child_ids.index(person["id"]) + 1, n=len(child_ids))
             )
 
         if is_open:
@@ -153,7 +177,10 @@ st.session_state["people"] = [
     for p in updated
 ]
 
-if st.button("➕ Weitere Person hinzufügen", key="add_person", width="stretch"):
+if not forgetting:
+    save(available_tariff_types(raw))
+
+if st.button(t("add_person"), key="add_person", width="stretch"):
     next_id = max((p["id"] for p in updated), default=0) + 1
     st.session_state["people"] = st.session_state["people"] + [
         {"id": next_id, "age": 8, "accident": "MIT-UNF", "costs": 500}
@@ -231,44 +258,22 @@ st.markdown("---")
 # The same limitations as in the README - whoever uses the app does not read the
 # README. Collapsed, so the page does not end in small print, but reachable from
 # anywhere on the page.
-with st.expander("Was diese Rechnung nicht berücksichtigt"):
-    st.markdown(
-        """
-Diese Anwendung ist eine **Rechenhilfe und keine Finanz- oder
-Versicherungsberatung**. Sie rechnet aus den amtlichen Prämiendaten, was die
-angegebene Person bei den angegebenen Krankheitskosten zahlen würde – mehr nicht.
-Welche Versicherung zu jemandem passt, hängt an Dingen, die hier nicht vorkommen:
-
-- **Prämienverbilligung**, Zusatzversicherungen, der Spitalbeitrag von 15 CHF pro
-  Tag sowie Besonderheiten einzelner Modelle.
-- **Einschränkungen bei der Arztwahl.** Die alternativen Modelle sind in den
-  Prämien enthalten, ihre Auflagen aber nicht bewertet. Das günstigste Angebot ist
-  nicht automatisch das passendste – die günstigsten sind fast immer Modelle, die
-  die Arztwahl einschränken.
-- **Die Familien-Höchstgrenze** der Kostenbeteiligung (Art. 93 Abs. 3 KVV) ist in
-  den Summen nicht eingerechnet. Bei drei oder mehr Kindern fällt die reale
-  Belastung also tiefer aus als hier gezeigt.
-- **Unterschiedliche Franchisen der Kinder.** Die Verordnung überlässt die
-  Höchstbeteiligung dann dem Versicherer; hier wird eine gemeinsame Franchise
-  angenommen.
-- **Der Kipppunkt ist auf den Franken genau, aber dort geht es um Rappen.** Welche
-  Richtung er anzeigt – hohe oder tiefe Franchise – ist belastbar, der genaue
-  Betrag nicht.
-
-Massgebend sind die Angaben der Versicherer und das offizielle
-[priminfo.admin.ch](https://www.priminfo.admin.ch). Für Entscheide mit Folgen
-lohnt sich eine Beratung bei einer unabhängigen Stelle.
-        """
-    )
+with st.expander(t("disclaimer.title")):
+    st.markdown(t("disclaimer.body", priminfo=PRIMINFO_URL))
 
 left, right = st.columns([3, 1])
-left.caption(
-    "Die Prämiendaten werden beim ersten Aufruf geladen und sieben Tage "
-    "zwischengespeichert."
-)
-if right.button("Prämiendaten neu laden"):
+left.caption(t("reload_data.caption"))
+if right.button(t("reload_data.button")):
     st.cache_data.clear()
     premiums(0)
+    st.rerun()
+
+# Anything kept on the visitor's machine needs a way to be got rid of, in plain
+# sight rather than buried in browser settings.
+links, clear = st.columns([3, 1])
+links.caption(t("storage.caption"))
+if clear.button(t("storage.forget_button"), key="forget_inputs_button", width="stretch"):
+    request_forget()
     st.rerun()
 
 st.markdown("---")
@@ -276,43 +281,33 @@ st.markdown("---")
 # The footnote for the asterisk on "Kipppunkt" in each person's chart caption.
 # It sits here once rather than under every chart - with four people in the
 # household the same paragraph would otherwise appear four times.
-st.caption(
-    "\\* Der Kipppunkt wird nicht aus einer Faustregel übernommen, sondern für "
-    "deine Region, deine Altersklasse und die tatsächlich angebotenen Tarife "
-    "gerechnet. Dass die mittleren Franchisen nie gewinnen, ist eine Beobachtung "
-    "aus diesen Daten – über Jahre hinweg gemacht und unabhängig bestätigt: Eine "
-    "öffentlich publizierte Kurzformel für die Stufen 300 und 2500 kommt auf den "
-    "Franken genau auf dasselbe Ergebnis. Sie vergleicht allerdings nur diese "
-    "beiden Stufen; die dazwischen rechnet erst diese App durch."
-)
+st.caption(t("footnote.tipping_point"))
+
+# The PHARM category. Worth stating plainly: the vocabulary and the data
+# disagree, and the app quietly departs from what priminfo offers, so it should
+# say why rather than leave someone wondering where Apothekenmodelle went.
+st.caption(t("footnote.pharm", year=int(raw["Geschäftsjahr"].max())))
 
 # Why the thing exists. It belongs next to the contact line: someone who writes
 # in should know who they are writing to and what question the tool grew out of.
-st.caption(
-    "**Warum es diese App gibt.** Ich wusste, dass höhere erwartete "
-    "Krankheitskosten eine tiefere Franchise sinnvoll machen, und umgekehrt, aber "
-    "ich wusste nicht, bei welchen Kosten sich welche Franchise lohnt, damit das "
-    "Wachstum der Gesundheitskosten für meine Familie minimiert werden konnte. "
-    "Dafür habe ich diese App entwickelt."
-)
+st.caption(t("motivation"))
 
 # Contact and provenance. The address is an alias, not the real mailbox - see
 # CONTACT_EMAIL in constants.py. Saying what the reply is *not* keeps the
 # expectation straight: this is a calculation tool, and an individual answer
 # about somebody's own policy would be the advice the page disclaims.
+# Kept to one quiet line, and placed after the explanation of why the app
+# exists rather than before it: the ask reads very differently once someone
+# knows it was built for one family and given away.
+st.caption(t("footer.coffee", url=COFFEE_URL))
+
+st.caption(t("footer.contact", mailto=f"mailto:{CONTACT_EMAIL}"))
+st.caption(t("footer.other_apps", apps=OTHER_APPS_URL, github=GITHUB_PROFILE_URL))
 st.caption(
-    f"**Fehler gefunden, Frage, Rückmeldung?** "
-    f"[Schreib mir]({f'mailto:{CONTACT_EMAIL}'}) – gerne auch, wenn eine Zahl "
-    f"nicht stimmt. Keine Beratung zu einzelnen Policen."
+    t("footer.provenance", repo=REPO_URL, opendata=OPENDATA_URL,
+      priminfo=PRIMINFO_URL)
 )
 st.caption(
-    f"[Quellcode auf GitHub]({REPO_URL}) · "
-    f"Prämiendaten vom BAG über [opendata.swiss]({OPENDATA_URL}) · "
-    f"amtlicher Vergleich auf [priminfo.admin.ch]({PRIMINFO_URL}) · "
-    f"gebaut mit [Streamlit](https://streamlit.io)"
-)
-st.caption(
-    f"© 2023–{date.today().year} Matthias Wettstein · "
-    f"[MIT-Lizenz]({REPO_URL}/blob/main/LICENSE) · "
-    f"Rechenhilfe, keine Finanz- oder Versicherungsberatung."
+    t("footer.copyright", year=date.today().year,
+      license=f"{REPO_URL}/blob/main/LICENSE")
 )

@@ -22,7 +22,8 @@ import numpy as np
 import pandas as pd
 
 from constants import (
-    AGE_CLASSES,
+    AGE_CLASS_LABELS,
+    TARIFF_TYPES,
     ADULTS,
     CACHE_DIR,
     CHILD_SUBGROUPS_DEFAULT,
@@ -196,7 +197,6 @@ def get_data(
     """Filter the BAG premium data by canton, region, age group and accident
     cover, and normalise deductible, premium and age class."""
     accident_cover = accident_cover or dict(_ACCIDENT_DEFAULT)
-    class_per_group = {name: code for code, name in AGE_CLASSES.items()}
 
     base = df[(df["Kanton"] == canton) & (df["Region"] == region)]
     if tariff_types:
@@ -204,9 +204,8 @@ def get_data(
 
     parts = []
     for age_group in age_groups:
-        code = class_per_group[age_group]
         part = base[
-            (base["Altersklasse"] == code)
+            (base["Altersklasse"] == age_group)
             & (base["Unfalleinschluss"] == accident_cover[age_group])
         ]
         if age_group == CHILDREN and child_subgroups:
@@ -229,13 +228,37 @@ def get_data(
     ].copy()
     result["Franchise"] = result["Franchise"].str.extract(r"FRA-(\d+)")[0].astype(int)
     result["Prämie"] = result["Prämie"].astype(float)
-    result["Zielgruppe"] = result["Altersklasse"].map(AGE_CLASSES)
+    # Same values as "Altersklasse" now that identity is the code. Kept as a
+    # separate column because the grouping and filtering downstream name it,
+    # and collapsing the two is a tidy-up for its own commit, not this one.
+    result["Zielgruppe"] = result["Altersklasse"]
 
     names = insurer_names()
     result["Versicherername"] = (
         result["Versicherer"].map(names).fillna(result["Versicherer"].astype(str))
     )
     return result
+
+
+def available_tariff_types(df: pd.DataFrame) -> list[str]:
+    """The tariff types actually present in the data, ordered as in TARIFF_TYPES.
+
+    The BAG defines five categories, but it does not necessarily ship rows for
+    all of them. In premium year 2027 there is not a single PHARM row in the
+    national file, although priminfo still offers PHARM as a filter. Presenting
+    a choice that cannot match anything is bad enough; here it was actively
+    misleading, because pharmacy products do exist - PharMed, Favorit Medpharm,
+    casamed pharm, KPTwin.win - and the BAG files them under PRAXIS and FLEX.
+    Someone looking for a pharmacy model would have picked the one option that
+    excludes every one of them.
+
+    Deriving the list from the data rather than from the vocabulary means a
+    category that reappears in a later year is offered again by itself, and one
+    that is empty is never offered. TARIFF_TYPES stays the full vocabulary, so
+    the label is ready whenever a category shows up.
+    """
+    present = set(df["Tariftyp"].dropna())
+    return [t for t in TARIFF_TYPES if t in present]
 
 
 def cheapest_premiums(df: pd.DataFrame) -> pd.DataFrame:
@@ -441,13 +464,13 @@ def household_offers(
     parts: dict[str, pd.Series] = {}
     if household.adults:
         parts[ADULTS] = (
-            _price_series(base, "AKL-ERW", accident_cover[ADULTS], deductible_adults)
+            _price_series(base, ADULTS, accident_cover[ADULTS], deductible_adults)
             * household.adults
         )
     if household.young_adults:
         parts[YOUNG_ADULTS] = (
             _price_series(
-                base, "AKL-JUG", accident_cover[YOUNG_ADULTS], deductible_young_adults
+                base, YOUNG_ADULTS, accident_cover[YOUNG_ADULTS], deductible_young_adults
             )
             * household.young_adults
         )
@@ -455,7 +478,7 @@ def household_offers(
         count = household.children.count(subgroup)
         parts[f"Kinder {subgroup}"] = (
             _price_series(
-                base, "AKL-KIN", accident_cover[CHILDREN], deductible_children, subgroup
+                base, CHILDREN, accident_cover[CHILDREN], deductible_children, subgroup
             )
             * count
         )
@@ -508,12 +531,13 @@ def display_results(
     for r in results:
         if r.tipping_point is None:
             print(
-                f"\n{r.age_group}: the lowest deductible ({r.lowest_deductible} CHF) "
+                f"\n{AGE_CLASS_LABELS[r.age_group]}: the lowest deductible "
+                f"({r.lowest_deductible} CHF) "
                 f"never pays off within the range examined."
             )
         else:
             print(
-                f"\nFor {r.age_group}, the lowest deductible "
+                f"\nFor {AGE_CLASS_LABELS[r.age_group]}, the lowest deductible "
                 f"({r.lowest_deductible} CHF) pays off arithmetically from "
                 f"{r.tipping_point} CHF of healthcare costs."
             )
@@ -544,7 +568,10 @@ def display_results(
             end = min(r.costs.index[-1], r.tipping_point + window)
             print(r.costs.loc[start:end].round(2).to_markdown())
 
-        print(f"\nOptimal deductible by healthcare costs ({r.age_group}):")
+        print(
+            f"\nOptimal deductible by healthcare costs "
+            f"({AGE_CLASS_LABELS[r.age_group]}):"
+        )
         print(r.segments.to_markdown(index=False))
 
 
@@ -560,7 +587,7 @@ def unknown_child_tiers(data: pd.DataFrame) -> set[str]:
     """Child tariff tiers present in the data whose condition is not known."""
     if "Altersuntergruppe" not in data or "Altersklasse" not in data:
         return set()
-    children = data[data["Altersklasse"].isin(["AKL-KIN", CHILDREN])]
+    children = data[data["Altersklasse"] == CHILDREN]
     present = set(children["Altersuntergruppe"].dropna())
     return {t for t in present if t not in KNOWN_CHILD_TIERS}
 

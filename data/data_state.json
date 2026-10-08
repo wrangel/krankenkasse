@@ -45,5 +45,11 @@
     "FRA-500",
     "FRA-600"
   ],
+  "tariff_types": [
+    "BASE",
+    "FLEX",
+    "PRAXIS",
+    "TEL_DIG"
+  ],
   "canton_count": 28
 }

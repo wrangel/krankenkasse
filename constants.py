@@ -71,67 +71,56 @@ coinsurance_rate = 0.1
 # expects only CHF 200.
 min_cost_range = 10000
 
-AGE_CLASSES = {
-    "AKL-ERW": "Erwachsene",
-    "AKL-JUG": "Junge Erwachsene",
-    "AKL-KIN": "Kinder",
+# Age classes. Identity is the BAG's own code; the German wording is a label
+# hanging off it.
+#
+# These used to be one and the same - ADULTS was the string "Erwachsene", which
+# keyed coinsurance_cap, filled the "Zielgruppe" column, named a download, and
+# was printed on the page. That works exactly as long as there is one language.
+# Translating the label would have silently changed a dictionary key and a
+# column value, so the two are separated here before any translation begins.
+#
+# Rule from here: compare, group and key on the code; call AGE_CLASS_LABELS
+# only where something is shown to a person.
+ADULTS = "AKL-ERW"
+YOUNG_ADULTS = "AKL-JUG"
+CHILDREN = "AKL-KIN"
+
+# German labels for the command line and the monitoring, which are developer
+# tools and not translated. Everything the web interface shows comes from
+# locales/ instead - see i18n.t and the age_class.* keys, which must agree with
+# these three words for German.
+AGE_CLASS_LABELS = {
+    ADULTS: "Erwachsene",
+    YOUNG_ADULTS: "Junge Erwachsene",
+    CHILDREN: "Kinder",
 }
 
-# Named access to the above. Everywhere else the code used to spell the string
-# "Kinder" out in full - a rename like "Jugendliche" -> "Junge Erwachsene" then
-# has to be hunted down one occurrence at a time.
-#
-# Note that these values are German *display labels* that double as internal
-# identity: they key coinsurance_cap, they end up in the "Zielgruppe" column,
-# and they are shown to the user. The translation layer will have to split the
-# two - identity by BAG code, label by lookup. It is the natural moment for it,
-# because a translation layer needs that lookup anyway.
-ADULTS = AGE_CLASSES["AKL-ERW"]
-YOUNG_ADULTS = AGE_CLASSES["AKL-JUG"]
-CHILDREN = AGE_CLASSES["AKL-KIN"]
-
-# Statutory annual cap on the coinsurance share (Art. 103 KVV), keyed by age
-# class label.
+# Statutory annual cap on the coinsurance share (Art. 103 KVV), by age class.
 coinsurance_cap = {
     ADULTS: 700,
     YOUNG_ADULTS: 700,
     CHILDREN: 350,
 }
 
-# Age subgroups for children - the sibling discounts. The labels come from the
-# BAG tariff list (Tarife.xlsx on opendata.swiss, category ALT); they are
-# therefore officially documented rather than guessed. Note that K4 means the
-# discount from the SECOND child onwards, not the fourth.
-CHILD_SUBGROUPS = {
-    "K1": "ohne zusätzlichen Rabatt",
-    "K3": "Rabatt ab dem 3. Kind",
-    "K4": "Rabatt ab dem 2. Kind, gültig für alle Kinder",
-    "K5": "Rabatt ab dem 3. Kind, gültig für alle Kinder",
-}
+# Age subgroups for children - the sibling discounts. The codes come from the
+# BAG tariff list (Tarife.xlsx on opendata.swiss, category ALT); what each one
+# means is set out in calculation.child_tier_schemes. Codes only: anything
+# shown to a person lives in locales/.
+CHILD_SUBGROUPS = ("K1", "K3", "K4", "K5")
 
 # Default: the standard tier only, which every insurer carries unconditionally.
 CHILD_SUBGROUPS_DEFAULT = ("K1",)
 
-# Tariff types from premium year 2027 on. This is not a mere rename: up to 2026
-# there were TAR-BASE, TAR-HAM, TAR-HMO and TAR-DIV, now there are five
-# differently cut categories (per the BAG's "Erläuterungen zu den
-# Prämiendaten"). An old -> new mapping would be guesswork and is omitted.
-TARIFF_TYPES = {
-    "BASE": "Standardmodell (freie Arztwahl)",
-    "PRAXIS": "Praxis- und Hausarztmodelle",
-    "FLEX": "Flexible Modelle",
-    "TEL_DIG": "Telemedizin und digitale Modelle",
-    "PHARM": "Apothekenmodelle",
-}
-
-# Short forms for tables where the full names are too wide.
-TARIFF_TYPES_SHORT = {
-    "BASE": "Standard",
-    "PRAXIS": "Praxis",
-    "FLEX": "Flex",
-    "TEL_DIG": "Telemed",
-    "PHARM": "Apotheke",
-}
+# Tariff types from premium year 2027 on, in the order they are offered. This
+# is not a mere rename of the old TAR-BASE / TAR-HAM / TAR-HMO / TAR-DIV: they
+# are five differently cut categories (per the BAG's "Erläuterungen zu den
+# Prämiendaten"), and an old -> new mapping would be guesswork.
+#
+# The list is the full vocabulary. What a visitor is actually offered comes
+# from calculation.available_tariff_types, because a category can be defined
+# and shipped empty - PHARM is, in 2027.
+TARIFF_TYPES = ("BASE", "PRAXIS", "FLEX", "TEL_DIG", "PHARM")
 
 REGIONS = {
     "PR-REG CH0": "Region 0",
@@ -141,13 +130,29 @@ REGIONS = {
 }
 
 # Contact and provenance, shown in the footer and used in the README and
-# SECURITY.md. The address is an alias (addy.io), never the real mailbox - the
-# same arrangement as abstractaltitudes. If it ever gets harvested it can be
-# switched off without changing the real address.
-CONTACT_EMAIL = "contact@grundversicherungsrechner.anonaddy.com"
-REPO_URL = "https://github.com/wrangel/grundversicherungsrechner"
+# SECURITY.md. The address is an addy.io alias, never the real mailbox, so it
+# can be switched off if it is ever harvested. It is the same alias
+# abstractaltitudes uses: one alias covering both projects, rather than a new
+# addy.io username per project.
+CONTACT_EMAIL = "contact@abstractaltitudes.anonaddy.com"
+REPO_URL = "https://github.com/wrangel/viaprima"
 OPENDATA_URL = "https://opendata.swiss/de/dataset/health-insurance-premiums"
-PRIMINFO_URL = "https://www.priminfo.admin.ch"
+COFFEE_URL = "https://buymeacoffee.com/wrangel"
+# The other things I have built, so the two sites point at each other.
+OTHER_APPS_URL = "https://abstractaltitudes.com"
+GITHUB_PROFILE_URL = "https://github.com/wrangel"
+# The premium comparison itself, not the homepage: someone following this link
+# wants the official figures, and landing on a front page makes them hunt.
+# The /de/ segment is language-specific and will need to follow the user's
+# choice once the translation layer exists.
+PRIMINFO_URL = "https://www.priminfo.admin.ch/de/praemien"
+
+# The form's starting state. Named because three places need to agree on it:
+# app.py seeds session_state with it, common.py offers the postcode, and
+# persistence.py compares against it to decide whether there is anything worth
+# storing on the visitor's machine.
+DEFAULT_PERSON = {"id": 1, "age": 40, "accident": "OHN-UNF", "costs": 1000}
+DEFAULT_POSTCODE = "8001"
 
 # Defaults for the CLI run
 canton_default = "ZH"

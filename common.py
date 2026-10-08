@@ -8,19 +8,24 @@ import json
 import pandas as pd
 import streamlit as st
 
-from constants import ADULTS, CHILDREN, REGIONS_FILE, YOUNG_ADULTS
+from constants import ADULTS, CHILDREN, DEFAULT_POSTCODE, REGIONS_FILE, YOUNG_ADULTS
+from i18n import t
 from calculation import load_premiums
 
 
 # The message says why it takes a moment and that it only takes it once. On the
 # first call after a restart the BAG file is parsed - noticeably slow on the
 # Synology - and is then held ready in parsed form.
-@st.cache_data(
-    show_spinner="Lade die Prämiendaten des BAG. Beim ersten Aufruf dauert das "
-    "einen Moment, danach geht es schnell."
-)
-def premiums(max_age_days: int):
+@st.cache_data(show_spinner=False)
+def _premiums(max_age_days: int):
     return load_premiums(max_age_days)
+
+
+def premiums(max_age_days: int):
+    # The spinner text is translated, so it cannot sit in the cache decorator,
+    # which is evaluated once at import time before a language is known.
+    with st.spinner(t("loading.premiums")):
+        return _premiums(max_age_days)
 
 
 def chf(amount: float, decimals: int = 0) -> str:
@@ -70,29 +75,33 @@ def choose_location(key: int, column=None) -> tuple[str, str, str] | None:
     target = column if column is not None else st
     mapping = regions_by_postcode()
     if not mapping:
-        target.error(
-            "Die Zuordnung der Postleitzahlen fehlt. Einmalig erzeugen mit "
-            "`python refresh_regions.py`."
-        )
+        target.error(t("form.regions_missing"))
         return None
 
+    # Seed session_state once instead of passing value= alongside key=.
+    # Streamlit warns when a widget is given both, and it is right to: the
+    # restored entry and the default disagree, and which one wins is not
+    # obvious from the call. Seeding makes session_state the single source and
+    # leaves a restored postcode untouched.
+    postcode_key = f"postcode_{key}"
+    st.session_state.setdefault(postcode_key, DEFAULT_POSTCODE)
     postcode = target.text_input(
-        "Postleitzahl", value="8001", max_chars=4, key=f"postcode_{key}"
+        t("form.postcode"), max_chars=4, key=postcode_key
     ).strip()
     entries = mapping.get(postcode)
     if not entries:
         if postcode:
-            target.warning(f"Zur PLZ {postcode} ist keine Prämienregion bekannt.")
+            target.warning(t("form.postcode_unknown", plz=postcode))
         return None
 
     variants = {(e["canton"], e["region"]) for e in entries}
     if len(variants) > 1:
         chosen = target.selectbox(
-            "Ortschaft",
+            t("form.town"),
             entries,
-            format_func=lambda e: f"{e['town']} ({e['canton']}, Region {e['region']})",
+            format_func=lambda e: f"{e['town']} ({e['canton']}, {e['region']})",
             key=f"town_{key}",
-            help="Diese Postleitzahl liegt in mehreren Prämienregionen.",
+            help=t("form.town_help"),
         )
     else:
         chosen = entries[0]
@@ -119,3 +128,15 @@ def with_gap_to_cheapest(
         (values - values.min()).round(2),
     )
     return table
+
+
+def header(column: str, **kwargs):
+    """A column_config entry whose header is translated.
+
+    The DataFrames keep German column names on purpose - they are what lands in
+    the CSV exports, and an export whose column names change with the interface
+    language cannot be compared with one a colleague produced. Only the header
+    shown on screen is translated.
+    """
+    kind = kwargs.pop("kind", st.column_config.Column)
+    return kind(label=t(f"col.{column}"), **kwargs)

@@ -3,7 +3,7 @@
 # environment.
 set -e
 
-VENV="${VENV:-$HOME/.venvs/grundversicherungsrechner}"
+VENV="${VENV:-$HOME/.venvs/viaprima}"
 cd "$(dirname "$0")/.."
 source scripts/free_port.sh
 

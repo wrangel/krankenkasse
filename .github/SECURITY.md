@@ -10,25 +10,37 @@ security finding reaches me privately instead of arriving as a public issue.
 
 Use GitHub's private vulnerability reporting:
 
-**[Report a vulnerability](https://github.com/wrangel/grundversicherungsrechner/security/advisories/new)**
+**[Report a vulnerability](https://github.com/wrangel/viaprima/security/advisories/new)**
 
 That opens a private advisory visible only to me, so the problem can be fixed
 before it is described anywhere public.
 
 If you would rather not use GitHub, email
-`contact@grundversicherungsrechner.anonaddy.com` with "security" in the
+`contact@abstractaltitudes.anonaddy.com` with "security" in the
 subject.
 
 ## What this application holds
 
-Worth knowing before you look for a data breach: there is nothing to breach.
-The app has no accounts, no login, no database and no server-side storage. What
-you type — postcode, age, expected healthcare costs — lives in the Streamlit
-session for as long as the tab is open and is never written anywhere. Nothing
-is sent to third parties; usage statistics are switched off.
+Worth knowing before you look for a data breach: there is very little to
+breach. The app has no accounts, no login, no database and no server-side
+storage of anything a visitor types. Nothing is sent to third parties; usage
+statistics are switched off.
+
+What you enter — postcode, age, expected healthcare costs, choice of tariff
+models — is kept in the browser's own `localStorage`, so that reloading the
+page does not throw it away. That store never leaves your machine: it is not a
+cookie, so it is not attached to requests and never reaches the server or its
+logs. "Eingaben vergessen" at the foot of the page deletes it, and a form you
+have not touched is not stored at all.
+
+A cookie was considered and rejected for exactly this reason: it would travel
+with every request and end up in the reverse proxy's access log. Query
+parameters were rejected too — they would sit in the URL, in browser history,
+in the proxy log, and would leak through the `Referer` header on any outbound
+link.
 
 The only data the server holds is the BAG's public premium file, cached on
-disk. If that ever changes, this section changes with it.
+disk. If any of this changes, this section changes with it.
 
 ## What helps
 
@@ -50,7 +62,7 @@ will usually be closed without a detailed reply.
 ## Scope
 
 In scope: this repository's source, and the deployed instance at
-<https://grundversicherungsrechner.ch>.
+<https://viaprima.ch>.
 
 Out of scope: the third-party services this depends on — the BAG's data
 delivery via opendata.swiss, Docker Hub, Streamlit itself, and Let's Encrypt —

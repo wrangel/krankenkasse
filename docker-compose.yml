@@ -2,7 +2,7 @@
 # Compose defaults to the folder it finds docker-compose.yml in, which would
 # make the container name - and so the docker exec calls in
 # scripts/syno-deploy.sh - break the moment the checkout is renamed or moved.
-name: grundversicherungsrechner
+name: viaprima
 
 services:
   app:
@@ -17,7 +17,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: wrangel/grundversicherungsrechner:1.0
+    image: wrangel/viaprima:1.0
     ports:
       # Bind to localhost only. The Synology's reverse proxy runs on the NAS
       # itself and reaches the container that way; from outside it is therefore
@@ -34,6 +34,43 @@ services:
       # This is what lets the BAG premium file survive a restart. Without the
       # volume every start costs about six seconds of parsing.
       - premium-cache:/app/.cache
+    # Resolve names directly instead of through Docker's embedded resolver.
+    #
+    # Measured on the NAS, inside the container: a raw TCP connection to
+    # 1.1.1.1:443 succeeded while gethostbyname() returned EAI_AGAIN. So the
+    # route out was fine and only name resolution was broken - 127.0.0.11
+    # could not reach whatever the NAS has configured upstream. Recreating the
+    # bridge did not help, which is what distinguishes this from the missing
+    # iptables FORWARD rules that abstractaltitudes used to hit.
+    #
+    # abstractaltitudes carries the identical block on the same NAS, added in
+    # its MongoDB-connection bugfix for the same reason. Same order, so the two
+    # are comparable when one of them misbehaves.
+    #
+    # This app is worthless without the BAG, so it should not depend on the
+    # host's resolver configuration staying healthy.
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+
+    # Pin the BAG's address, because DNS does not work from this container.
+    #
+    # Measured on the NAS: TCP to 1.1.1.1:443 succeeds, while UDP *and* TCP to
+    # port 53 both time out - against 8.8.8.8, against 1.1.1.1, and against
+    # Docker's own resolver at 127.0.0.11. So port 53 is blocked for this
+    # bridge while 443 is open, and no choice of resolver can help. It is not
+    # constant either: the probe in scripts/syno-deploy.sh saw resolution
+    # working moments after the network was created, and failing minutes later,
+    # so something re-applies the rule afterwards.
+    #
+    # This is a workaround, not the fix. The fix is a Synology firewall rule
+    # permitting DNS from the container bridge; until then the app would be
+    # down. syno-deploy.sh checks on every deploy that this address still
+    # matches what the NAS itself resolves, so a change at the BAG shows up as
+    # a warning rather than as an outage.
+    extra_hosts:
+      - "opendata.bagnet.ch:80.74.156.75"
+
     environment:
       # Otherwise Streamlit writes into a home directory the service user has
       # not got.

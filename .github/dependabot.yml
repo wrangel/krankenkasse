@@ -1,13 +1,17 @@
-# Hält die Abhängigkeiten aktuell, ohne dass jemand daran denken muss.
+# Keeps the dependencies current without anybody having to remember.
 #
-# Monatlich und gruppiert: ein Pull Request pro Monat statt einer pro Paket.
-# Für ein Werkzeug, das sich im Jahresrhythmus ändert, ist das der richtige Takt -
-# wöchentliche Einzel-PRs wären nur Lärm.
+# Monthly and grouped: one pull request a month rather than one per package.
+# For a tool that changes on a yearly rhythm that is the right cadence; weekly
+# single-package PRs would be noise.
 #
-# Achtung bei der Beurteilung solcher Pull Requests: Die CI prüft nur, dass sich
-# die Abhängigkeiten installieren lassen und jedes Modul kompiliert. Sie rechnet
-# nicht nach. Eine grüne Prüfung heisst also nicht, dass pandas & Co. dieselben
-# Zahlen liefern wie vorher.
+# abstractaltitudes uses Renovate instead, but that is not a reason to switch
+# here. It moved because Dependabot supports pnpm 7-10 only and silently failed
+# on pnpm 12. This is a pip project, which Dependabot handles properly.
+#
+# One caveat when reviewing these PRs: CI only checks that the dependencies
+# install and that every module compiles - and, since test_calculation.py
+# exists, that the arithmetic still matches the hand calculations. That last
+# part is why a green check here means something.
 
 version: 2
 updates:
@@ -23,8 +27,8 @@ updates:
     commit-message:
       prefix: "deps"
 
-  # Auch die Actions selbst veralten - actions/checkout und setup-python werden
-  # sonst jahrelang auf einer alten Hauptversion stehen gelassen.
+  # The actions themselves go stale too - otherwise actions/checkout and
+  # setup-python sit on an old major version for years.
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
