@@ -23,44 +23,6 @@ def configure_page() -> None:
     st.markdown(
         """
         <style>
-          /* Give the page a measure.
-             Streamlit's wide layout lets text run the full window: measured at
-             106 characters per line in a 1024px window, and worse on a large
-             monitor. Comfortable is 60-75. Long lines are why a page reads as
-             unconsidered - the eye loses its place returning to the left edge -
-             and no amount of decoration fixes it.
-             Two caps, because the content wants two different widths: the page
-             as a whole stays wide enough for seven-column tables and the cost
-             chart, while running text is held to about 75 characters.
-             A gentle cap, not a tight one. 60ch measured out at 74 real
-             characters, which is the textbook figure but looked squeezed
-             against a wide window - the column read as an accident rather
-             than a decision. 72ch lands near 90: still a clear improvement on
-             the 106 it started at, without the page looking pinched.
-             To remove the cap entirely, delete the two max-width rules below;
-             nothing else depends on them. */
-          [data-testid="stMainBlockContainer"] {
-              max-width: 1040px !important;
-              padding-left: 2rem !important;
-              padding-right: 2rem !important;
-          }
-          [data-testid="stCaptionContainer"] p,
-          [data-testid="stCaptionContainer"] li,
-          [data-testid="stMarkdownContainer"] > p,
-          [data-testid="stMarkdownContainer"] > ul {
-              max-width: 72ch;
-          }
-          /* The info box takes the same measure. Left full width it ran to the
-             edge while the prose beside it stopped at 57% of that, which made
-             the narrow column look like an accident rather than a decision. */
-          [data-testid="stAlertContainer"] { max-width: 76ch; }
-          /* The footnotes and the disclaimer are reference text rather than
-             the argument, so they can run a little wider without tiring. */
-          [data-testid="stExpander"] [data-testid="stMarkdownContainer"] > p,
-          [data-testid="stExpander"] [data-testid="stMarkdownContainer"] > ul {
-              max-width: 80ch;
-          }
-
           /* One text size for the whole page.
              Streamlit renders st.caption at 0.875rem and markdown at 1rem, so
              the explanatory paragraphs - which carry most of the meaning here -
