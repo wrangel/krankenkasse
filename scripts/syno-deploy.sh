@@ -12,7 +12,7 @@ set -e
 # The file reaches the NAS through Synology Drive, not through git. It can
 # therefore be older than the version on the Mac; the line below says which one
 # actually ran.
-SCRIPT_VERSION="2026-10-08-pinned"
+SCRIPT_VERSION="2026-10-08-pinned2"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -102,15 +102,32 @@ echo -e "${GREEN}App responds.${NC}"
 # address in /etc/hosts. The NAS itself resolves perfectly well, so it can
 # check that the pin is still right - otherwise a change at the BAG would turn
 # into a silent outage weeks later.
+# Synology's shell has no getent, so try a few things and - importantly - say
+# so when none of them worked. The first version treated "no answer" as "they
+# match", which is the one outcome this check exists to rule out.
 PINNED="$(grep -oE 'opendata\.bagnet\.ch:[0-9.]+' "$COMPOSE_FILE" | cut -d: -f2)"
-ACTUAL="$(getent hosts opendata.bagnet.ch | awk '{print $1}' | head -1)"
-if [[ -n "$PINNED" && -n "$ACTUAL" && "$PINNED" != "$ACTUAL" ]]; then
+ACTUAL=""
+if command -v nslookup >/dev/null 2>&1; then
+  ACTUAL="$(nslookup opendata.bagnet.ch 2>/dev/null \
+            | awk '/^Address: /{print $2; exit}')"
+fi
+if [[ -z "$ACTUAL" ]] && command -v python3 >/dev/null 2>&1; then
+  ACTUAL="$(python3 -c "import socket;print(socket.gethostbyname('opendata.bagnet.ch'))" 2>/dev/null)"
+fi
+if [[ -z "$ACTUAL" ]] && command -v getent >/dev/null 2>&1; then
+  ACTUAL="$(getent hosts opendata.bagnet.ch | awk '{print $1}' | head -1)"
+fi
+
+if [[ -n "$PINNED" && -z "$ACTUAL" ]]; then
+  echo -e "${YELLOW}   could not check the pinned BAG address $PINNED -" \
+          "no working resolver on the NAS${NC}"
+elif [[ -n "$PINNED" && "$PINNED" != "$ACTUAL" ]]; then
   echo -e "${RED}The pinned BAG address is out of date.${NC}"
   echo -e "${RED}   docker-compose.yml says $PINNED, DNS says $ACTUAL.${NC}"
   echo -e "${RED}   Update extra_hosts in docker-compose.yml, or the app will${NC}"
   echo -e "${RED}   keep talking to an address the BAG no longer uses.${NC}"
 elif [[ -n "$PINNED" ]]; then
-  echo "   pinned BAG address $PINNED still matches DNS"
+  echo "   pinned BAG address $PINNED matches DNS ($ACTUAL)"
 fi
 
 echo -e "${GREEN}Checking what the container can reach...${NC}"
