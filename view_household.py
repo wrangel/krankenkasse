@@ -85,7 +85,7 @@ def household_total(
         width="stretch",
         column_config={
             "Nr.": header("Nr.", kind=st.column_config.NumberColumn,
-                          format="%d", width="small"),
+                          format="%d", width="small", alignment="left"),
             "Altersklasse": header("Altersklasse"),
             "Ort": header("Ort"),
             "Franchise": header("Franchise", kind=st.column_config.NumberColumn,

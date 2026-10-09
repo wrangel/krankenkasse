@@ -356,8 +356,9 @@ def person_view(
             hide_index=True,
             width="stretch",
             column_config={
+                # A counter, not an amount: left, beside the name it ranks.
                 "Rang": header("Rang", kind=st.column_config.NumberColumn,
-                               format="%d", width="small"),
+                               format="%d", width="small", alignment="left"),
                 "Versicherer": header("Versicherer",
                                       kind=st.column_config.TextColumn,
                                       width="medium"),
@@ -368,9 +369,10 @@ def person_view(
                 "Prämie/Jahr": header("Prämie/Jahr",
                                       kind=st.column_config.NumberColumn,
                                       format="%.0f", width="small"),
+                # No width: "small" cut the header off at "Mehrkosten/Ja".
                 "Mehrkosten/Jahr": header("Mehrkosten/Jahr",
                                           kind=st.column_config.NumberColumn,
-                                          format="%.0f", width="small"),
+                                          format="%.0f"),
                 "Prämie/Monat": header("Prämie/Monat",
                                        kind=st.column_config.NumberColumn,
                                        format="%.2f", width="small"),
