@@ -290,8 +290,9 @@ def person_view(
     comparison["Franchise"] = comparison["Franchise"].astype(int)
     comparison["Kosten/Jahr"] = comparison["Kosten/Jahr"].round(0)
     comparison = with_gap_to_cheapest(comparison, "Kosten/Jahr", "Mehrkosten/Jahr")
-    comparison["Kosten/Monat"] = (comparison["Kosten/Jahr"] / 12).round(2)
-    comparison = with_gap_to_cheapest(comparison, "Kosten/Monat", "Mehrkosten/Monat")
+    # Per year only. Franchise and Selbstbehalt are yearly amounts; spread over
+    # twelve months they make a figure nobody pays. Monthly figures appear
+    # only where they are real: the premium per offer, the household total.
     st.dataframe(
         comparison,
         hide_index=True,
@@ -302,8 +303,6 @@ def person_view(
                 ("Franchise", "%d"),
                 ("Kosten/Jahr", "%.0f"),
                 ("Mehrkosten/Jahr", "%.0f"),
-                ("Kosten/Monat", "%.2f"),
-                ("Mehrkosten/Monat", "%.2f"),
             ]
         },
     )

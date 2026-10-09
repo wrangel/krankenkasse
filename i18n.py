@@ -15,7 +15,7 @@ Three decisions worth knowing:
   "Sanitas Grundversicherungen AG - TelMed Basic". There is nothing to
   translate them from.
 * **Table headers are translated, CSV column names are not.** On screen a
-  French reader should not meet "Mehrkosten/Monat"; in an exported file the
+  French reader should not meet "Mehrkosten/Jahr"; in an exported file the
   column names must stay put, or the same export is incomparable between two
   people who happened to use different languages. The DataFrames therefore
   keep German column names and the translation happens in column_config.
