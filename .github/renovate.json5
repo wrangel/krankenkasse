@@ -1,0 +1,84 @@
+// Dependency updates, set up the same way as in abstractaltitudes so the two
+// repositories behave alike: Monday mornings, grouped, merged automatically
+// when the check is green, and one Dependency Dashboard issue to glance at.
+// Replaces .github/dependabot.yml, which proposed updates only monthly, could
+// not merge on its own and never looked at the Docker base image.
+//
+// What makes automerge safe here: the `check` job runs test_calculation.py,
+// so a pandas change that shifts the tipping point turns it red. And merging
+// changes nothing that is live - production only moves when `make prod`
+// pushes the image and the NAS redeploys.
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: ["config:recommended"],
+  timezone: "Europe/Zurich",
+  schedule: ["before 6am on monday"],
+  prConcurrentLimit: 5,
+
+  // Wait until a release is 3 days old. Buys time for a hijacked package to
+  // be spotted and pulled before it lands in requirements.txt. Security fixes
+  // are exempt and raised as soon as they are known. "strict" skips an update
+  // until a version has ripened instead of proposing a too-young one.
+  minimumReleaseAge: "3 days",
+  internalChecksFilter: "strict",
+
+  // Renovate merges on its next run once the check is green, rather than via
+  // GitHub's auto-merge, which is off for this repository.
+  automerge: true,
+  automergeType: "pr",
+  platformAutomerge: false,
+  automergeStrategy: "squash",
+
+  // Security PRs ignore the schedule and the PR limit above. Two sources:
+  // GitHub's Dependabot alerts (needs vulnerability alerts on in the
+  // repository settings), and OSV, independent of GitHub, so one failing does
+  // not blind both.
+  vulnerabilityAlerts: {
+    labels: ["security"],
+  },
+  osvVulnerabilityAlerts: true,
+
+  packageRules: [
+    // Minor and patch in one PR a week.
+    {
+      matchManagers: ["pip_requirements"],
+      matchUpdateTypes: ["minor", "patch"],
+      groupName: "python dependencies (minor and patch)",
+      commitMessagePrefix: "deps:",
+    },
+    // Majors each in their own PR, read rather than rubber-stamped, and not
+    // automerged. A pandas or Streamlit major can pass the arithmetic tests
+    // and still break the page - `make test` and a look first.
+    {
+      matchManagers: ["pip_requirements"],
+      matchUpdateTypes: ["major"],
+      commitMessagePrefix: "deps:",
+      labels: ["major"],
+      automerge: false,
+    },
+
+    {
+      matchManagers: ["github-actions"],
+      schedule: ["before 6am on the first day of the month"],
+      groupName: "GitHub Actions",
+      commitMessagePrefix: "ci:",
+    },
+    // python:3.13-slim in the Dockerfile. Monthly, and unlike abstractaltitudes
+    // not automerged: CI tests on its own Python and never builds the image,
+    // so a green check says nothing about it. Before merging, `make test`,
+    // and on a Python version change bump python-version in ci.yml to match.
+    {
+      matchManagers: ["dockerfile"],
+      schedule: ["before 6am on the first day of the month"],
+      groupName: "Docker base image",
+      commitMessagePrefix: "ci:",
+      automerge: false,
+    },
+    // Our own image in docker-compose.yml, published by `make prod`. Nothing
+    // for Renovate to propose.
+    {
+      matchPackageNames: ["wrangel/viaprima"],
+      enabled: false,
+    },
+  ],
+}

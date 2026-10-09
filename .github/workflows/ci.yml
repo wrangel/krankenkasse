@@ -7,7 +7,8 @@ name: CI Workflow
 # that every module compiles, and that the chain of computation still produces
 # the same numbers as the hand calculation (test_calculation.py).
 #
-# That third point is why a green check on a Dependabot PR says anything at all:
+# That third point is why a green check on a Renovate PR says anything at all -
+# and why Renovate may merge on it:
 # the whole app is a chain of computation over pandas. If the behaviour of
 # groupby, idxmin or str.extract changed, a wrong tipping point would come out
 # without complaint - installation and compilation would be none the wiser.
