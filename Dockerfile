@@ -33,6 +33,12 @@ COPY locales/ ./locales/
 # how the page went white-on-white in production while dev looked fine.
 COPY .streamlit/ ./.streamlit/
 COPY scripts/docker-entrypoint.sh ./
+# Title, description, link-preview tags, robots.txt and sitemap.xml into
+# Streamlit's static page - see the script for why it has to be done this way.
+# Runs as root, before the switch to appuser, because it writes site-packages.
+COPY seo/ ./seo/
+COPY scripts/patch_streamlit_head.py ./scripts/
+RUN python scripts/patch_streamlit_head.py
 
 # The BAG premium file is fetched on first use and stored here. Mounted as a
 # volume it survives a container restart - otherwise every start costs the six
