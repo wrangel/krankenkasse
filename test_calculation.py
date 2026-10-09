@@ -272,6 +272,27 @@ def test_child_switch_is_measured_against_the_shared_recommendation():
     assert shared_switch_saving(data, shared, 0, ("A", "Nope")) is None
 
 
+def test_each_child_is_priced_with_its_own_accident_cover():
+    """One child with accident cover, one without, both no healthcare costs.
+
+    Monthly premium at deductible 0, tier K1: 100 with accident cover, 90
+    without; no rebate. Correct: 12 x 100 + 12 x 90 = 2280. Pricing both with
+    the first child's cover, as before, gave 2400 - which made one insurer for
+    both look dearer than each child on its own.
+    """
+    data = pd.DataFrame({
+        "Versicherername": ["A", "A"],
+        "Tarifbezeichnung": ["T", "T"],
+        "Altersuntergruppe": ["K1", "K1"],
+        "Unfalleinschluss": ["MIT-UNF", "OHN-UNF"],
+        "Franchise": [0, 0],
+        "Prämie": [100.0, 90.0],
+    })
+    best = children_with_one_insurer(
+        data, [0.0, 0.0], 0.0, accident_per_child=["MIT-UNF", "OHN-UNF"])
+    assert best["total"] == 2280.0
+
+
 def test_children_have_the_lower_coinsurance_cap():
     """For children the cap is 350 rather than 700 (Art. 103 para. 2 KVV)."""
     data = get_data(

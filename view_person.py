@@ -497,13 +497,20 @@ def person_form(person: dict, person_count: int, raw) -> dict | None:
     )
     age_group = age_group_for_age(int(age))
 
+    # Seeded from the stored entry like the age. An index= by age group alone
+    # ignored it, so a child entered without accident cover came back with it
+    # after every reload - and was priced with it.
+    accident_key = f"accident_{person_id}"
+    st.session_state.setdefault(
+        accident_key,
+        person.get("accident") or ("OHN-UNF" if age_group == ADULTS else "MIT-UNF"),
+    )
     accident = top[2].radio(
         t("form.accident"),
         ["MIT-UNF", "OHN-UNF"],
-        index=1 if age_group == ADULTS else 0,
         format_func=lambda a: t("form.accident_with") if a == "MIT-UNF" else t("form.accident_without"),
         horizontal=True,
-        key=f"accident_{person_id}",
+        key=accident_key,
         help=t("form.accident_help"),
     )
 

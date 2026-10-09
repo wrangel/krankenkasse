@@ -9,6 +9,7 @@ import html
 import sys
 from datetime import date
 
+import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -254,25 +255,37 @@ shared = None
 child_results = [r for r in results if r["age_group"] == CHILDREN]
 if len(child_results) >= 2:
     first = child_results[0]
-    child_data = get_data(
-        raw,
-        canton=first["location"][0],
-        region=first["location"][1],
-        age_groups=(CHILDREN,),
-        accident_cover={CHILDREN: first["accident"]},
-        child_subgroups=tuple(CHILD_SUBGROUPS),
-        tariff_types=tuple(first["tariff_types"]) if first["tariff_types"] else None,
-    )
-    shared = children_with_one_insurer(
-        child_data,
-        [float(r["costs"]) for r in child_results],
-        environmental_rebate_default,
-    )
+    # One household, one place: the location is the first child's. Accident
+    # cover is per child - with it for one and without for the other used to
+    # price both with it, and made one insurer look dearer than two. Tariff
+    # models: only those every child allows, since all go into one tariff.
+    allowed = [set(r["tariff_types"]) for r in child_results if r["tariff_types"]]
+    shared_types = set.intersection(*allowed) if allowed else None
+    if shared_types is None or shared_types:
+        child_data = pd.concat([
+            get_data(
+                raw,
+                canton=first["location"][0],
+                region=first["location"][1],
+                age_groups=(CHILDREN,),
+                accident_cover={CHILDREN: accident},
+                child_subgroups=tuple(CHILD_SUBGROUPS),
+                tariff_types=tuple(sorted(shared_types)) if shared_types else None,
+            )
+            for accident in sorted({r["accident"] for r in child_results})
+        ], ignore_index=True)
+        shared = children_with_one_insurer(
+            child_data,
+            [float(r["costs"]) for r in child_results],
+            environmental_rebate_default,
+            accident_per_child=[r["accident"] for r in child_results],
+        )
     # For the Wechsel column: each child's contract against this recommendation
     # rather than against the child's own best offer, which it overrides.
     if shared:
         shared["switch_by_id"] = {
-            r["id"]: shared_switch_saving(child_data, shared, i, r.get("current"))
+            r["id"]: shared_switch_saving(child_data, shared, i, r.get("current"),
+                                          accident=r["accident"])
             for i, r in enumerate(child_results)
         }
 

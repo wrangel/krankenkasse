@@ -45,7 +45,7 @@ def household_total(
     if shared:
         saving = children_separately - shared["total"]
         tiers = ", ".join(c["tier"] for c in shared["per_child"])
-        if saving > 0:
+        if saving > 0.5:
             message = t("household.sibling_discount",
                         saving=chf(saving), separate=chf(children_separately),
                         count=child_count, insurer=shared["insurer"],
@@ -62,7 +62,10 @@ def household_total(
                                        cap=chf(shared["family_cap"]), law=t(law),
                                        saving=chf(shared["family_cap_saving"]))
             st.info(message, icon="👪")
-        else:
+        elif saving < -0.5:
+            # Only when the children's own cheapest offers are with different
+            # insurers - otherwise one insurer can never cost more. Equal
+            # amounts need no box at all.
             st.info(
                 t("household.sibling_not_worth",
                   separate=chf(children_separately), insurer=shared["insurer"],
@@ -97,8 +100,10 @@ def household_total(
                 "Franchise": r["deductible"],
                 "Versicherer": r["insurer"],
                 "Tarif": r["tariff"],
-                "Kosten/Jahr": round(r["annual_costs"]),
-                "Kosten/Monat": round(r["annual_costs"] / 12, 2),
+                # Per year only: the monthly figure for the whole household is
+                # in the metric above, and a second money column per row
+                # next to the yearly saving read as a third kind of amount.
+                "Kosten/Jahr (CHF)": round(r["annual_costs"]),
                 "Wechsel": switch(r),
             }
             for i, r in enumerate(results, start=1)
@@ -117,12 +122,9 @@ def household_total(
                                 format="%d"),
             "Versicherer": header("Versicherer"),
             "Tarif": header("Tarif"),
-            "Kosten/Jahr": header("Kosten/Jahr",
-                                  kind=st.column_config.NumberColumn,
-                                  format="%.0f"),
-            "Kosten/Monat": header("Kosten/Monat",
-                                   kind=st.column_config.NumberColumn,
-                                   format="%.2f"),
+            "Kosten/Jahr (CHF)": header("Kosten/Jahr (CHF)",
+                                        kind=st.column_config.NumberColumn,
+                                        format="%.0f"),
             "Wechsel": header("Wechsel", kind=st.column_config.TextColumn),
         },
     )
@@ -139,8 +141,7 @@ def household_total(
             "Franchise": None,
             "Versicherer": "",
             "Tarif": "",
-            "Kosten/Jahr": round(total),
-            "Kosten/Monat": round(total / 12, 2),
+            "Kosten/Jahr (CHF)": round(total),
             "Wechsel": "",
         }]
     )
