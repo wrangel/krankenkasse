@@ -175,7 +175,7 @@ FORMULA_URL = "https://www.moneyland.ch/de/forum/krankenkassen-formel-beste-fran
 # app.py seeds session_state with it, common.py offers the postcode, and
 # persistence.py compares against it to decide whether there is anything worth
 # storing on the visitor's machine.
-DEFAULT_PERSON = {"id": 1, "age": 40, "accident": "OHN-UNF", "costs": 1000}
+DEFAULT_PERSON = {"id": 1, "birth_year": 1986, "accident": "OHN-UNF", "costs": 1000}
 DEFAULT_POSTCODE = "8001"
 
 # Defaults for the CLI run

@@ -150,15 +150,34 @@ def age_group_for_age(age: int) -> str:
         26 and up   Erwachsene         (AKA_03_ERW)
 
     There is no class called "Jugendliche", and for premium purposes a
-    fourteen-year-old is a child - not only up to 12. Note that the step is by
-    year of birth, not by birthday (Art. 89 para. 3 KVV); this app simplifies
-    and works with the age.
+    fourteen-year-old is a child - not only up to 12. `age` is the age reached
+    in the premium year; see age_group_for_birth_year.
     """
     if age <= 18:
         return CHILDREN
     if age <= 25:
         return YOUNG_ADULTS
     return ADULTS
+
+
+def age_group_for_birth_year(birth_year: int, premium_year: int) -> str:
+    """The premium age class for a premium year, from the year of birth.
+
+    The class changes at the start of the calendar year after someone turns
+    18 or 25 (Art. 61 para. 3 KVG, Art. 89 para. 3 KVV), so what counts is the
+    age reached in the premium year: born 2009, 18 in 2027, a child for all
+    of 2027; born 2008, 19 in 2027, a young adult. Asking for today's age got
+    this wrong for everyone at the boundary - an 18-year-old was priced as a
+    child for a year in which they are a young adult.
+    """
+    return age_group_for_age(premium_year - birth_year)
+
+
+def premium_year_of(raw: pd.DataFrame) -> int:
+    """The premium year of the loaded data, worked out once per table."""
+    if "premium_year" not in raw.attrs:
+        raw.attrs["premium_year"] = int(raw["Geschäftsjahr"].max())
+    return raw.attrs["premium_year"]
 
 
 def choose_location(key: int, column=None) -> tuple[str, str, str] | None:
@@ -195,6 +214,9 @@ def choose_location(key: int, column=None) -> tuple[str, str, str] | None:
 
     variants = {(e["canton"], e["region"]) for e in entries}
     if len(variants) > 1:
+        # A restored town only stands if it belongs to this postcode.
+        if st.session_state.get(f"town_{key}") not in (None, *entries):
+            del st.session_state[f"town_{key}"]
         chosen = target.selectbox(
             t("form.town"),
             entries,

@@ -26,6 +26,7 @@ sends the result back, which means the value is not available on the first run
 """
 
 import json
+from datetime import date
 
 import streamlit as st
 from streamlit_js_eval import streamlit_js_eval
@@ -37,7 +38,7 @@ STORAGE_KEY = "viaprima.inputs.v1"
 
 # Only what the visitor typed. Deliberately not the computed results: those are
 # cheap to recompute and would go stale against new premium data.
-_PERSON_FIELDS = ("id", "age", "accident", "costs")
+_PERSON_FIELDS = ("id", "birth_year", "accident", "costs")
 
 # What a stored person has to look like to be trusted. The JSON being
 # well-formed says nothing about its contents: a payload written by an older
@@ -53,16 +54,30 @@ def _valid_person(person: object) -> bool:
     if not isinstance(person, dict):
         return False
     try:
-        person_id, age, costs = person["id"], person["age"], person["costs"]
+        person_id, birth_year, costs = person["id"], person["birth_year"], person["costs"]
         accident = person["accident"]
     except (KeyError, TypeError):
         return False
     return (
         isinstance(person_id, int) and person_id > 0
-        and isinstance(age, int) and 0 <= age <= 120
+        and isinstance(birth_year, int) and 1900 <= birth_year <= date.today().year + 1
         and isinstance(costs, int) and 0 <= costs <= 10_000_000
         and accident in _ACCIDENT_VALUES
     )
+
+
+def _migrate(person: object) -> object:
+    """An entry stored before the year of birth replaced the age.
+
+    Without this, everyone who used the app before would lose their whole
+    household on the first visit after the update. The year is approximate
+    (birthday unknown) - which is why the field changed - but close enough to
+    carry the entry over; the visitor sees it and can correct it.
+    """
+    if isinstance(person, dict) and "birth_year" not in person and isinstance(person.get("age"), int):
+        person = {**person, "birth_year": date.today().year - person["age"]}
+        person.pop("age")
+    return person
 
 _RESTORED = "_restore_done"
 _PENDING = "_restore_pending"
@@ -76,7 +91,7 @@ _CLEARS = "_inputs_cleared"
 
 def _widget_keys(person_id: int) -> tuple[str, ...]:
     """The widget state worth keeping that is not already in the person entry."""
-    return (f"postcode_{person_id}", f"models_{person_id}",
+    return (f"postcode_{person_id}", f"town_{person_id}", f"models_{person_id}",
             f"current_insurer_{person_id}", f"current_model_{person_id}",
             f"current_deductible_{person_id}")
 
@@ -128,7 +143,7 @@ def restore(offered_tariff_types: list[str]) -> bool:
         # the one choice that should survive regardless.
         if isinstance(data, dict) and data.get("language"):
             set_language(data["language"])
-        people = data["people"]
+        people = [_migrate(p) for p in data["people"]]
         assert isinstance(people, list) and people
         assert all(_valid_person(p) for p in people)
         assert len({p["id"] for p in people}) == len(people)
@@ -147,6 +162,11 @@ def restore(offered_tariff_types: list[str]) -> bool:
             continue
         if key.startswith("postcode_"):
             if not (isinstance(value, str) and value.isdigit() and len(value) == 4):
+                continue
+        if key.startswith("town_"):
+            # The chosen town where one postcode spans several premium
+            # regions - an entry from data/premium_regions.json.
+            if not (isinstance(value, dict) and {"canton", "region", "town"} <= set(value)):
                 continue
         if key.startswith("current_deductible_"):
             # One of the statutory deductibles; which ones fit the age class
