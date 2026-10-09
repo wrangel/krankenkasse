@@ -3,7 +3,7 @@
 import pandas as pd
 import streamlit as st
 
-from common import chf, header
+from common import chf, show_table
 from constants import CHILDREN, noticeable_saving
 from i18n import t
 
@@ -113,30 +113,16 @@ def household_total(
                 # Per year only: the monthly figure for the whole household is
                 # in the metric above, and a second money column per row
                 # next to the yearly saving read as a third kind of amount.
-                "Kosten/Jahr (CHF)": round(r["annual_costs"]),
+                "Kosten/Jahr": round(r["annual_costs"]),
                 "Wechsel": switch(r),
             }
             for i, r in enumerate(results, start=1)
         ]
     )
-    st.dataframe(
+    show_table(
         overview,
-        hide_index=True,
-        width="stretch",
-        column_config={
-            "Nr.": header("Nr.", kind=st.column_config.NumberColumn,
-                          format="%d", alignment="left"),
-            "Altersklasse": header("Altersklasse"),
-            "Ort": header("Ort"),
-            "Franchise": header("Franchise", kind=st.column_config.NumberColumn,
-                                format="%d"),
-            "Versicherer": header("Versicherer"),
-            "Tarif": header("Tarif"),
-            "Kosten/Jahr (CHF)": header("Kosten/Jahr (CHF)",
-                                        kind=st.column_config.NumberColumn,
-                                        format="%.0f"),
-            "Wechsel": header("Wechsel", kind=st.column_config.TextColumn),
-        },
+        {"Franchise": 0, "Kosten/Jahr": 0, "Wechsel": None},
+        counters=("Nr.",),
     )
     if any(r.get("switch_saving") is not None for r in results):
         st.caption(t("household.switch_note", threshold=noticeable_saving))
@@ -151,7 +137,7 @@ def household_total(
             "Franchise": None,
             "Versicherer": "",
             "Tarif": "",
-            "Kosten/Jahr (CHF)": round(total),
+            "Kosten/Jahr": round(total),
             "Wechsel": "",
         }]
     )

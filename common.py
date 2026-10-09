@@ -3,6 +3,7 @@
 Everything several views need that is not a view of its own.
 """
 
+import html
 import json
 
 import pandas as pd
@@ -30,6 +31,57 @@ def premiums(max_age_days: int):
 
 def chf(amount: float, decimals: int = 0) -> str:
     return f"{amount:,.{decimals}f}".replace(",", "'")
+
+
+def show_table(
+    df: pd.DataFrame,
+    numbers: dict[str, int | None],
+    highlight: list[bool] | None = None,
+    counters: tuple[str, ...] = (),
+) -> None:
+    """Draw `df` as a plain HTML table, styled by .vp-table in theme.py.
+
+    Not st.dataframe: that draws on a canvas and either cut long insurer
+    names or, stretched to the page, spread spare width over every column
+    and left right-set numbers far from their left-set headers - and its
+    headers cannot be right-aligned at all. Here the browser sizes the
+    columns: number columns shrink to their content and sit right, header
+    included; text columns take the remaining width, so the table runs flush
+    with the page like everything else and no name is ever cut.
+
+    `numbers` maps the right-aligned columns to their decimals for the Swiss
+    format (1'318), or to None for a column that is already text ("nein").
+    Headers are the translated col.* labels; the DataFrame keeps its German
+    column names for the CSV exports. `highlight` tints rows, e.g. today's
+    contract. `counters` (Rang, Nr.) stay left but as narrow as numbers.
+    """
+
+    def css(c: str) -> str:
+        if c in numbers:
+            return ' class="num"'
+        return ' class="counter"' if c in counters else ""
+
+    head = "".join(f"<th{css(c)}>{html.escape(t(f'col.{c}'))}</th>"
+                   for c in df.columns)
+    rows = []
+    for i, (_, row) in enumerate(df.iterrows()):
+        cells = []
+        for c in df.columns:
+            value = row[c]
+            if not isinstance(value, str) and pd.isna(value):
+                text = ""
+            elif c in numbers and numbers[c] is not None:
+                text = chf(float(value), numbers[c])
+            else:
+                text = str(value)
+            cells.append(f"<td{css(c)}>{html.escape(text)}</td>")
+        current = ' class="current"' if highlight and highlight[i] else ""
+        rows.append(f"<tr{current}>{''.join(cells)}</tr>")
+    st.markdown(
+        f'<div class="vp-table-wrap"><table class="vp-table"><thead><tr>{head}'
+        f'</tr></thead><tbody>{"".join(rows)}</tbody></table></div>',
+        unsafe_allow_html=True,
+    )
 
 
 @st.cache_data
@@ -128,22 +180,3 @@ def with_gap_to_cheapest(
         (values - values.min()).round(2),
     )
     return table
-
-
-def header(column: str, **kwargs):
-    """A column_config entry whose header is translated.
-
-    The DataFrames keep German column names on purpose - they are what lands in
-    the CSV exports, and an export whose column names change with the interface
-    language cannot be compared with one a colleague produced. Only the header
-    shown on screen is translated.
-    """
-    kind = kwargs.pop("kind", st.column_config.Column)
-    # Numbers right, text left - and stated explicitly, because only then does
-    # the header follow its column. Left to the default, the numbers sat right
-    # and their headers left, so a header did not line up with its figures.
-    if kind is st.column_config.NumberColumn:
-        kwargs.setdefault("alignment", "right")
-    elif kind is st.column_config.TextColumn:
-        kwargs.setdefault("alignment", "left")
-    return kind(label=t(f"col.{column}"), **kwargs)

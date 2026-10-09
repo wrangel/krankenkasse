@@ -18,7 +18,7 @@ from common import (
     age_group_for_age,
     chf,
     choose_location,
-    header,
+    show_table,
     with_gap_to_cheapest,
 )
 from i18n import per_language_key, t
@@ -293,19 +293,7 @@ def person_view(
     # Per year only. Franchise and Selbstbehalt are yearly amounts; spread over
     # twelve months they make a figure nobody pays. Monthly figures appear
     # only where they are real: the premium per offer, the household total.
-    st.dataframe(
-        comparison,
-        hide_index=True,
-        width="stretch",
-        column_config={
-            c: header(c, kind=st.column_config.NumberColumn, format=f)
-            for c, f in [
-                ("Franchise", "%d"),
-                ("Kosten/Jahr", "%.0f"),
-                ("Mehrkosten/Jahr", "%.0f"),
-            ]
-        },
-    )
+    show_table(comparison, {"Franchise": 0, "Kosten/Jahr": 0, "Mehrkosten/Jahr": 0})
 
     group_data = data[data["Zielgruppe"] == age_group]
 
@@ -355,45 +343,22 @@ def person_view(
         offers["Typ"] = offers["Typ"].map(lambda c: t(f"tariff_short.{c}"))
         columns = ["Rang", "Versicherer", "Tarif", "Typ", "Prämie/Jahr",
                    "Mehrkosten/Jahr", "Prämie/Monat"]
-        # Only create the marker column when there is something to mark -
-        # otherwise an empty column sits there asking what it is missing.
-        # Not "t" for the tariff: that would shadow the translation function
-        # inside the comprehension, and t("...") would call the tariff name.
-        marker = [
-            t("offers.current_marker")
-            if current and insurer == current[0] and tariff == current[1]
-            else ""
+        # Today's contract is marked by a tinted row rather than an extra
+        # column: that column had an empty header, so Streamlit sized it to
+        # nothing and cut the marker text off. The accent at low alpha reads
+        # on black and on white alike.
+        # Not "t" for the tariff: that would shadow the translation function.
+        is_current = [
+            bool(current) and insurer == current[0] and tariff == current[1]
             for insurer, tariff in zip(shown["Versicherername"],
                                        shown["Tarifbezeichnung"])
         ]
-        if any(marker):
-            offers[""] = marker
-            columns.append("")
         offers = offers[columns]
-
-        st.dataframe(
+        show_table(
             offers,
-            hide_index=True,
-            width="stretch",
-            column_config={
-                # A counter, not an amount: left, beside the name it ranks.
-                "Rang": header("Rang", kind=st.column_config.NumberColumn,
-                               format="%d", alignment="left"),
-                "Versicherer": header("Versicherer",
-                                      kind=st.column_config.TextColumn),
-                "Tarif": header("Tarif", kind=st.column_config.TextColumn),
-                "Typ": header("Typ", kind=st.column_config.TextColumn),
-                "Prämie/Jahr": header("Prämie/Jahr",
-                                      kind=st.column_config.NumberColumn,
-                                      format="%.0f"),
-                "Mehrkosten/Jahr": header("Mehrkosten/Jahr",
-                                          kind=st.column_config.NumberColumn,
-                                          format="%.0f"),
-                "Prämie/Monat": header("Prämie/Monat",
-                                       kind=st.column_config.NumberColumn,
-                                       format="%.2f"),
-                "": st.column_config.TextColumn(""),
-            },
+            {"Prämie/Jahr": 0, "Mehrkosten/Jahr": 0, "Prämie/Monat": 2},
+            highlight=is_current,
+            counters=("Rang",),
         )
 
         if current and current_rank is None:
@@ -584,8 +549,8 @@ def person_form(person: dict, person_count: int, raw) -> dict | None:
     # next to their own delete and expand icons - a misclick there removes the
     # whole person without asking. It now stands on its own, bottom right.
     if person_count > 1:
-        _, bottom_right = st.columns([5, 1])
-        if bottom_right.button(t("form.remove_person"), key=f"remove_{person_id}"):
+        if st.container(horizontal_alignment="right").button(
+                t("form.remove_person"), key=f"remove_{person_id}"):
             st.session_state["people"] = [
                 p for p in st.session_state["people"] if p["id"] != person_id
             ]
