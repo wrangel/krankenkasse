@@ -59,6 +59,7 @@
   "form.current_insurer_help": "Optional. Damit zeigt die Tabelle unten, auf welchem Rang dein heutiger Vertrag liegt.",
   "form.current_insurer_none": "– noch keiner / unbekannt –",
   "form.current_model": "Jetziges Modell",
+  "form.current_model_placeholder": "– Modell wählen –",
   "form.expected_costs": "Erwartete Krankheitskosten pro Jahr (CHF)",
   "form.expected_costs_help": "Der wichtigste Wert neben dem Alter. Arztbesuche, Medikamente, Therapien – alles, was über die Grundversicherung läuft.",
   "form.no_postcode_warning": "Ohne gültige Postleitzahl lässt sich für diese Person nichts rechnen.",

@@ -563,6 +563,7 @@ def person_form(person: dict, person_count: int, raw) -> dict | None:
                 current_model = today[1].selectbox(
                     t("form.current_model"), models,
                     key=f"current_model_{person_id}",
+                    placeholder=t("form.current_model_placeholder"),
                 )
 
     if location is None:

@@ -59,6 +59,7 @@
   "form.current_insurer_help": "Optional. The table below will then show where your current contract ranks.",
   "form.current_insurer_none": "– none yet / unknown –",
   "form.current_model": "Current model",
+  "form.current_model_placeholder": "– choose a model –",
   "form.expected_costs": "Expected healthcare costs per year (CHF)",
   "form.expected_costs_help": "The most important value after age. Doctor visits, medicines, therapies – everything that goes through basic insurance.",
   "form.no_postcode_warning": "Without a valid postcode nothing can be computed for this person.",

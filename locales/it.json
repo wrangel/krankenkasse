@@ -59,6 +59,7 @@
   "form.current_insurer_help": "Facoltativo. La tabella qui sotto mostrerà allora la posizione del tuo contratto attuale.",
   "form.current_insurer_none": "– nessuno / sconosciuto –",
   "form.current_model": "Modello attuale",
+  "form.current_model_placeholder": "– scegli il modello –",
   "form.expected_costs": "Costi di malattia attesi all'anno (CHF)",
   "form.expected_costs_help": "Il valore più importante dopo l'età. Visite mediche, farmaci, terapie – tutto ciò che passa dall'assicurazione di base.",
   "form.no_postcode_warning": "Senza un NPA valido non è possibile calcolare nulla per questa persona.",

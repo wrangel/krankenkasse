@@ -59,6 +59,7 @@
   "form.current_insurer_help": "Facultatif. Le tableau ci-dessous indiquera alors le rang de votre contrat actuel.",
   "form.current_insurer_none": "– aucun / inconnu –",
   "form.current_model": "Modèle actuel",
+  "form.current_model_placeholder": "– choisir le modèle –",
   "form.expected_costs": "Frais de santé attendus par an (CHF)",
   "form.expected_costs_help": "La valeur la plus importante après l'âge. Consultations, médicaments, thérapies – tout ce qui passe par l'assurance de base.",
   "form.no_postcode_warning": "Sans NPA valable, rien ne peut être calculé pour cette personne.",
