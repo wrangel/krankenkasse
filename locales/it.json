@@ -80,6 +80,7 @@
   "household.people": "Persone",
   "household.per_month": "Al mese",
   "household.per_year": "All'anno",
+  "household.sibling_automatic": "**I figli sono comunque tutti più convenienti presso {insurer} – lì lo sconto per fratelli si applica automaticamente.** Presso {insurer} – {tariff}, con i livelli tariffali {tiers}, i {count} figli costano insieme {total} CHF invece di {separate} CHF alla tariffa normale, {saving} CHF in meno. È già incluso sopra.",
   "household.sibling_discount": "**Un assicuratore comune per tutti i figli fa risparmiare {saving} CHF all'anno.**\n\n- Ogni figlio presso l'assicuratore più conveniente per lui, senza sconto: {separate} CHF\n- Tutti i {count} figli presso {insurer} – {tariff}, livelli {tiers}: {total} CHF\n\nK3, K4 e K5 valgono solo per figli della stessa famiglia presso lo stesso assicuratore. Sconto e libera scelta per figlio si escludono quindi a vicenda. Sopra è conteggiata la variante più conveniente.",
   "household.sibling_not_worth": "**Un assicuratore comune per i figli qui non conviene.** Ogni figlio con la propria offerta più conveniente costa in tutto {separate} CHF; tutti i figli presso lo stesso assicuratore costano almeno {total} CHF (al meglio presso {insurer}).",
   "household.switch_no": "no",

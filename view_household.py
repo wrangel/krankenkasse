@@ -45,8 +45,18 @@ def household_total(
     if shared:
         saving = children_separately - shared["total"]
         tiers = ", ".join(c["tier"] for c in shared["per_child"])
+        # Each child's own cheapest offer already at the recommended insurer:
+        # then there is nothing to choose - staying there together gets the
+        # sibling tier anyway. "Each child separately, without discount" is
+        # not an option anyone has, so it is not offered as one.
+        same_insurer = all(
+            r["insurer"] == shared["insurer"]
+            for r in results if r["age_group"] == CHILDREN
+        )
         if saving > 0.5:
-            message = t("household.sibling_discount",
+            key = ("household.sibling_automatic" if same_insurer
+                   else "household.sibling_discount")
+            message = t(key,
                         saving=chf(saving), separate=chf(children_separately),
                         count=child_count, insurer=shared["insurer"],
                         tariff=shared["tariff"], tiers=tiers,

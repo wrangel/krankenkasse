@@ -80,6 +80,7 @@
   "household.people": "People",
   "household.per_month": "Per month",
   "household.per_year": "Per year",
+  "household.sibling_automatic": "**The children are all cheapest with {insurer} anyway – the sibling discount applies there automatically.** With {insurer} – {tariff} on tariff tiers {tiers}, the {count} children cost {total} CHF together instead of {separate} CHF at the standard rate, {saving} CHF less. This is included above.",
   "household.sibling_discount": "**One insurer for all the children saves {saving} CHF a year.**\n\n- Each child with the cheapest provider for them, no discount: {separate} CHF\n- All {count} children with {insurer} – {tariff}, tiers {tiers}: {total} CHF\n\nK3, K4 and K5 apply only to children of the same family with the same insurer. Discount and free choice per child are therefore mutually exclusive. The cheaper variant is counted above.",
   "household.sibling_not_worth": "**One insurer for all the children does not pay here.** Each child on its own cheapest offer costs {separate} CHF in total; all the children with the same insurer cost at least {total} CHF (cheapest with {insurer}).",
   "household.switch_no": "no",

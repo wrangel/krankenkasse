@@ -80,6 +80,7 @@
   "household.people": "Personen",
   "household.per_month": "Pro Monat",
   "household.per_year": "Pro Jahr",
+  "household.sibling_automatic": "**Die Kinder sind ohnehin alle bei {insurer} am günstigsten – dort gilt der Geschwisterrabatt automatisch.** Bei {insurer} – {tariff} mit den Tarifstufen {tiers} kosten die {count} Kinder zusammen {total} CHF statt {separate} CHF zum Normaltarif, {saving} CHF weniger. Das ist oben eingerechnet.",
   "household.sibling_discount": "**Ein gemeinsamer Versicherer für alle Kinder spart {saving} CHF pro Jahr.**\n\n- Jedes Kind einzeln beim für es günstigsten Anbieter, ohne Rabatt: {separate} CHF\n- Alle {count} Kinder bei {insurer} – {tariff}, Tarifstufen {tiers}: {total} CHF\n\nK3, K4 und K5 gelten nur für Kinder derselben Familie beim gleichen Versicherer. Rabatt und freie Wahl pro Kind schliessen sich also aus. Oben eingerechnet ist die günstigere Variante.",
   "household.sibling_not_worth": "**Ein gemeinsamer Versicherer für die Kinder lohnt sich hier nicht.** Jedes Kind beim eigenen günstigsten Angebot kostet zusammen {separate} CHF; alle Kinder beim selben Versicherer kosten mindestens {total} CHF (am günstigsten bei {insurer}).",
   "household.switch_no": "nein",
