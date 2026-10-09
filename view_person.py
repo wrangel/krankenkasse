@@ -21,7 +21,7 @@ from common import (
     header,
     with_gap_to_cheapest,
 )
-from i18n import t
+from i18n import per_language_key, t
 from constants import (
     ADULTS,
     CHILD_SUBGROUPS,
@@ -503,16 +503,21 @@ def person_form(person: dict, person_count: int, raw) -> dict | None:
     # Seeded rather than passed as default=, for the same reason as the
     # postcode and the age: default= next to key= makes Streamlit guess which
     # of the two should win when a restored selection is already in state.
+    # Keyed per language: see i18n.per_language_key.
     models_key = f"models_{person_id}"
-    st.session_state.setdefault(models_key, offered)
+    # A stored selection only seeds the widget if it is still on offer.
+    if models_key in st.session_state:
+        st.session_state[models_key] = [
+            m for m in st.session_state[models_key] if m in offered] or offered
     tariff_types = st.multiselect(
         t("form.tariff_models"),
         offered,
         format_func=lambda m: t(f"tariff.{m}"),
-        key=models_key,
+        key=per_language_key(models_key, offered),
         placeholder=t("form.tariff_models_placeholder"),
         help=t("form.tariff_models_help"),
     )
+    st.session_state[models_key] = tariff_types
 
     # Today's contract - so the evaluation can say whether switching is worth it
     # at all, instead of only showing the theoretically cheapest.
@@ -523,13 +528,20 @@ def person_form(person: dict, person_count: int, raw) -> dict | None:
         )
         if available:
             today = st.columns(2)
+            insurer_key = f"current_insurer_{person_id}"
+            if st.session_state.get(insurer_key) not in (None, *available):
+                st.session_state[insurer_key] = None  # not offered here
             current_insurer = today[0].selectbox(
                 t("form.current_insurer"),
                 [None, *available],
                 format_func=lambda v: t("form.current_insurer_none") if v is None else v,
-                key=f"current_insurer_{person_id}",
+                key=per_language_key(f"current_insurer_{person_id}"),
+                # Shown while nothing is chosen; otherwise Streamlit's own
+                # English "Choose an option" appears, whatever the language.
+                placeholder=t("form.current_insurer_none"),
                 help=t("form.current_insurer_help"),
             )
+            st.session_state[f"current_insurer_{person_id}"] = current_insurer
             if current_insurer:
                 models = available[current_insurer]
                 current_model = today[1].selectbox(
