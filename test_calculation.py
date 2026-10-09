@@ -227,6 +227,26 @@ def test_nothing_shadows_the_translation_function():
                         f"{path.name}:{name.lineno} binds t, shadowing i18n.t")
 
 
+def test_switch_saving_compares_today_with_the_cheapest():
+    """Saving per year at the recommended deductible, from monthly premiums.
+
+    Offers at 300, 340 and 410 a month; today's contract is B at 340:
+    (340 - 300) x 12 = 480. On A, the cheapest, nothing to save. A contract
+    not among the offers, or none at all, gives no figure.
+    """
+    from view_person import switch_saving
+
+    offers = pd.DataFrame({
+        "Versicherername": ["A", "B", "C"],
+        "Tarifbezeichnung": ["HMO", "Telmed", "Base"],
+        "Prämie": [300.0, 340.0, 410.0],
+    })
+    assert switch_saving(offers, ("B", "Telmed")) == 480.0
+    assert switch_saving(offers, ("A", "HMO")) == 0.0
+    assert switch_saving(offers, ("B", "Base")) is None
+    assert switch_saving(offers, None) is None
+
+
 def test_children_have_the_lower_coinsurance_cap():
     """For children the cap is 350 rather than 700 (Art. 103 para. 2 KVV)."""
     data = get_data(
