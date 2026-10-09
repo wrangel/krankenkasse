@@ -3,7 +3,7 @@
 import pandas as pd
 import streamlit as st
 
-from common import chf, chf_table, fit_width, header
+from common import chf, show_table
 from constants import CHILDREN, noticeable_saving
 from i18n import t
 
@@ -119,27 +119,10 @@ def household_total(
             for i, r in enumerate(results, start=1)
         ]
     )
-    st.dataframe(
-        chf_table(overview, {"Franchise": 0, "Kosten/Jahr": 0}),
-        hide_index=True,
-        width="content",
-        column_config={
-            "Nr.": header("Nr.", kind=st.column_config.NumberColumn,
-                          format="%d", alignment="left"),
-            "Altersklasse": header("Altersklasse"),
-            "Ort": header("Ort"),
-            "Franchise": header("Franchise", kind=st.column_config.NumberColumn),
-            "Versicherer": header("Versicherer", width=fit_width(
-                overview["Versicherer"], t("col.Versicherer"))),
-            "Tarif": header("Tarif", width=fit_width(
-                overview["Tarif"], t("col.Tarif"))),
-            "Kosten/Jahr": header("Kosten/Jahr",
-                                        kind=st.column_config.NumberColumn),
-            # Amounts, so right-aligned like the other money columns, even
-            # though "nein" and "–" make it a text column.
-            "Wechsel": header("Wechsel", kind=st.column_config.TextColumn,
-                              alignment="right"),
-        },
+    show_table(
+        overview,
+        {"Franchise": 0, "Kosten/Jahr": 0, "Wechsel": None},
+        counters=("Nr.",),
     )
     if any(r.get("switch_saving") is not None for r in results):
         st.caption(t("household.switch_note", threshold=noticeable_saving))

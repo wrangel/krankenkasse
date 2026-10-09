@@ -17,10 +17,8 @@ import streamlit as st
 from common import (
     age_group_for_age,
     chf,
-    chf_table,
-    fit_width,
     choose_location,
-    header,
+    show_table,
     with_gap_to_cheapest,
 )
 from i18n import per_language_key, t
@@ -295,17 +293,7 @@ def person_view(
     # Per year only. Franchise and Selbstbehalt are yearly amounts; spread over
     # twelve months they make a figure nobody pays. Monthly figures appear
     # only where they are real: the premium per offer, the household total.
-    st.dataframe(
-        chf_table(comparison, {"Franchise": 0, "Kosten/Jahr": 0, "Mehrkosten/Jahr": 0}),
-        hide_index=True,
-        # As wide as its three columns, not the page: stretched, Streamlit's
-        # left-set headers drifted far from their right-set numbers.
-        width="content",
-        column_config={
-            c: header(c, kind=st.column_config.NumberColumn)
-            for c in ("Franchise", "Kosten/Jahr", "Mehrkosten/Jahr")
-        },
-    )
+    show_table(comparison, {"Franchise": 0, "Kosten/Jahr": 0, "Mehrkosten/Jahr": 0})
 
     group_data = data[data["Zielgruppe"] == age_group]
 
@@ -366,39 +354,11 @@ def person_view(
                                        shown["Tarifbezeichnung"])
         ]
         offers = offers[columns]
-        styled = chf_table(offers, {"Prämie/Jahr": 0, "Mehrkosten/Jahr": 0,
-                                    "Prämie/Monat": 2})
-        if any(is_current):
-            styled = styled.apply(
-                lambda row: ["background-color: rgba(77, 166, 255, 0.22)"
-                             if is_current[row.name] else ""] * len(row),
-                axis=1,
-            )
-
-        st.dataframe(
-            styled,
-            hide_index=True,
-            # As wide as the columns: stretched, the spare width was spread
-            # over every column and the table read as too broad.
-            width="content",
-            column_config={
-                # A counter, not an amount: left, beside the name it ranks.
-                "Rang": header("Rang", kind=st.column_config.NumberColumn,
-                               format="%d", alignment="left"),
-                "Versicherer": header(
-                    "Versicherer", kind=st.column_config.TextColumn,
-                    width=fit_width(offers["Versicherer"], t("col.Versicherer"))),
-                "Tarif": header(
-                    "Tarif", kind=st.column_config.TextColumn,
-                    width=fit_width(offers["Tarif"], t("col.Tarif"))),
-                "Typ": header("Typ", kind=st.column_config.TextColumn),
-                "Prämie/Jahr": header("Prämie/Jahr",
-                                      kind=st.column_config.NumberColumn),
-                "Mehrkosten/Jahr": header("Mehrkosten/Jahr",
-                                          kind=st.column_config.NumberColumn),
-                "Prämie/Monat": header("Prämie/Monat",
-                                       kind=st.column_config.NumberColumn),
-            },
+        show_table(
+            offers,
+            {"Prämie/Jahr": 0, "Mehrkosten/Jahr": 0, "Prämie/Monat": 2},
+            highlight=is_current,
+            counters=("Rang",),
         )
 
         if current and current_rank is None:

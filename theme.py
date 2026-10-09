@@ -169,6 +169,38 @@ def configure_page() -> None:
               }
           }
 
+          /* The result tables (common.show_table). Full width like every
+             other block; number columns shrink to their content (width: 1%
+             with nowrap is the classic way) and sit right, header included,
+             so text columns take the spare width and no name is cut. Colours
+             are theme-relative; the header band matches the light/dark
+             dataframeHeaderBackgroundColor in config.toml in weight. */
+          .vp-table-wrap { overflow-x: auto; margin: 0.25rem 0 1rem 0; }
+          .vp-table {
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 0.9rem;
+              font-variant-numeric: tabular-nums;
+          }
+          .vp-table th, .vp-table td {
+              padding: 0.45rem 0.75rem;
+              text-align: left;
+              white-space: nowrap;
+              border: none;
+              border-bottom: 1px solid rgba(128, 128, 128, 0.18);
+          }
+          .vp-table th {
+              font-weight: 400;
+              color: color-mix(in srgb, currentColor 70%, transparent);
+              background: rgba(128, 128, 128, 0.12);
+          }
+          .vp-table .num { text-align: right; width: 1%; }
+          .vp-table .counter { width: 1%; }
+          /* Short of room, a long name wraps onto a second line rather than
+             pushing the money columns off the edge; numbers never wrap. */
+          .vp-table td:not(.num):not(.counter) { white-space: normal; }
+          .vp-table tr.current td { background: rgba(77, 166, 255, 0.18); }
+
           /* The language switch reads as text, not as a control: muted grey,
              no border, no fill, brightening to the accent on hover. */
           [class*="st-key-lang_"] button {
