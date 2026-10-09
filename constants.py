@@ -96,6 +96,16 @@ AGE_CLASS_LABELS = {
     CHILDREN: "Kinder",
 }
 
+# The deductibles there are, by age class: the ordinary one and the ones that
+# can be chosen (Art. 103 para. 1 and Art. 93 para. 1 KVV). For the "today's
+# deductible" field, which must not depend on what one insurer happens to
+# offer in one region.
+DEDUCTIBLES = {
+    ADULTS: (300, 500, 1000, 1500, 2000, 2500),
+    YOUNG_ADULTS: (300, 500, 1000, 1500, 2000, 2500),
+    CHILDREN: (0, 100, 200, 300, 400, 500, 600),
+}
+
 # Statutory annual cap on the coinsurance share (Art. 103 KVV), by age class.
 coinsurance_cap = {
     ADULTS: 700,

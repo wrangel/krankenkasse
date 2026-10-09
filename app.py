@@ -14,9 +14,9 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from calculation import (
-    available_tariff_types, children_with_one_insurer, get_data, shared_switch_saving,
+    available_tariff_types, children_with_one_insurer, get_data, shared_contract_switch,
 )
-from common import age_group_for_age, premiums
+from common import age_group_for_age, premiums, premiums_cached
 from i18n import language_picker, t, t_html
 from constants import (
     ADULTS,
@@ -74,6 +74,25 @@ if not restore(available_tariff_types(raw)):
 # The tab title was set above, before restore() knew the stored language - so a
 # returning English visitor got the German title. Set again, now it is known.
 st.set_page_config(page_title=t("page_title"))
+
+# The shared-insurer calculation runs over every insurer, tariff and tier
+# scheme - about 0.16 s, on every rerun, for a result that only changes when
+# a child's costs, cover or models do. Cached on exactly those, as plain values.
+@st.cache_data(show_spinner=False, max_entries=64)
+def children_together(canton, region, accidents, tariff_types, costs, rebate):
+    child_data = pd.concat([
+        get_data(
+            premiums_cached(),
+            canton=canton, region=region, age_groups=(CHILDREN,),
+            accident_cover={CHILDREN: accident},
+            child_subgroups=tuple(CHILD_SUBGROUPS), tariff_types=tariff_types,
+        )
+        for accident in sorted(set(accidents))
+    ], ignore_index=True)
+    shared = children_with_one_insurer(
+        child_data, list(costs), rebate, accident_per_child=list(accidents))
+    return child_data, shared
+
 
 st.session_state.setdefault("people", [dict(DEFAULT_PERSON)])
 
@@ -147,12 +166,13 @@ for number, person in enumerate(people, start=1):
         is_open = st.session_state.setdefault(open_key, number == 1)
         # Buttons: as wide as their label, flush with an edge - here the card's
         # right edge. Stretched, this one was the widest control on the page.
-        if head[1].container(horizontal_alignment="right").button(
-                t("person.collapse") if is_open else t("person.expand"),
+        # on_click flips the state before the run, so a click costs one run
+        # rather than two (setting it here and calling st.rerun did).
+        head[1].container(horizontal_alignment="right").button(
+            t("person.collapse") if is_open else t("person.expand"),
             key=f"toggle_{person['id']}",
-        ):
-            st.session_state[open_key] = not is_open
-            st.rerun()
+            on_click=lambda k=open_key: st.session_state.update({k: not st.session_state[k]}),
+        )
 
         entry = person_form(person, len(people), raw)
         updated.append(entry)
@@ -174,7 +194,7 @@ for number, person in enumerate(people, start=1):
                 raw, entry["location"][0], entry["location"][1], age_group,
                 {age_group: entry["accident"]}, entry["tariff_types"], tiers,
                 environmental_rebate_default, entry["costs"], person["id"],
-                entry["current"],
+                entry["current"], colour=colour_for_person(number),
             )
         else:
             result = person_summary(
@@ -263,34 +283,24 @@ if len(child_results) >= 2:
     allowed = [set(r["tariff_types"]) for r in child_results if r["tariff_types"]]
     shared_types = set.intersection(*allowed) if allowed else None
     if shared_types is None or shared_types:
-        child_data = pd.concat([
-            get_data(
-                raw,
-                canton=first["location"][0],
-                region=first["location"][1],
-                age_groups=(CHILDREN,),
-                accident_cover={CHILDREN: accident},
-                child_subgroups=tuple(CHILD_SUBGROUPS),
-                tariff_types=tuple(sorted(shared_types)) if shared_types else None,
-            )
-            for accident in sorted({r["accident"] for r in child_results})
-        ], ignore_index=True)
-        shared = children_with_one_insurer(
-            child_data,
-            [float(r["costs"]) for r in child_results],
+        child_data, shared = children_together(
+            first["location"][0], first["location"][1],
+            tuple(r["accident"] for r in child_results),
+            tuple(sorted(shared_types)) if shared_types else None,
+            tuple(float(r["costs"]) for r in child_results),
             environmental_rebate_default,
-            accident_per_child=[r["accident"] for r in child_results],
         )
     # For the Wechsel column: each child's contract against this recommendation
     # rather than against the child's own best offer, which it overrides.
     if shared:
         shared["switch_by_id"] = {
-            r["id"]: shared_switch_saving(child_data, shared, i, r.get("current"),
-                                          accident=r["accident"])
+            r["id"]: shared_contract_switch(
+                child_data, shared, i, r.get("current"), float(r["costs"]),
+                environmental_rebate_default, accident=r["accident"])
             for i, r in enumerate(child_results)
         }
 
-household_total(results, len(child_ids), shared)
+household_total(results, len(child_ids), shared, premium_year=premium_year)
 
 st.markdown("---")
 

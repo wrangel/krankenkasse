@@ -77,7 +77,8 @@ _CLEARS = "_inputs_cleared"
 def _widget_keys(person_id: int) -> tuple[str, ...]:
     """The widget state worth keeping that is not already in the person entry."""
     return (f"postcode_{person_id}", f"models_{person_id}",
-            f"current_insurer_{person_id}", f"current_model_{person_id}")
+            f"current_insurer_{person_id}", f"current_model_{person_id}",
+            f"current_deductible_{person_id}")
 
 
 def _collect() -> dict:
@@ -146,6 +147,11 @@ def restore(offered_tariff_types: list[str]) -> bool:
             continue
         if key.startswith("postcode_"):
             if not (isinstance(value, str) and value.isdigit() and len(value) == 4):
+                continue
+        if key.startswith("current_deductible_"):
+            # One of the statutory deductibles; which ones fit the age class
+            # is checked where the dropdown is drawn.
+            if not (isinstance(value, int) and 0 <= value <= 2500):
                 continue
         if key.startswith(("current_insurer_", "current_model_")):
             # Whether it is still on offer is checked where the dropdown is

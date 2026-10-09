@@ -258,8 +258,12 @@ def available_tariff_types(df: pd.DataFrame) -> list[str]:
     that is empty is never offered. TARIFF_TYPES stays the full vocabulary, so
     the label is ready whenever a category shows up.
     """
-    present = set(df["Tariftyp"].dropna())
-    return [t for t in TARIFF_TYPES if t in present]
+    # Kept on the frame itself: the form asks for it once per person and
+    # per run, and scanning 220,000 rows each time made every click slower.
+    if "tariff_types" not in df.attrs:
+        present = set(df["Tariftyp"].dropna())
+        df.attrs["tariff_types"] = [t for t in TARIFF_TYPES if t in present]
+    return list(df.attrs["tariff_types"])
 
 
 def cheapest_premiums(df: pd.DataFrame) -> pd.DataFrame:
@@ -571,7 +575,53 @@ def shared_switch_saving(
     today = monthly(current[0], current[1], (tier, "K1"))
     if target is None or today is None:
         return None
-    return (today - target) * 12
+    # Rounded yearly amounts, as the tables show them.
+    return float(round(today * 12) - round(target * 12))
+
+
+def shared_contract_switch(
+    data: pd.DataFrame, shared: dict, child: int, current,
+    healthcare_costs: float, environmental_rebate: float,
+    accident: str | None = None,
+) -> tuple[float | None, list[str]]:
+    """For a child placed with the shared recommendation: saving and changes.
+
+    Without today's deductible, the premium difference at the recommended
+    deductible and tier (shared_switch_saving). With it, whole yearly costs:
+    today's contract at today's deductible - on the recommended tier if its
+    insurer offers it, else K1 - against the child's placement. The family
+    cap is left out on both sides; it is a household amount, not a child's.
+    """
+    if not current:
+        return None, []
+    insurer, tariff, deductible = (list(current) + [None])[:3]
+    placement = shared["per_child"][child]
+    changes = []
+    if deductible is None:
+        saving = shared_switch_saving(data, shared, child, current[:2], accident)
+        if saving is None:
+            return None, []
+    else:
+        if accident is not None:
+            data = data[data["Unfalleinschluss"] == accident]
+        rows = data[(data["Versicherername"] == insurer)
+                    & (data["Tarifbezeichnung"] == tariff)
+                    & (data["Franchise"] == deductible)]
+        own = rows[rows["Altersuntergruppe"] == placement["tier"]]
+        if own.empty:
+            own = rows[rows["Altersuntergruppe"] == "K1"]
+        if own.empty:
+            return None, []
+        today = annual_costs(float(own["Prämie"].min()), deductible,
+                             healthcare_costs, environmental_rebate, CHILDREN)
+        saving = float(round(today) - round(placement["costs"]))
+        if deductible != placement["deductible"]:
+            changes.append("deductible")
+    if insurer != shared["insurer"]:
+        changes.append("insurer")
+    elif tariff != shared["tariff"]:
+        changes.append("model")
+    return saving, changes
 
 
 def display_results(
@@ -695,6 +745,20 @@ def cheapest_child_combination(
         if best is None or total < best[0]:
             best = (total, scheme)
     return best if best else (0.0, [])
+
+
+def annual_costs(
+    monthly_premium: float, deductible: int, healthcare_costs: float,
+    environmental_rebate: float, age_group: str,
+) -> float:
+    """One person's costs for a year: premiums, deductible and coinsurance.
+
+    The same formula compute_tipping_point applies to every deductible.
+    """
+    coinsurance = min(max(0.0, healthcare_costs - deductible) * coinsurance_rate,
+                      coinsurance_cap[age_group])
+    return (12 * (monthly_premium - environmental_rebate)
+            + min(healthcare_costs, deductible) + coinsurance)
 
 
 def _child_annual_costs(
