@@ -82,7 +82,7 @@
   "household.sibling_discount": "**One insurer for all the children saves {saving} CHF a year.**\n\n- Each child with the cheapest provider for them, no discount: {separate} CHF\n- All {count} children with {insurer} – {tariff}, tiers {tiers}: {total} CHF\n\nK3, K4 and K5 apply only to children of the same family with the same insurer. Discount and free choice per child are therefore mutually exclusive. The cheaper variant is counted above.",
   "household.sibling_not_worth": "**A single insurer for the children does not pay off here.** Each child with their own cheapest provider costs {separate} CHF, all together with {insurer} {total} CHF.",
   "household.switch_no": "no",
-  "household.switch_note": "“Switch” compares today's insurer and model with the cheapest offer, both at the deductible recommended here. The app does not know today's deductible; changing that too saves correspondingly more or less.",
+  "household.switch_note": "“Switch” compares today's insurer and model with the cheapest offer, both at the deductible recommended here – for children sharing one insurer, with the recommendation in the box above. Below {threshold} CHF a year it says “no”. The app does not know today's deductible; changing that too saves correspondingly more or less.",
   "household.switch_saves": "saves {saving} CHF",
   "household.total_row": "Total",
   "household.unknown_tiers": "The premium data carries the child tier(s) {tiers}, whose conditions are not known here. They are left out of the calculation – so the sibling discount could be larger than shown below.",

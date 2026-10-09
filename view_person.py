@@ -560,6 +560,11 @@ def person_form(person: dict, person_count: int, raw) -> dict | None:
             st.session_state[f"current_insurer_{person_id}"] = current_insurer
             if current_insurer:
                 models = available[current_insurer]
+                # A restored model only seeds the dropdown if this insurer
+                # still offers it here; otherwise the first one is shown.
+                model_key = f"current_model_{person_id}"
+                if st.session_state.get(model_key) not in (None, *models):
+                    del st.session_state[model_key]
                 current_model = today[1].selectbox(
                     t("form.current_model"), models,
                     key=f"current_model_{person_id}",

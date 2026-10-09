@@ -82,7 +82,7 @@
   "household.sibling_discount": "**Un assicuratore comune per tutti i figli fa risparmiare {saving} CHF all'anno.**\n\n- Ogni figlio presso l'assicuratore più conveniente per lui, senza sconto: {separate} CHF\n- Tutti i {count} figli presso {insurer} – {tariff}, livelli {tiers}: {total} CHF\n\nK3, K4 e K5 valgono solo per figli della stessa famiglia presso lo stesso assicuratore. Sconto e libera scelta per figlio si escludono quindi a vicenda. Sopra è conteggiata la variante più conveniente.",
   "household.sibling_not_worth": "**Un assicuratore comune per i figli non conviene in questo caso.** Ogni figlio presso l'assicuratore più conveniente costa {separate} CHF, tutti insieme presso {insurer} {total} CHF.",
   "household.switch_no": "no",
-  "household.switch_note": "«Cambio» confronta l'assicuratore e il modello attuali con l'offerta più conveniente, entrambi con la franchigia qui raccomandata. L'applicazione non conosce la franchigia attuale; cambiando anche quella, il risparmio è maggiore o minore.",
+  "household.switch_note": "«Cambio» confronta l'assicuratore e il modello attuali con l'offerta più conveniente, entrambi con la franchigia qui raccomandata – per figli con un assicuratore comune, con la raccomandazione nel riquadro sopra. Sotto {threshold} CHF all'anno: «no». L'applicazione non conosce la franchigia attuale; cambiando anche quella, il risparmio è maggiore o minore.",
   "household.switch_saves": "risparmia {saving} CHF",
   "household.total_row": "Totale",
   "household.unknown_tiers": "I dati dei premi contengono per i bambini il o i livelli {tiers}, le cui condizioni non sono qui note. Non sono considerati nel calcolo – lo sconto per fratelli potrebbe quindi essere maggiore di quanto mostrato.",

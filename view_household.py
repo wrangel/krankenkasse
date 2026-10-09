@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from common import chf, header
-from constants import CHILDREN
+from constants import CHILDREN, noticeable_saving
 from i18n import t
 
 
@@ -70,16 +70,19 @@ def household_total(
                 icon="👪",
             )
 
-    # Children placed together with one insurer (the box above) are not judged
-    # one by one: each child's own best offer would contradict that advice.
+    # Children placed together with one insurer (the box above) are compared
+    # with that recommendation; their own best offers would contradict it.
     children_shared = bool(shared) and shared["total"] < children_separately
 
     def switch(r: dict) -> str:
         """Whether leaving today's contract pays, for the Wechsel column."""
         saving = r.get("switch_saving")
-        if saving is None or (children_shared and r["age_group"] == CHILDREN):
+        if children_shared and r["age_group"] == CHILDREN:
+            # Against the shared recommendation, not the child's own best.
+            saving = shared.get("switch_by_id", {}).get(r.get("id"))
+        if saving is None:
             return "–"
-        if saving <= 0:
+        if saving < noticeable_saving:
             return t("household.switch_no")
         return t("household.switch_saves", saving=chf(saving))
 
@@ -124,7 +127,7 @@ def household_total(
         },
     )
     if any(r.get("switch_saving") is not None for r in results):
-        st.caption(t("household.switch_note"))
+        st.caption(t("household.switch_note", threshold=noticeable_saving))
 
     # The whole household as CSV - with a total row, so the file stands on its
     # own and does not have to be added up again.

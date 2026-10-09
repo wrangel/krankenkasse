@@ -538,6 +538,40 @@ def children_cost_sharing(
     return (min(individually, maximum), individually > maximum)
 
 
+def shared_switch_saving(
+    data: pd.DataFrame, shared: dict, child: int, current
+) -> float | None:
+    """What one child saves a year by moving to the shared recommendation.
+
+    `shared` is the result of children_with_one_insurer, `child` the child's
+    position in it. Compared at the deductible and tariff tier the
+    recommendation gives that child, so only the premium differs - cost
+    sharing is the same on both sides. Today's contract is looked up on the
+    same tier (the sibling discount, if its insurer offers one), else on K1.
+    None without a current contract or when it is not in the data.
+    """
+    if not current:
+        return None
+    placement = shared["per_child"][child]
+    deductible, tier = placement["deductible"], placement["tier"]
+
+    def monthly(insurer: str, tariff: str, tiers: tuple[str, ...]) -> float | None:
+        for code in tiers:
+            rows = data[(data["Versicherername"] == insurer)
+                        & (data["Tarifbezeichnung"] == tariff)
+                        & (data["Franchise"] == deductible)
+                        & (data["Altersuntergruppe"] == code)]
+            if not rows.empty:
+                return float(rows["Prämie"].min())
+        return None
+
+    target = monthly(shared["insurer"], shared["tariff"], (tier,))
+    today = monthly(current[0], current[1], (tier, "K1"))
+    if target is None or today is None:
+        return None
+    return (today - target) * 12
+
+
 def display_results(
     results: list[Result], window: int = 3, tolerance: float = 50.0
 ) -> None:

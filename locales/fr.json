@@ -82,7 +82,7 @@
   "household.sibling_discount": "**Un assureur commun pour tous les enfants fait économiser {saving} CHF par an.**\n\n- Chaque enfant chez l'assureur le moins cher pour lui, sans réduction : {separate} CHF\n- Les {count} enfants chez {insurer} – {tariff}, paliers {tiers} : {total} CHF\n\nK3, K4 et K5 ne valent que pour des enfants de la même famille chez le même assureur. Réduction et libre choix par enfant s'excluent donc. La variante la moins chère est retenue ci-dessus.",
   "household.sibling_not_worth": "**Un assureur commun pour les enfants n'est pas avantageux ici.** Chaque enfant chez l'assureur le moins cher coûte {separate} CHF, tous ensemble chez {insurer} {total} CHF.",
   "household.switch_no": "non",
-  "household.switch_note": "« Changement » compare l'assureur et le modèle actuels à l'offre la moins chère, tous deux avec la franchise recommandée ici. L'application ne connaît pas la franchise actuelle ; en la changeant aussi, l'économie est plus ou moins grande.",
+  "household.switch_note": "« Changement » compare l'assureur et le modèle actuels à l'offre la moins chère, tous deux avec la franchise recommandée ici – pour des enfants chez un assureur commun, à la recommandation de l'encadré ci-dessus. En dessous de {threshold} CHF par an : « non ». L'application ne connaît pas la franchise actuelle ; en la changeant aussi, l'économie est plus ou moins grande.",
   "household.switch_saves": "économise {saving} CHF",
   "household.total_row": "Total",
   "household.unknown_tiers": "Les données des primes comportent pour les enfants le ou les paliers {tiers}, dont les conditions ne sont pas connues ici. Ils ne sont pas pris en compte – la réduction pour fratrie pourrait donc être plus élevée que ce qui est indiqué.",
