@@ -106,7 +106,7 @@
   "reload_data.button": "Prämiendaten neu laden",
   "reload_data.caption": "Die Prämiendaten werden beim ersten Aufruf geladen und sieben Tage zwischengespeichert.",
   "storage.caption": "Deine Eingaben bleiben auf diesem Gerät, damit beim Neuladen nichts verloren geht. Sie verlassen den Browser nie. Weder zu diesem Server noch sonst wohin.",
-  "storage.forget_button": "Eingaben vergessen",
+  "storage.forget_button": "Eingaben löschen",
   "subtitle": "Die Grundversicherung:\nFinde die günstigste Lösung für deine Situation im Prämienjahr {year}",
   "table.costs_per_deductible": "Kosten pro Franchise",
   "tariff.BASE": "Standardmodell (freie Arztwahl)",

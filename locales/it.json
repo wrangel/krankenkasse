@@ -106,7 +106,7 @@
   "reload_data.button": "Ricarica i dati dei premi",
   "reload_data.caption": "I dati dei premi vengono caricati al primo accesso e memorizzati per sette giorni.",
   "storage.caption": "Le tue immissioni restano salvate su questo dispositivo, così un ricaricamento non le cancella. Non lasciano il browser – né verso questo server né verso terzi.",
-  "storage.forget_button": "Dimentica le immissioni",
+  "storage.forget_button": "Cancella le immissioni",
   "subtitle": "L'assicurazione di base:\nTrova la soluzione più conveniente per la tua situazione nell'anno di premio {year}",
   "table.costs_per_deductible": "Costi per franchigia",
   "tariff.BASE": "Modello standard (libera scelta del medico)",

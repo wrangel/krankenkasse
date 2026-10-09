@@ -106,7 +106,7 @@
   "reload_data.button": "Recharger les données",
   "reload_data.caption": "Les données des primes sont chargées au premier accès et mises en cache pendant sept jours.",
   "storage.caption": "Vos saisies restent enregistrées sur cet appareil afin qu'un rechargement ne les efface pas. Elles ne quittent pas le navigateur – ni vers ce serveur, ni vers des tiers.",
-  "storage.forget_button": "Oublier les saisies",
+  "storage.forget_button": "Effacer les saisies",
   "subtitle": "L'assurance de base :\nTrouvez la solution la moins chère pour votre situation pour l'année de primes {year}",
   "table.costs_per_deductible": "Coûts par franchise",
   "tariff.BASE": "Modèle standard (libre choix du médecin)",

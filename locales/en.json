@@ -106,7 +106,7 @@
   "reload_data.button": "Reload premium data",
   "reload_data.caption": "The premium data is fetched on first use and cached for seven days.",
   "storage.caption": "Your entries stay on this device so that reloading does not discard them. They never leave the browser – neither to this server nor to anyone else.",
-  "storage.forget_button": "Forget my entries",
+  "storage.forget_button": "Clear my entries",
   "subtitle": "Basic health insurance:\nFind the cheapest option for your situation in premium year {year}",
   "table.costs_per_deductible": "Costs per deductible",
   "tariff.BASE": "Standard model (free choice of doctor)",

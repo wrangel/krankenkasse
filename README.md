@@ -127,7 +127,7 @@ cap on cost sharing. The whole household can be downloaded as CSV with a total r
 Entries are kept in the browser's `localStorage`, so a reload does not discard
 them. That store never leaves the machine — it is not a cookie, so it is never
 attached to a request and never reaches the server or its logs. A form nobody
-has touched is not stored at all, and *Eingaben vergessen* at the foot of the
+has touched is not stored at all, and *Eingaben löschen* at the foot of the
 page deletes it. See [SECURITY.md](.github/SECURITY.md) for why cookies and
 query parameters were both rejected.
 
