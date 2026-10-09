@@ -27,6 +27,7 @@ from calculation import (
     family_cap,
     compute_tipping_point,
     get_data,
+    shared_switch_saving,
 )
 
 # --------------------------------------------------------------------------
@@ -245,6 +246,51 @@ def test_switch_saving_compares_today_with_the_cheapest():
     assert switch_saving(offers, ("A", "HMO")) == 0.0
     assert switch_saving(offers, ("B", "Base")) is None
     assert switch_saving(offers, None) is None
+
+
+def test_child_switch_is_measured_against_the_shared_recommendation():
+    """Children placed together: today's premium against the recommended one.
+
+    Recommendation: insurer A, QualiMed, tier K4, deductible 0, at 90 a month.
+    Today on A BASE, which also has K4 (110): (110 - 90) x 12 = 240.
+    Today on B, which has no K4 tier, so K1 (100): (100 - 90) x 12 = 120.
+    Already on A QualiMed: 0. No contract or an unknown tariff: no figure.
+    """
+    data = pd.DataFrame({
+        "Versicherername": ["A", "A", "A", "B"],
+        "Tarifbezeichnung": ["QualiMed", "BASE", "BASE", "Other"],
+        "Franchise": [0, 0, 0, 0],
+        "Altersuntergruppe": ["K4", "K4", "K1", "K1"],
+        "Prämie": [90.0, 110.0, 120.0, 100.0],
+    })
+    shared = {"insurer": "A", "tariff": "QualiMed",
+              "per_child": [{"deductible": 0, "tier": "K4"}] * 2}
+    assert shared_switch_saving(data, shared, 0, ("A", "BASE")) == 240.0
+    assert shared_switch_saving(data, shared, 1, ("B", "Other")) == 120.0
+    assert shared_switch_saving(data, shared, 0, ("A", "QualiMed")) == 0.0
+    assert shared_switch_saving(data, shared, 0, None) is None
+    assert shared_switch_saving(data, shared, 0, ("A", "Nope")) is None
+
+
+def test_each_child_is_priced_with_its_own_accident_cover():
+    """One child with accident cover, one without, both no healthcare costs.
+
+    Monthly premium at deductible 0, tier K1: 100 with accident cover, 90
+    without; no rebate. Correct: 12 x 100 + 12 x 90 = 2280. Pricing both with
+    the first child's cover, as before, gave 2400 - which made one insurer for
+    both look dearer than each child on its own.
+    """
+    data = pd.DataFrame({
+        "Versicherername": ["A", "A"],
+        "Tarifbezeichnung": ["T", "T"],
+        "Altersuntergruppe": ["K1", "K1"],
+        "Unfalleinschluss": ["MIT-UNF", "OHN-UNF"],
+        "Franchise": [0, 0],
+        "Prämie": [100.0, 90.0],
+    })
+    best = children_with_one_insurer(
+        data, [0.0, 0.0], 0.0, accident_per_child=["MIT-UNF", "OHN-UNF"])
+    assert best["total"] == 2280.0
 
 
 def test_children_have_the_lower_coinsurance_cap():

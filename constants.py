@@ -103,6 +103,11 @@ coinsurance_cap = {
     CHILDREN: 350,
 }
 
+# Below this many francs a year a switch is not worth the paperwork: the
+# Wechsel column says "nein" rather than "spart 1 CHF". The same threshold as
+# the tipping point's "noticeable" advantage.
+noticeable_saving = 50
+
 # The ordinary adult deductible (Art. 103 para. 1 KVV). Needed for the family
 # cap on children with no deductible: Art. 64 para. 4 KVG limits them together
 # to an adult's deductible plus an adult's coinsurance cap.

@@ -538,6 +538,42 @@ def children_cost_sharing(
     return (min(individually, maximum), individually > maximum)
 
 
+def shared_switch_saving(
+    data: pd.DataFrame, shared: dict, child: int, current, accident: str | None = None
+) -> float | None:
+    """What one child saves a year by moving to the shared recommendation.
+
+    `shared` is the result of children_with_one_insurer, `child` the child's
+    position in it. Compared at the deductible and tariff tier the
+    recommendation gives that child, so only the premium differs - cost
+    sharing is the same on both sides. Today's contract is looked up on the
+    same tier (the sibling discount, if its insurer offers one), else on K1.
+    None without a current contract or when it is not in the data.
+    """
+    if not current:
+        return None
+    if accident is not None:
+        data = data[data["Unfalleinschluss"] == accident]
+    placement = shared["per_child"][child]
+    deductible, tier = placement["deductible"], placement["tier"]
+
+    def monthly(insurer: str, tariff: str, tiers: tuple[str, ...]) -> float | None:
+        for code in tiers:
+            rows = data[(data["Versicherername"] == insurer)
+                        & (data["Tarifbezeichnung"] == tariff)
+                        & (data["Franchise"] == deductible)
+                        & (data["Altersuntergruppe"] == code)]
+            if not rows.empty:
+                return float(rows["Prämie"].min())
+        return None
+
+    target = monthly(shared["insurer"], shared["tariff"], (tier,))
+    today = monthly(current[0], current[1], (tier, "K1"))
+    if target is None or today is None:
+        return None
+    return (today - target) * 12
+
+
 def display_results(
     results: list[Result], window: int = 3, tolerance: float = 50.0
 ) -> None:
@@ -680,7 +716,7 @@ def _child_annual_costs(
 
 
 def _each_on_own_deductible(
-    premium: pd.Series, scheme: list[str], costs_per_child: list[float],
+    premiums: list[pd.Series], scheme: list[str], costs_per_child: list[float],
     environmental_rebate: float,
 ) -> dict | None:
     """Every child on whichever deductible is cheapest for it.
@@ -689,7 +725,7 @@ def _each_on_own_deductible(
     limit to the insurer, so the figure shown is an upper bound.
     """
     total, per_child = 0.0, []
-    for tier, healthcare_costs in zip(scheme, costs_per_child):
+    for premium, tier, healthcare_costs in zip(premiums, scheme, costs_per_child):
         costs = {
             int(deductible): _child_annual_costs(
                 monthly, int(deductible), healthcare_costs, environmental_rebate)
@@ -703,7 +739,7 @@ def _each_on_own_deductible(
 
 
 def _all_on_one_deductible(
-    premium: pd.Series, scheme: list[str], costs_per_child: list[float],
+    premiums: list[pd.Series], scheme: list[str], costs_per_child: list[float],
     environmental_rebate: float,
 ) -> dict | None:
     """All children on one common deductible, with the family cap applied.
@@ -711,15 +747,17 @@ def _all_on_one_deductible(
     The cap only has a statutory figure when the deductible is shared, which
     is why this is computed apart from the free choice above.
     """
-    common = set.intersection(
-        *(set(premium[tier].index.astype(int)) for tier in scheme))
+    common = set.intersection(*(
+        set(premium[tier].index.astype(int))
+        for premium, tier in zip(premiums, scheme)))
     best = None
     for deductible in sorted(common):
         per_child = [
             {"deductible": deductible, "tier": tier,
              "costs": _child_annual_costs(premium[tier][deductible], deductible,
                                           healthcare_costs, environmental_rebate)}
-            for tier, healthcare_costs in zip(scheme, costs_per_child)
+            for premium, tier, healthcare_costs in zip(premiums, scheme,
+                                                       costs_per_child)
         ]
         uncapped = sum(c["costs"] for c in per_child)
         individually = sum(
@@ -739,7 +777,8 @@ def _all_on_one_deductible(
 
 
 def children_with_one_insurer(
-    data: pd.DataFrame, costs_per_child: list[float], environmental_rebate: float
+    data: pd.DataFrame, costs_per_child: list[float], environmental_rebate: float,
+    accident_per_child: list[str] | None = None,
 ) -> dict | None:
     """Cheapest offer when all children are with the same insurer.
 
@@ -762,8 +801,11 @@ def children_with_one_insurer(
     bought. The iteration therefore runs over the schemes, and within a scheme
     only the deductible per child is chosen freely.
 
-    `data` must already be filtered by children, location, accident cover and
-    tariff models.
+    `data` must already be filtered by children, location and tariff models.
+    `accident_per_child` gives each child's accident cover, and `data` must
+    then hold both covers: a child without accident cover is priced without
+    it even when its sibling has it. Without the list, `data` must already be
+    filtered to one cover.
     """
     count = len(costs_per_child)
     if count == 0 or data.empty:
@@ -780,19 +822,30 @@ def children_with_one_insurer(
     for (insurer, tariff), group in data.groupby(
         ["Versicherername", "Tarifbezeichnung"]
     ):
-        available = set(group["Altersuntergruppe"].dropna())
-        # Monthly premium per (tier, deductible) at this insurer and tariff.
-        premium = (
-            group.dropna(subset=["Altersuntergruppe"])
-            .groupby(["Altersuntergruppe", "Franchise"])["Prämie"].min()
-        )
+        rows = group.dropna(subset=["Altersuntergruppe"])
+        # Monthly premium per (tier, deductible) at this insurer and tariff -
+        # one table per child, for that child's accident cover.
+        if accident_per_child:
+            premiums = []
+            for accident in accident_per_child:
+                own = rows[rows["Unfalleinschluss"] == accident]
+                premiums.append(
+                    own.groupby(["Altersuntergruppe", "Franchise"])["Prämie"].min())
+        else:
+            premiums = [rows.groupby(["Altersuntergruppe", "Franchise"])["Prämie"].min()
+                        ] * count
+        if any(p.empty for p in premiums):
+            continue  # not offered for one child's accident cover
+        # A tier counts as available only if every child can have it.
+        available = set.intersection(
+            *(set(p.index.get_level_values(0)) for p in premiums))
         for scheme in child_tier_schemes(count, available):
             if any(tier not in available for tier in scheme):
                 continue
             for option in (
-                _each_on_own_deductible(premium, scheme, costs_per_child,
+                _each_on_own_deductible(premiums, scheme, costs_per_child,
                                         environmental_rebate),
-                _all_on_one_deductible(premium, scheme, costs_per_child,
+                _all_on_one_deductible(premiums, scheme, costs_per_child,
                                        environmental_rebate),
             ):
                 if option is None:

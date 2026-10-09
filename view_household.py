@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from common import chf, header
-from constants import CHILDREN
+from constants import CHILDREN, noticeable_saving
 from i18n import t
 
 
@@ -45,8 +45,18 @@ def household_total(
     if shared:
         saving = children_separately - shared["total"]
         tiers = ", ".join(c["tier"] for c in shared["per_child"])
-        if saving > 0:
-            message = t("household.sibling_discount",
+        # Each child's own cheapest offer already at the recommended insurer:
+        # then there is nothing to choose - staying there together gets the
+        # sibling tier anyway. "Each child separately, without discount" is
+        # not an option anyone has, so it is not offered as one.
+        same_insurer = all(
+            r["insurer"] == shared["insurer"]
+            for r in results if r["age_group"] == CHILDREN
+        )
+        if saving > 0.5:
+            key = ("household.sibling_automatic" if same_insurer
+                   else "household.sibling_discount")
+            message = t(key,
                         saving=chf(saving), separate=chf(children_separately),
                         count=child_count, insurer=shared["insurer"],
                         tariff=shared["tariff"], tiers=tiers,
@@ -62,7 +72,10 @@ def household_total(
                                        cap=chf(shared["family_cap"]), law=t(law),
                                        saving=chf(shared["family_cap_saving"]))
             st.info(message, icon="👪")
-        else:
+        elif saving < -0.5:
+            # Only when the children's own cheapest offers are with different
+            # insurers - otherwise one insurer can never cost more. Equal
+            # amounts need no box at all.
             st.info(
                 t("household.sibling_not_worth",
                   separate=chf(children_separately), insurer=shared["insurer"],
@@ -70,16 +83,19 @@ def household_total(
                 icon="👪",
             )
 
-    # Children placed together with one insurer (the box above) are not judged
-    # one by one: each child's own best offer would contradict that advice.
+    # Children placed together with one insurer (the box above) are compared
+    # with that recommendation; their own best offers would contradict it.
     children_shared = bool(shared) and shared["total"] < children_separately
 
     def switch(r: dict) -> str:
         """Whether leaving today's contract pays, for the Wechsel column."""
         saving = r.get("switch_saving")
-        if saving is None or (children_shared and r["age_group"] == CHILDREN):
+        if children_shared and r["age_group"] == CHILDREN:
+            # Against the shared recommendation, not the child's own best.
+            saving = shared.get("switch_by_id", {}).get(r.get("id"))
+        if saving is None:
             return "–"
-        if saving <= 0:
+        if saving < noticeable_saving:
             return t("household.switch_no")
         return t("household.switch_saves", saving=chf(saving))
 
@@ -94,8 +110,10 @@ def household_total(
                 "Franchise": r["deductible"],
                 "Versicherer": r["insurer"],
                 "Tarif": r["tariff"],
-                "Kosten/Jahr": round(r["annual_costs"]),
-                "Kosten/Monat": round(r["annual_costs"] / 12, 2),
+                # Per year only: the monthly figure for the whole household is
+                # in the metric above, and a second money column per row
+                # next to the yearly saving read as a third kind of amount.
+                "Kosten/Jahr (CHF)": round(r["annual_costs"]),
                 "Wechsel": switch(r),
             }
             for i, r in enumerate(results, start=1)
@@ -114,17 +132,14 @@ def household_total(
                                 format="%d"),
             "Versicherer": header("Versicherer"),
             "Tarif": header("Tarif"),
-            "Kosten/Jahr": header("Kosten/Jahr",
-                                  kind=st.column_config.NumberColumn,
-                                  format="%.0f"),
-            "Kosten/Monat": header("Kosten/Monat",
-                                   kind=st.column_config.NumberColumn,
-                                   format="%.2f"),
+            "Kosten/Jahr (CHF)": header("Kosten/Jahr (CHF)",
+                                        kind=st.column_config.NumberColumn,
+                                        format="%.0f"),
             "Wechsel": header("Wechsel", kind=st.column_config.TextColumn),
         },
     )
     if any(r.get("switch_saving") is not None for r in results):
-        st.caption(t("household.switch_note"))
+        st.caption(t("household.switch_note", threshold=noticeable_saving))
 
     # The whole household as CSV - with a total row, so the file stands on its
     # own and does not have to be added up again.
@@ -136,8 +151,7 @@ def household_total(
             "Franchise": None,
             "Versicherer": "",
             "Tarif": "",
-            "Kosten/Jahr": round(total),
-            "Kosten/Monat": round(total / 12, 2),
+            "Kosten/Jahr (CHF)": round(total),
             "Wechsel": "",
         }]
     )

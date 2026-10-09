@@ -290,8 +290,9 @@ def person_view(
     comparison["Franchise"] = comparison["Franchise"].astype(int)
     comparison["Kosten/Jahr"] = comparison["Kosten/Jahr"].round(0)
     comparison = with_gap_to_cheapest(comparison, "Kosten/Jahr", "Mehrkosten/Jahr")
-    comparison["Kosten/Monat"] = (comparison["Kosten/Jahr"] / 12).round(2)
-    comparison = with_gap_to_cheapest(comparison, "Kosten/Monat", "Mehrkosten/Monat")
+    # Per year only. Franchise and Selbstbehalt are yearly amounts; spread over
+    # twelve months they make a figure nobody pays. Monthly figures appear
+    # only where they are real: the premium per offer, the household total.
     st.dataframe(
         comparison,
         hide_index=True,
@@ -302,8 +303,6 @@ def person_view(
                 ("Franchise", "%d"),
                 ("Kosten/Jahr", "%.0f"),
                 ("Mehrkosten/Jahr", "%.0f"),
-                ("Kosten/Monat", "%.2f"),
-                ("Mehrkosten/Monat", "%.2f"),
             ]
         },
     )
@@ -497,13 +496,20 @@ def person_form(person: dict, person_count: int, raw) -> dict | None:
     )
     age_group = age_group_for_age(int(age))
 
+    # Seeded from the stored entry like the age. An index= by age group alone
+    # ignored it, so a child entered without accident cover came back with it
+    # after every reload - and was priced with it.
+    accident_key = f"accident_{person_id}"
+    st.session_state.setdefault(
+        accident_key,
+        person.get("accident") or ("OHN-UNF" if age_group == ADULTS else "MIT-UNF"),
+    )
     accident = top[2].radio(
         t("form.accident"),
         ["MIT-UNF", "OHN-UNF"],
-        index=1 if age_group == ADULTS else 0,
         format_func=lambda a: t("form.accident_with") if a == "MIT-UNF" else t("form.accident_without"),
         horizontal=True,
-        key=f"accident_{person_id}",
+        key=accident_key,
         help=t("form.accident_help"),
     )
 
@@ -560,6 +566,11 @@ def person_form(person: dict, person_count: int, raw) -> dict | None:
             st.session_state[f"current_insurer_{person_id}"] = current_insurer
             if current_insurer:
                 models = available[current_insurer]
+                # A restored model only seeds the dropdown if this insurer
+                # still offers it here; otherwise the first one is shown.
+                model_key = f"current_model_{person_id}"
+                if st.session_state.get(model_key) not in (None, *models):
+                    del st.session_state[model_key]
                 current_model = today[1].selectbox(
                     t("form.current_model"), models,
                     key=f"current_model_{person_id}",

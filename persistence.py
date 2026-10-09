@@ -76,7 +76,8 @@ _CLEARS = "_inputs_cleared"
 
 def _widget_keys(person_id: int) -> tuple[str, ...]:
     """The widget state worth keeping that is not already in the person entry."""
-    return (f"postcode_{person_id}", f"models_{person_id}")
+    return (f"postcode_{person_id}", f"models_{person_id}",
+            f"current_insurer_{person_id}", f"current_model_{person_id}")
 
 
 def _collect() -> dict:
@@ -85,7 +86,9 @@ def _collect() -> dict:
     widgets: dict[str, object] = {}
     for person in people:
         for key in _widget_keys(person["id"]):
-            if key in st.session_state:
+            # None is "no current contract" - the default, not worth storing,
+            # and storing it would make an untouched form look edited.
+            if st.session_state.get(key) is not None:
                 widgets[key] = st.session_state[key]
     return {
         "people": [
@@ -143,6 +146,11 @@ def restore(offered_tariff_types: list[str]) -> bool:
             continue
         if key.startswith("postcode_"):
             if not (isinstance(value, str) and value.isdigit() and len(value) == 4):
+                continue
+        if key.startswith(("current_insurer_", "current_model_")):
+            # Whether it is still on offer is checked where the dropdown is
+            # drawn; here only that it is a plausible name.
+            if not (isinstance(value, str) and 0 < len(value) <= 200):
                 continue
         if key.startswith("models_"):
             if not isinstance(value, list):
