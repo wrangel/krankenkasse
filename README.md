@@ -162,9 +162,13 @@ Options: `--canton`, `--region`, `--environmental-rebate`, `--max-costs`.
 
 ## Dependencies and tests
 
-`requirements.txt` pins the five direct dependencies exactly.
-[Dependabot](.github/dependabot.yml) proposes updates monthly — grouped, so one pull
-request rather than one per package, for pip and for the GitHub Actions themselves.
+`requirements.txt` pins the six direct dependencies exactly.
+[Renovate](.github/renovate.json5) proposes updates every Monday morning, set up as in
+Abstract Altitudes: minor and patch grouped into one pull request and merged
+automatically once the check is green, majors one at a time for review. The GitHub
+Actions and the Docker base image follow monthly; base-image updates are never merged
+automatically, because CI does not build the image. Security fixes come at once. The
+Dependency Dashboard issue lists everything pending.
 
 So that a green check on such a pull request says something, `test_calculation.py`
 recomputes on invented premiums: the cost formula, the tipping point, dominated

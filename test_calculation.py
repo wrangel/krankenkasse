@@ -4,7 +4,7 @@ Why: otherwise CI only checks that the dependencies install and that every
 module compiles. But the whole app is a chain of computation over pandas. If the
 behaviour of ``groupby``, ``idxmin`` or ``str.extract`` changed, a wrong tipping
 point would come out without complaint and the check would stay green. These
-tests close exactly that gap - above all for the monthly Dependabot PRs.
+tests close exactly that gap - above all for Renovate's automerged PRs.
 
 The expected values are worked out by hand, not read off the code. Otherwise the
 test would only confirm whatever the program already does.
