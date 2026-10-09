@@ -84,7 +84,7 @@ def person_summary(
         "annual_costs": float(at_expected.min()),
         "insurer": row["Versicherername"],
         "tariff": row["Tarifbezeichnung"],
-        "annual_premium": float(row["Prämie"]) * 12,
+        "annual_premium": (float(row["Prämie"]) - environmental_rebate) * 12,
         "switch": contract_switch(
             data[data["Zielgruppe"] == age_group], current,
             {"insurer": row["Versicherername"], "tariff": row["Tarifbezeichnung"],
@@ -438,9 +438,13 @@ def person_view(
                 "Tariftyp": "Typ",
             }
         )
-        offers["Prämie/Jahr"] = (offers["Prämie"] * 12).round(0)
+        # Net of the environmental levy rebate, as priminfo shows it ("Total")
+        # and as footnote * says: the costs were always computed net, the
+        # premiums shown here were gross - 503.50 instead of 498.75.
+        net = offers["Prämie"] - environmental_rebate
+        offers["Prämie/Jahr"] = (net * 12).round(0)
         offers = with_gap_to_cheapest(offers, "Prämie/Jahr", "Mehrkosten/Jahr")
-        offers["Prämie/Monat"] = offers["Prämie"].round(2)
+        offers["Prämie/Monat"] = net.round(2)
         offers["Typ"] = offers["Typ"].map(lambda c: t(f"tariff_short.{c}"))
         columns = ["Rang", "Versicherer", "Tarif", "Typ", "Prämie/Jahr",
                    "Mehrkosten/Jahr", "Prämie/Monat"]
@@ -487,7 +491,7 @@ def person_view(
         # holds the raw value in "Tariftyp".
         if not free_choice.empty and offers["Typ"].iloc[0] != t("tariff_short.BASE"):
             cheapest_monthly = float(offers["Prämie/Monat"].iloc[0])
-            free_monthly = float(free_choice["Prämie"].min())
+            free_monthly = float(free_choice["Prämie"].min()) - environmental_rebate
             # Only the number gets the Swiss thousands separator - a replace on
             # the whole sentence would also swap out the commas in the text.
             surcharge_year = chf((free_monthly - cheapest_monthly) * 12)
