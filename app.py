@@ -14,7 +14,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from calculation import (
-    available_tariff_types, children_with_one_insurer, get_data, shared_switch_saving,
+    available_tariff_types, children_with_one_insurer, get_data, shared_contract_switch,
 )
 from common import age_group_for_age, premiums
 from i18n import language_picker, t, t_html
@@ -174,7 +174,7 @@ for number, person in enumerate(people, start=1):
                 raw, entry["location"][0], entry["location"][1], age_group,
                 {age_group: entry["accident"]}, entry["tariff_types"], tiers,
                 environmental_rebate_default, entry["costs"], person["id"],
-                entry["current"],
+                entry["current"], colour=colour_for_person(number),
             )
         else:
             result = person_summary(
@@ -285,8 +285,9 @@ if len(child_results) >= 2:
     # rather than against the child's own best offer, which it overrides.
     if shared:
         shared["switch_by_id"] = {
-            r["id"]: shared_switch_saving(child_data, shared, i, r.get("current"),
-                                          accident=r["accident"])
+            r["id"]: shared_contract_switch(
+                child_data, shared, i, r.get("current"), float(r["costs"]),
+                environmental_rebate_default, accident=r["accident"])
             for i, r in enumerate(child_results)
         }
 

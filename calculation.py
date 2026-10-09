@@ -574,6 +574,51 @@ def shared_switch_saving(
     return (today - target) * 12
 
 
+def shared_contract_switch(
+    data: pd.DataFrame, shared: dict, child: int, current,
+    healthcare_costs: float, environmental_rebate: float,
+    accident: str | None = None,
+) -> tuple[float | None, list[str]]:
+    """For a child placed with the shared recommendation: saving and changes.
+
+    Without today's deductible, the premium difference at the recommended
+    deductible and tier (shared_switch_saving). With it, whole yearly costs:
+    today's contract at today's deductible - on the recommended tier if its
+    insurer offers it, else K1 - against the child's placement. The family
+    cap is left out on both sides; it is a household amount, not a child's.
+    """
+    if not current:
+        return None, []
+    insurer, tariff, deductible = (list(current) + [None])[:3]
+    placement = shared["per_child"][child]
+    changes = []
+    if deductible is None:
+        saving = shared_switch_saving(data, shared, child, current[:2], accident)
+        if saving is None:
+            return None, []
+    else:
+        if accident is not None:
+            data = data[data["Unfalleinschluss"] == accident]
+        rows = data[(data["Versicherername"] == insurer)
+                    & (data["Tarifbezeichnung"] == tariff)
+                    & (data["Franchise"] == deductible)]
+        own = rows[rows["Altersuntergruppe"] == placement["tier"]]
+        if own.empty:
+            own = rows[rows["Altersuntergruppe"] == "K1"]
+        if own.empty:
+            return None, []
+        today = annual_costs(float(own["Prämie"].min()), deductible,
+                             healthcare_costs, environmental_rebate, CHILDREN)
+        saving = today - placement["costs"]
+        if deductible != placement["deductible"]:
+            changes.append("deductible")
+    if insurer != shared["insurer"]:
+        changes.append("insurer")
+    elif tariff != shared["tariff"]:
+        changes.append("model")
+    return saving, changes
+
+
 def display_results(
     results: list[Result], window: int = 3, tolerance: float = 50.0
 ) -> None:
@@ -695,6 +740,20 @@ def cheapest_child_combination(
         if best is None or total < best[0]:
             best = (total, scheme)
     return best if best else (0.0, [])
+
+
+def annual_costs(
+    monthly_premium: float, deductible: int, healthcare_costs: float,
+    environmental_rebate: float, age_group: str,
+) -> float:
+    """One person's costs for a year: premiums, deductible and coinsurance.
+
+    The same formula compute_tipping_point applies to every deductible.
+    """
+    coinsurance = min(max(0.0, healthcare_costs - deductible) * coinsurance_rate,
+                      coinsurance_cap[age_group])
+    return (12 * (monthly_premium - environmental_rebate)
+            + min(healthcare_costs, deductible) + coinsurance)
 
 
 def _child_annual_costs(

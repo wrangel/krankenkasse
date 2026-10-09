@@ -87,17 +87,19 @@ def household_total(
     # with that recommendation; their own best offers would contradict it.
     children_shared = bool(shared) and shared["total"] < children_separately
 
-    def switch(r: dict) -> str:
-        """Whether leaving today's contract pays, for the Wechsel column."""
-        saving = r.get("switch_saving")
+    def switch(r: dict) -> tuple[str, str]:
+        """The Wechsel and Änderung cells: saving a year, and what to change."""
+        saving, changes = r.get("switch") or (None, [])
         if children_shared and r["age_group"] == CHILDREN:
             # Against the shared recommendation, not the child's own best.
-            saving = shared.get("switch_by_id", {}).get(r.get("id"))
+            saving, changes = shared.get("switch_by_id", {}).get(
+                r.get("id"), (None, []))
         if saving is None:
-            return "–"
+            return "–", ""
         if saving < noticeable_saving:
-            return t("household.switch_no")
-        return t("household.switch_saves", saving=chf(saving))
+            return t("household.switch_no"), ""
+        what = ", ".join(t(f"change.{c}") for c in changes)
+        return t("household.switch_saves", saving=chf(saving)), what[:1].upper() + what[1:]
 
     overview = pd.DataFrame(
         [
@@ -114,7 +116,8 @@ def household_total(
                 # in the metric above, and a second money column per row
                 # next to the yearly saving read as a third kind of amount.
                 "Kosten/Jahr": round(r["annual_costs"]),
-                "Wechsel": switch(r),
+                "Wechsel": switch(r)[0],
+                "Änderung": switch(r)[1],
             }
             for i, r in enumerate(results, start=1)
         ]
@@ -124,7 +127,7 @@ def household_total(
         {"Franchise": 0, "Kosten/Jahr": 0, "Wechsel": None},
         counters=("Nr.",),
     )
-    if any(r.get("switch_saving") is not None for r in results):
+    if any((r.get("switch") or (None,))[0] is not None for r in results):
         st.caption(t("household.switch_note", threshold=noticeable_saving))
 
     # The whole household as CSV - with a total row, so the file stands on its
@@ -139,6 +142,7 @@ def household_total(
             "Tarif": "",
             "Kosten/Jahr": round(total),
             "Wechsel": "",
+            "Änderung": "",
         }]
     )
     st.download_button(

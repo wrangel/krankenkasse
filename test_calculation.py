@@ -293,6 +293,35 @@ def test_each_child_is_priced_with_its_own_accident_cover():
     assert best["total"] == 2280.0
 
 
+def test_switch_with_todays_deductible_compares_whole_yearly_costs():
+    """Adult, CHF 500 healthcare costs, no rebate, coinsurance 10% up to 700.
+
+    Offers: A HMO at 300 a month with deductible 2500, 400 with 300;
+    B BASE at 450 with 300. Recommendation A HMO 2500: 12 x 300 + 500 = 4100.
+    Today B BASE 300:  12 x 450 + 300 + 20 = 5720 -> saves 1620, deductible
+                       and insurer change.
+    Today A HMO 300:   12 x 400 + 300 + 20 = 5120 -> saves 1020, deductible.
+    Today A HMO, deductible unknown: premium difference at 2500 -> 0.
+    """
+    from view_person import contract_switch
+
+    data = pd.DataFrame({
+        "Versicherername": ["A", "A", "B"],
+        "Tarifbezeichnung": ["HMO", "HMO", "BASE"],
+        "Franchise": [2500, 300, 300],
+        "Prämie": [300.0, 400.0, 450.0],
+    })
+    best = {"insurer": "A", "tariff": "HMO", "deductible": 2500,
+            "annual_costs": 4100.0, "offers": data[data["Franchise"] == 2500]}
+    args = (500.0, 0.0, ADULTS)
+    assert contract_switch(data, ("B", "BASE", 300), best, *args) == (
+        1620.0, ["deductible", "insurer"])
+    assert contract_switch(data, ("A", "HMO", 300), best, *args) == (
+        1020.0, ["deductible"])
+    assert contract_switch(data, ("A", "HMO", None), best, *args) == (0.0, [])
+    assert contract_switch(data, None, best, *args) == (None, [])
+
+
 def test_children_have_the_lower_coinsurance_cap():
     """For children the cap is 350 rather than 700 (Art. 103 para. 2 KVV)."""
     data = get_data(

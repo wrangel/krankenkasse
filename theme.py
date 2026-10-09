@@ -268,13 +268,13 @@ def configure_page() -> None:
 
 
 # One colour per person, so the boxes can be told apart once there are more than
-# two. Muted tones that stay readable on a dark background and do not compete
-# with the accent colours of the buttons.
+# two. Tones that stay readable on black and on white. The cheapest deductible
+# in each person's chart is drawn in the same colour (view_person.person_view).
 PERSON_COLOURS = [
-    "#8a8f98",  # grey
-    "#5b8ff9",  # blue
-    "#5fb97a",  # green
+    "#4da6ff",  # brand blue - the first person carries the viaprima colour
     "#c9a227",  # gold
+    "#5fb97a",  # green
+    "#e8913a",  # orange
     "#a97bc9",  # violet
     "#d3756b",  # salmon
 ]

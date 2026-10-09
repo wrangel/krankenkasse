@@ -25,6 +25,7 @@ from i18n import per_language_key, t
 from constants import (
     ADULTS,
     CHILD_SUBGROUPS,
+    DEDUCTIBLES,
     TARIFF_TYPES,
     coinsurance_cap,
     coinsurance_rate,
@@ -34,6 +35,7 @@ from calculation import (
     available_tariff_types,
     cheapest_premiums,
     compute_tipping_point,
+    annual_costs,
     get_data,
 )
 
@@ -79,7 +81,12 @@ def person_summary(
         "insurer": row["Versicherername"],
         "tariff": row["Tarifbezeichnung"],
         "annual_premium": float(row["Prämie"]) * 12,
-        "switch_saving": switch_saving(at_deductible, current),
+        "switch": contract_switch(
+            data[data["Zielgruppe"] == age_group], current,
+            {"insurer": row["Versicherername"], "tariff": row["Tarifbezeichnung"],
+             "deductible": best_deductible, "annual_costs": float(at_expected.min()),
+             "offers": at_deductible},
+            expected_costs, environmental_rebate, age_group),
     }
 
 
@@ -99,9 +106,55 @@ def switch_saving(offers: pd.DataFrame, current) -> float | None:
     return (float(hit["Prämie"].min()) - float(offers["Prämie"].min())) * 12
 
 
+# Streamlit's categorical palette, which the chart used implicitly before.
+_FRANCHISE_COLOURS = ["#0068c9", "#83c9ff", "#ff2b2b", "#ffabab", "#29b09d",
+                      "#7defa1", "#ff8700", "#ffd16a", "#6d3fc0", "#d5dae5"]
+
+
+def contract_switch(
+    data: pd.DataFrame, current, best: dict, healthcare_costs: float,
+    environmental_rebate: float, age_group: str,
+) -> tuple[float | None, list[str]]:
+    """What leaving today's contract saves a year, and what would change.
+
+    `best` holds the recommendation: insurer, tariff, deductible, the
+    annual costs and the offers at its deductible. With today's deductible
+    known, whole yearly costs are compared - premium, deductible and
+    coinsurance at the expected healthcare costs - so a better deductible
+    counts as much as a cheaper insurer. Without it, only insurer and model,
+    at the recommended deductible. Changes are "deductible", "insurer" and
+    "model" (the model only when the insurer stays).
+    """
+    if not current:
+        return None, []
+    insurer, tariff, deductible = (list(current) + [None])[:3]
+    changes = []
+    if deductible is not None:
+        rows = data[(data["Versicherername"] == insurer)
+                    & (data["Tarifbezeichnung"] == tariff)
+                    & (data["Franchise"] == deductible)]
+        if rows.empty:
+            return None, []
+        today = annual_costs(float(rows["Prämie"].min()), deductible,
+                             healthcare_costs, environmental_rebate, age_group)
+        saving = today - best["annual_costs"]
+        if deductible != best["deductible"]:
+            changes.append("deductible")
+    else:
+        saving = switch_saving(best["offers"], (insurer, tariff))
+        if saving is None:
+            return None, []
+    if insurer != best["insurer"]:
+        changes.append("insurer")
+    elif tariff != best["tariff"]:
+        changes.append("model")
+    return saving, changes
+
+
 def person_view(
     raw, canton, region, age_group, accident_cover, tariff_types,
     child_subgroups, environmental_rebate, expected_costs, key, current=None,
+    colour=None,
 ):
     """Draw one person and return their key figures for the household total."""
     data = get_data(
@@ -154,6 +207,16 @@ def person_view(
     ]
     curves["Franchise"] = curves["Franchise"].astype(str)
 
+    # Fixed colours per deductible, so the cheapest one can take the person's
+    # colour - the bold line then matches the border of the person's box, and
+    # the legend still matches the lines. The others keep Streamlit's own
+    # categorical colours, in the same order as before.
+    palette = {
+        str(d): (colour if colour and d == best_deductible
+                 else _FRANCHISE_COLOURS[i % len(_FRANCHISE_COLOURS)])
+        for i, d in enumerate(r.costs.columns)
+    }
+
     # A window rather than the whole range: what is shown is the neighbourhood
     # of the two vertical lines. A fixed margin around your own costs alone
     # would push the tipping point out of the picture as soon as the two sit far
@@ -198,7 +261,10 @@ def person_view(
                 title=t("chart.y_axis"),
                 scale=alt.Scale(zero=False),
             ),
-            color=alt.Color("Franchise:N", sort=None, title="Franchise"),
+            color=alt.Color(
+                "Franchise:N", sort=None, title="Franchise",
+                scale=alt.Scale(domain=list(palette), range=list(palette.values())),
+            ),
             strokeWidth=alt.StrokeWidth(
                 "Auswahl:N",
                 scale=alt.Scale(
@@ -375,7 +441,7 @@ def person_view(
             st.info(
                 t("offers.current_rank", insurer=current[0], tariff=current[1],
                   rank=current_rank, total=len(ranking),
-                  saving=chf(switch_saving(ranking, current)))
+                  saving=chf(switch_saving(ranking, current[:2])))
             )
 
         free_choice = group_data[
@@ -410,7 +476,13 @@ def person_view(
         "age_group": age_group,
         "deductible": best_deductible,
         "annual_costs": float(at_expected.min()),
-        "switch_saving": switch_saving(ranking, current),
+        "switch": contract_switch(
+            group_data, current,
+            {"insurer": best_offer["Versicherer"] if best_offer is not None else None,
+             "tariff": best_offer["Tarif"] if best_offer is not None else None,
+             "deductible": best_deductible, "annual_costs": float(at_expected.min()),
+             "offers": ranking},
+            expected_costs, environmental_rebate, age_group),
         "insurer": best_offer["Versicherer"] if best_offer is not None else "—",
         "tariff": best_offer["Tarif"] if best_offer is not None else "—",
         "annual_premium": (
@@ -508,13 +580,13 @@ def person_form(person: dict, person_count: int, raw) -> dict | None:
 
     # Today's contract - so the evaluation can say whether switching is worth it
     # at all, instead of only showing the theoretically cheapest.
-    current_insurer, current_model = None, None
+    current_insurer, current_model, current_deductible = None, None, None
     if location is not None:
         available = insurers_and_models(
             raw, location[0], location[1], age_group, accident
         )
         if available:
-            today = st.columns(2)
+            today = st.columns(3)
             insurer_key = f"current_insurer_{person_id}"
             if st.session_state.get(insurer_key) not in (None, *available):
                 st.session_state[insurer_key] = None  # not offered here
@@ -541,6 +613,23 @@ def person_form(person: dict, person_count: int, raw) -> dict | None:
                     key=f"current_model_{person_id}",
                     placeholder=t("form.current_model_placeholder"),
                 )
+                # Optional, and unknown by default like the insurer. With it,
+                # the Wechsel column compares whole yearly costs; without it,
+                # only insurer and model at the recommended deductible.
+                deductibles = DEDUCTIBLES[age_group]
+                deductible_key = f"current_deductible_{person_id}"
+                if st.session_state.get(deductible_key) not in (None, *deductibles):
+                    st.session_state[deductible_key] = None
+                current_deductible = today[2].selectbox(
+                    t("form.current_deductible"),
+                    [None, *deductibles],
+                    format_func=lambda d: (t("form.current_deductible_none")
+                                           if d is None else f"{chf(d)} CHF"),
+                    key=per_language_key(deductible_key),
+                    placeholder=t("form.current_deductible_none"),
+                    help=t("form.current_deductible_help"),
+                )
+                st.session_state[deductible_key] = current_deductible
 
     if location is None:
         st.warning(t("form.no_postcode_warning"))
@@ -564,5 +653,6 @@ def person_form(person: dict, person_count: int, raw) -> dict | None:
         "location": location,
         "tariff_types": tariff_types,
         "age_group": age_group,
-        "current": (current_insurer, current_model) if current_insurer else None,
+        "current": ((current_insurer, current_model, current_deductible)
+                    if current_insurer else None),
     }
