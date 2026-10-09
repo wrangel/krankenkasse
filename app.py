@@ -309,22 +309,39 @@ st.caption(t("motivation"))
 st.caption(t("footer.coffee", url=COFFEE_URL))
 st.caption(t("footer.contact", mailto=f"mailto:{CONTACT_EMAIL}"))
 
-# The footer block from abstractaltitudes, same shape: a centred column no
-# wider than 800px, a hairline rule above it, credits and copyright recessive
-# rather than competing with the text. The paragraphs above stay at reading
-# size, because here they carry the Kipppunkt and PHARM footnotes - on a photo
-# portfolio the whole footer can afford to recede; here only part of it can.
+# The footer block from abstractaltitudes, same rows in the same order: what you
+# can do, what it is built on, what else I have made, the copyright. Each row is
+# separate links spaced by a gap, no separator characters, as there. The
+# paragraphs above stay at reading size because here they carry the footnotes;
+# only this block recedes.
+
+
+def footer_row(links, label=None):
+    """One centred row of footer links; `label` is a dimmer leading word."""
+    items = [f'<span class="brand-footer-label">{html.escape(label)}</span>'] if label else []
+    for text, url in links:
+        external = "" if url.startswith("mailto:") else ' target="_blank" rel="noopener noreferrer"'
+        items.append(f'<a href="{html.escape(url)}"{external}>{html.escape(text)}</a>')
+    return f'<div class="brand-footer-row">{"".join(items)}</div>'
+
+
 st.markdown(
-    f"""
-    <div class="brand-footer">
-      <div class="brand-footer-links">{t_html("footer.other_apps",
-          apps=OTHER_APPS_URL)}</div>
-      <div class="brand-footer-credits">{t_html("footer.credits",
-          repo=REPO_URL, opendata=OPENDATA_URL, priminfo=PRIMINFO_URL)}</div>
-      <div class="brand-footer-copyright">{t_html("footer.copyright",
-          year=date.today().year,
-          license=f"{REPO_URL}/blob/main/LICENSE")}</div>
-    </div>
-    """,
+    '<div class="brand-footer">'
+    + footer_row([
+        (t("footer.link.contact"), f"mailto:{CONTACT_EMAIL}"),
+        (t("footer.link.source"), REPO_URL),
+        (t("footer.link.license"), f"{REPO_URL}/blob/main/LICENSE"),
+        (t("footer.link.coffee"), COFFEE_URL),
+    ])
+    + footer_row([
+        ("wrangel", GITHUB_PROFILE_URL),
+        ("opendata.swiss", OPENDATA_URL),
+        ("priminfo.admin.ch", PRIMINFO_URL),
+        ("Streamlit", "https://streamlit.io"),
+    ])
+    + footer_row([("Abstract Altitudes", OTHER_APPS_URL)], label=t("footer.also_by_me"))
+    + '<p class="brand-footer-copyright">'
+    + html.escape(t("footer.copyright", year=date.today().year))
+    + "</p></div>",
     unsafe_allow_html=True,
 )

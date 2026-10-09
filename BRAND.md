@@ -53,10 +53,14 @@ To close that gap properly, self-host Inter under `static/` with
 
 ## Footer
 
-Copied from Abstract Altitudes' `.finalFooter` in `Grid.module.css`: a centred
-column capped at 800px, a hairline rule above it, credits at `0.9rem` and 70%
-opacity brightening to the accent on hover, copyright at `0.8rem`, 40% opacity
-and `1px` letterspacing.
+Copied from Abstract Altitudes' `.finalFooter` in `Grid.module.css`, rows in
+the same order: actions (contact, source, licence, coffee), credits, "also by
+me" with a dimmer leading label, copyright. Each row is separate links in a
+centred flex row with a `1.5rem` gap — no separator characters — stacking into
+a column below 768px. Hairline above, `5rem` margin and `4rem` padding, links
+at `0.9rem` and 70% opacity brightening to the accent on hover, copyright at
+`0.8rem`, 40% opacity and `1px` letterspacing. The copyright names the site,
+not the person, as there.
 
 One deliberate difference. On a photography portfolio the whole footer can
 recede, because it is chrome. Here it also carries the data, Kipppunkt and PHARM

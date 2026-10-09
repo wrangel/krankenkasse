@@ -122,46 +122,46 @@ def configure_page() -> None:
              invented, so the two sites recede in the same way. */
           .brand-footer {
               max-width: 800px;
-              margin: 4rem auto 0 auto;
-              padding: 2.5rem 1rem 1rem 1rem;
+              margin: 5rem auto 0 auto;
+              padding: 4rem 1rem;
               border-top: 1px solid rgba(128, 128, 128, 0.25);
               text-align: center;
           }
-          .brand-footer-links {
-              font-size: 0.9rem;
-              font-weight: 300;
-              opacity: 0.7;
-              margin-bottom: 1.1rem;
-          }
-          .brand-footer-links a {
-              color: inherit !important;
-              text-decoration: none !important;
-              transition: color 0.3s;
-          }
-          .brand-footer-links a:hover { color: #4da6ff !important; }
-          .brand-footer-credits {
-              font-size: 0.9rem;
-              font-weight: 300;
-              opacity: 0.7;
+          .brand-footer-row {
+              display: flex;
+              flex-wrap: wrap;
+              justify-content: center;
+              gap: 1.5rem;
               margin-bottom: 1.5rem;
+              font-size: 0.9rem;
+              font-weight: 300;
           }
-          .brand-footer-credits a {
+          .brand-footer-row a {
               color: inherit !important;
               text-decoration: none !important;
-              transition: color 0.3s, opacity 0.3s;
+              opacity: 0.7;
+              transition: opacity 0.3s, color 0.3s;
           }
-          .brand-footer-credits a:hover { color: #4da6ff !important; }
-          .brand-footer-copyright {
-              font-size: 0.8rem;
+          .brand-footer-row a:hover {
+              opacity: 1;
+              color: #4da6ff !important;
+          }
+          /* The leading word of the "also by me" row: a label, not a link, so
+             dimmer than the entries it introduces. */
+          .brand-footer-label { opacity: 0.4; }
+          .brand-footer .brand-footer-copyright {
+              font-size: 0.8rem !important;
               font-weight: 300;
               opacity: 0.4;
               letter-spacing: 1px;
+              margin: 0;
           }
-          .brand-footer-copyright a {
-              color: inherit !important;
-              text-decoration: none !important;
+          @media (max-width: 768px) {
+              .brand-footer-row {
+                  flex-direction: column;
+                  gap: 1rem;
+              }
           }
-          .brand-footer-copyright a:hover { color: #4da6ff !important; }
 
           /* The language switch reads as text, not as a control: muted grey,
              no border, no fill, brightening to the accent on hover. */
