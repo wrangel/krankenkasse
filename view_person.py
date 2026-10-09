@@ -40,7 +40,7 @@ from calculation import (
 
 def person_summary(
     raw, canton, region, age_group, accident_cover, tariff_types,
-    child_subgroups, environmental_rebate, expected_costs,
+    child_subgroups, environmental_rebate, expected_costs, current=None,
 ) -> dict | None:
     """The key figures for one person, without drawing anything.
 
@@ -65,9 +65,10 @@ def person_summary(
     r = results[0]
     at_expected = r.costs.loc[expected_costs]
     best_deductible = int(at_expected.idxmin())
-    offer = data[
+    at_deductible = data[
         (data["Zielgruppe"] == age_group) & (data["Franchise"] == best_deductible)
-    ].nsmallest(1, "Prämie")
+    ]
+    offer = at_deductible.nsmallest(1, "Prämie")
     if offer.empty:
         return None
     row = offer.iloc[0]
@@ -78,7 +79,24 @@ def person_summary(
         "insurer": row["Versicherername"],
         "tariff": row["Tarifbezeichnung"],
         "annual_premium": float(row["Prämie"]) * 12,
+        "switch_saving": switch_saving(at_deductible, current),
     }
+
+
+def switch_saving(offers: pd.DataFrame, current) -> float | None:
+    """What switching from today's contract to the cheapest offer saves a year.
+
+    `offers` are the offers at the recommended deductible. None when there is
+    no current contract to compare, or it is not among those offers - the
+    figure would then rest on a deductible the visitor never told us about.
+    """
+    if not current:
+        return None
+    hit = offers[(offers["Versicherername"] == current[0])
+                 & (offers["Tarifbezeichnung"] == current[1])]
+    if hit.empty:
+        return None
+    return (float(hit["Prämie"].min()) - float(offers["Prämie"].min())) * 12
 
 
 def person_view(
@@ -390,12 +408,10 @@ def person_view(
                   insurer=current[0], tariff=current[1])
             )
         elif current_rank is not None:
-            extra = (
-                float(current_row["Prämie"]) - float(ranking.iloc[0]["Prämie"])
-            ) * 12
             st.info(
                 t("offers.current_rank", insurer=current[0], tariff=current[1],
-                  rank=current_rank, total=len(ranking), saving=chf(extra))
+                  rank=current_rank, total=len(ranking),
+                  saving=chf(switch_saving(ranking, current)))
             )
 
         free_choice = group_data[
@@ -430,6 +446,7 @@ def person_view(
         "age_group": age_group,
         "deductible": best_deductible,
         "annual_costs": float(at_expected.min()),
+        "switch_saving": switch_saving(ranking, current),
         "insurer": best_offer["Versicherer"] if best_offer is not None else "—",
         "tariff": best_offer["Tarif"] if best_offer is not None else "—",
         "annual_premium": (
@@ -546,6 +563,7 @@ def person_form(person: dict, person_count: int, raw) -> dict | None:
                 current_model = today[1].selectbox(
                     t("form.current_model"), models,
                     key=f"current_model_{person_id}",
+                    placeholder=t("form.current_model_placeholder"),
                 )
 
     if location is None:

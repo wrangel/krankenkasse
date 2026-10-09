@@ -176,7 +176,7 @@ for number, person in enumerate(people, start=1):
             result = person_summary(
                 raw, entry["location"][0], entry["location"][1], age_group,
                 {age_group: entry["accident"]}, entry["tariff_types"], tiers,
-                environmental_rebate_default, entry["costs"],
+                environmental_rebate_default, entry["costs"], entry["current"],
             )
         if result:
             result["town"] = entry["location"][2].split(" (")[0]
