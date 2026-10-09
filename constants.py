@@ -145,6 +145,7 @@ OPENDATA_URL = "https://opendata.swiss/de/dataset/health-insurance-premiums"
 COFFEE_URL = "https://buymeacoffee.com/wrangel"
 # The other things I have built, so the two sites point at each other.
 OTHER_APPS_URL = "https://abstractaltitudes.com"
+GITHUB_PROFILE_URL = "https://github.com/wrangel"
 # The premium comparison itself, not the homepage: someone following this link
 # wants the official figures, and landing on a front page makes them hunt.
 # The /de/ segment is language-specific and will need to follow the user's

@@ -45,6 +45,7 @@
   "footer.link.coffee": "Offrimi un caffè",
   "footer.link.contact": "Contatto",
   "footer.link.license": "Licenza",
+  "footer.link.source": "Codice sorgente",
   "footnote.data": "\\* Sulla base dei dati ufficiali dell'UFSP via [opendata.swiss]({opendata}). Il rimborso della tassa ambientale ({rebate_year} CHF all'anno) è già dedotto dai premi.",
   "footnote.pharm": "\\*\\*\\* I modelli farmacia mancano come categoria a sé. L'UFSP distingue cinque categorie di modelli e priminfo.admin.ch le propone tutte e cinque – tra cui PHARM. Nei dati dei premi {year} non figura però una sola riga PHARM in tutta la Svizzera. I modelli farmacia esistono eccome – PharMed, Favorit Medpharm, casamed pharm, KPTwin.win – ma l'UFSP li classifica sotto PRAXIS e FLEX. Filtrare per PHARM su priminfo nasconde quindi proprio questi modelli. Questa applicazione offre perciò solo le categorie realmente presenti nei dati.",
   "footnote.tipping_point": "\\*\\* Osservo questo punto di svolta, invariato, da anni. Una [formula pubblicata]({formula}) per i livelli 300 e 2500 lo conferma, ma confronta solo questi due livelli. Che le franchigie intermedie non convengano *mai* lo mostra solo il calcolo su tutti i livelli – ed è quello che fa questa applicazione. Nei dati degli ultimi anni è sempre stato così; poiché i premi vengono fissati ogni anno, la situazione può però cambiare.",

@@ -21,6 +21,7 @@ from constants import (
     CHILDREN,
     COFFEE_URL,
     CONTACT_EMAIL,
+    GITHUB_PROFILE_URL,
     OTHER_APPS_URL,
     DEFAULT_PERSON,
     FORMULA_URL,
@@ -334,13 +335,12 @@ st.markdown(
     '<div class="brand-footer">'
     + footer_row([
         (t("footer.link.contact"), f"mailto:{CONTACT_EMAIL}"),
+        (t("footer.link.source"), REPO_URL),
         (t("footer.link.license"), f"{REPO_URL}/blob/main/LICENSE"),
         (t("footer.link.coffee"), COFFEE_URL),
     ])
     + footer_row([
-        # The repository rather than the profile: it doubles as the link to
-        # the source code, which therefore needs no entry of its own above.
-        ("wrangel", REPO_URL),
+        ("wrangel", GITHUB_PROFILE_URL),
         ("opendata.swiss", OPENDATA_URL),
         ("priminfo.admin.ch", PRIMINFO_URL),
         ("Streamlit", "https://streamlit.io"),

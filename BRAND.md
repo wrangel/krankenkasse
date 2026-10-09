@@ -54,8 +54,7 @@ To close that gap properly, self-host Inter under `static/` with
 ## Footer
 
 Copied from Abstract Altitudes' `.finalFooter` in `Grid.module.css`, rows in
-the same order: actions (contact, licence, coffee), credits (the first, "wrangel", links
-the repository and so stands in for a separate source link), "also by
+the same order: actions (contact, source, licence, coffee), credits, "also by
 me" with a dimmer leading label, copyright. Each row is separate links in a
 centred flex row with a `1.5rem` gap — no separator characters — stacking into
 a column below 768px. Hairline above, `5rem` margin and `4rem` padding, links
