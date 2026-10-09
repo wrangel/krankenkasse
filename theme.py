@@ -44,6 +44,16 @@ def configure_page() -> None:
               min-height: 0 !important;
           }
 
+          /* The banner carries three facts and a disclaimer, so it earns its
+             place - but not the padding Streamlit gives an alert by default.
+             Tighter box, tighter line spacing between its two paragraphs, same
+             16px text. */
+          [data-testid="stAlertContainer"] {
+              padding: 0.85rem 1rem !important;
+          }
+          [data-testid="stAlertContainer"] p { margin-bottom: 0.35rem !important; }
+          [data-testid="stAlertContainer"] p:last-child { margin-bottom: 0 !important; }
+
           /* Input fields came out at 14px while every label around them was
              16px. The values someone types - postcode, age, expected costs -
              are the most important text on the page and were the smallest on
@@ -68,7 +78,15 @@ def configure_page() -> None:
           [data-testid="stCaptionContainer"] li {
               font-size: 1rem !important;
               line-height: 1.65 !important;
-              color: rgba(250, 250, 250, 0.78) !important;
+              /* Muted relative to the theme's own text colour, not a fixed
+                 white: the near-white this used to be vanished in light mode.
+                 The muting is in the colour, not in opacity - opacity also
+                 fades the links, which then fall below 4.5:1 on white.
+                 (currentColor inside "color" is the inherited colour.) */
+              color: color-mix(in srgb, currentColor 85%, transparent) !important;
+          }
+          [data-testid="stCaptionContainer"] {
+              opacity: 1 !important;
           }
           [data-testid="stMarkdownContainer"] p,
           [data-testid="stMarkdownContainer"] li {
@@ -106,7 +124,7 @@ def configure_page() -> None:
               max-width: 800px;
               margin: 4rem auto 0 auto;
               padding: 2.5rem 1rem 1rem 1rem;
-              border-top: 1px solid rgba(255, 255, 255, 0.1);
+              border-top: 1px solid rgba(128, 128, 128, 0.25);
               text-align: center;
           }
           .brand-footer-links {
@@ -150,13 +168,14 @@ def configure_page() -> None:
           [class*="st-key-lang_"] button {
               background: transparent !important;
               border: none !important;
-              color: rgba(250, 250, 250, 0.45) !important;
+              color: inherit !important;
+              opacity: 0.55;
               font-size: 0.9rem !important;
               padding: 0 !important;
               min-height: 0 !important;
               transition: color 0.3s;
           }
-          [class*="st-key-lang_"] button:hover { color: #4da6ff !important; }
+          [class*="st-key-lang_"] button:hover { color: #4da6ff !important; opacity: 1; }
           /* Right-aligned and tight, so three stacked links read as one small
              block in the corner rather than three loose buttons. */
           [class*="st-key-lang_"] button div,
@@ -172,7 +191,8 @@ def configure_page() -> None:
           }
 
           [data-testid="stMultiSelectTagsContainer"] span[data-tag] {
-              background-color: rgba(250, 250, 250, 0.14) !important;
+              /* Mid-grey at low alpha reads on black and on white alike. */
+              background-color: rgba(128, 128, 128, 0.2) !important;
               color: inherit !important;
           }
           [data-testid="stMultiSelectTagsContainer"] span[data-tag] svg {
@@ -201,7 +221,7 @@ def configure_page() -> None:
           /* The selected radio button, neutral for the same reason. The circle
              only: "div div" would also hit the label beside it. */
           [data-testid="stRadioOption"][data-selected="true"] > div > div:first-child {
-              background-color: rgba(250, 250, 250, 0.85) !important;
+              background-color: currentColor !important;
           }
         </style>
         """,

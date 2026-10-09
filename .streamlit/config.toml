@@ -15,15 +15,30 @@
 # theme.fontFaces at them - then the claim stays true and the brand is exact.
 
 [theme]
-base = "dark"
+font = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+baseFontSize = 16
+
+# Visitors choose between System, Light and Dark in Streamlit's menu, so the
+# brand has to hold in both. Dark is abstractaltitudes' palette exactly.
+[theme.dark]
 backgroundColor = "#000000"
 secondaryBackgroundColor = "#0e1117"
 textColor = "#ffffff"
 primaryColor = "#4da6ff"
 linkColor = "#4da6ff"
 borderColor = "rgba(255, 255, 255, 0.1)"
-font = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
-baseFontSize = 16
+
+# Light is the same brand inverted. The accent is darkened for links: #4da6ff
+# on white is about 2.6:1, below the 4.5:1 body text needs; #1f73c2 is 4.9:1.
+# The wordmark keeps #4da6ff in both modes - a logotype is exempt from the
+# contrast rule, and it is the brand colour.
+[theme.light]
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f3f5f8"
+textColor = "#111111"
+primaryColor = "#1f73c2"
+linkColor = "#1f73c2"
+borderColor = "rgba(0, 0, 0, 0.1)"
 
 [browser]
 gatherUsageStats = false

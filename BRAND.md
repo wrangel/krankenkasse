@@ -12,16 +12,31 @@ a drift nobody noticed.
 
 ## Tokens
 
-| | value | where it lives here |
-|---|---|---|
-| Background | `#000000` | `.streamlit/config.toml` |
-| Text | `#ffffff` | `.streamlit/config.toml` |
-| Accent | `#4da6ff` | `.streamlit/config.toml` (`primaryColor`, `linkColor`) |
-| Accent, dark | `#3b8cc2` | unused here so far |
-| Hairline | `rgba(255, 255, 255, 0.1)` | `borderColor`, and the footer rule |
-| Base size | 16px | `baseFontSize` |
+Abstract Altitudes is dark only. viaprima follows the visitor's system setting
+(Streamlit's System / Light / Dark switch), so it has a light variant that
+Abstract Altitudes has no counterpart for. The dark variant is the shared one.
 
-Abstract Altitudes keeps the same values in `:root` in
+| | dark (shared) | light (viaprima only) | where it lives here |
+|---|---|---|---|
+| Background | `#000000` | `#ffffff` | `.streamlit/config.toml` |
+| Text | `#ffffff` | `#111111` | `.streamlit/config.toml` |
+| Accent | `#4da6ff` | `#1f73c2` | `primaryColor`, `linkColor` |
+| Accent, dark | `#3b8cc2` | – | unused here so far |
+| Hairline | `rgba(255, 255, 255, 0.1)` | `rgba(0, 0, 0, 0.1)` | `borderColor` |
+| Base size | 16px | 16px | `baseFontSize` |
+
+The light accent is darker because `#4da6ff` on white is about 2.6:1, well
+under the 4.5:1 that body-size link text needs; `#1f73c2` is 4.9:1. The
+wordmark keeps `#4da6ff` in both themes — a logotype is exempt, and it is the
+one place the brand colour should not shift.
+
+Custom CSS in `theme.py` must work on either background. That means no fixed
+near-white or near-black: use `inherit`/`currentColor`, mid-grey at low alpha
+(`rgba(128, 128, 128, …)`, also the footer rule), and mute text through
+`color-mix(… currentColor 85% …)` rather than `opacity`, which would fade the
+links inside it below 4.5:1 as well.
+
+Abstract Altitudes keeps the dark values in `:root` in
 `src/frontend/styles/Global.css`.
 
 ## Typography
@@ -44,7 +59,7 @@ opacity brightening to the accent on hover, copyright at `0.8rem`, 40% opacity
 and `1px` letterspacing.
 
 One deliberate difference. On a photography portfolio the whole footer can
-recede, because it is chrome. Here it also carries the Kipppunkt and PHARM
+recede, because it is chrome. Here it also carries the data, Kipppunkt and PHARM
 footnotes and the note on why the app exists — those are content, and they stay
 at reading size. Only the credits and the copyright take the recessive
 treatment.
