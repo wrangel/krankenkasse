@@ -322,6 +322,29 @@ def test_switch_with_todays_deductible_compares_whole_yearly_costs():
     assert contract_switch(data, None, best, *args) == (None, [])
 
 
+def test_switch_names_only_changes_worth_making():
+    """The insurer change is left out when it adds less than 50 CHF.
+
+    Adult, CHF 500 costs, no rebate. S TelMed at 2500: 12 x 300 + 500 = 4100,
+    the cheapest. A QualiMed at 2500: 12 x 300.10 + 500 = 4101.2 -> 4101,
+    one franc more; at 300: 12 x 390 + 300 + 20 = 5000. Today A QualiMed 300.
+    Staying with A and only raising the deductible gets within a franc of the
+    cheapest, so the advice is the deductible alone, saving 5000 - 4101 = 899.
+    """
+    from view_person import contract_switch
+
+    data = pd.DataFrame({
+        "Versicherername": ["S", "A", "A"],
+        "Tarifbezeichnung": ["TelMed", "QualiMed", "QualiMed"],
+        "Franchise": [2500, 2500, 300],
+        "Prämie": [300.0, 300.10, 390.0],
+    })
+    best = {"insurer": "S", "tariff": "TelMed", "deductible": 2500,
+            "annual_costs": 4100.0, "offers": data[data["Franchise"] == 2500]}
+    assert contract_switch(data, ("A", "QualiMed", 300), best, 500.0, 0.0, ADULTS) == (
+        899.0, ["deductible"])
+
+
 def test_children_have_the_lower_coinsurance_cap():
     """For children the cap is 350 rather than 700 (Art. 103 para. 2 KVV)."""
     data = get_data(

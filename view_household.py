@@ -1,5 +1,8 @@
 """The total across all people."""
 
+import io
+from datetime import date
+
 import pandas as pd
 import streamlit as st
 
@@ -9,7 +12,8 @@ from i18n import t
 
 
 def household_total(
-    results: list[dict], child_count: int, shared: dict | None = None
+    results: list[dict], child_count: int, shared: dict | None = None,
+    premium_year: int | None = None,
 ) -> None:
     """The total across all people - what the question comes down to in the end."""
     if not results:
@@ -98,7 +102,7 @@ def household_total(
             return "–", ""
         if saving < noticeable_saving:
             return t("household.switch_no"), ""
-        what = ", ".join(t(f"change.{c}") for c in changes)
+        what = " + ".join(t(f"change.{c}") for c in changes)
         return t("household.switch_saves", saving=chf(saving)), what[:1].upper() + what[1:]
 
     overview = pd.DataFrame(
@@ -116,16 +120,21 @@ def household_total(
                 # in the metric above, and a second money column per row
                 # next to the yearly saving read as a third kind of amount.
                 "Kosten/Jahr": round(r["annual_costs"]),
-                "Wechsel": switch(r)[0],
+                # What changes first, then what it saves - under one "Wechsel"
+                # header in the table.
                 "Änderung": switch(r)[1],
+                "Ersparnis/Jahr": switch(r)[0],
             }
             for i, r in enumerate(results, start=1)
         ]
     )
+    changed = [bool(a) for a in overview["Änderung"]]
     show_table(
         overview,
-        {"Franchise": 0, "Kosten/Jahr": 0, "Wechsel": None},
+        {"Franchise": 0, "Kosten/Jahr": 0, "Ersparnis/Jahr": None},
         counters=("Nr.",),
+        group=("Wechsel", ["Änderung", "Ersparnis/Jahr"]),
+        marked=changed,
     )
     if any((r.get("switch") or (None,))[0] is not None for r in results):
         st.caption(t("household.switch_note", threshold=noticeable_saving))
@@ -141,15 +150,71 @@ def household_total(
             "Versicherer": "",
             "Tarif": "",
             "Kosten/Jahr": round(total),
-            "Wechsel": "",
             "Änderung": "",
+            "Ersparnis/Jahr": "",
         }]
     )
     st.download_button(
-        t("household.csv_button"),
-        pd.concat([overview, total_row], ignore_index=True)
-        .to_csv(index=False)
-        .encode("utf-8"),
-        file_name="haushalt.csv",
-        mime="text/csv",
+        t("household.xlsx_button"),
+        household_workbook(pd.concat([overview, total_row], ignore_index=True),
+                           results, premium_year),
+        file_name=f"viaprima.ch {t('household.file_name')} {premium_year}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+def household_workbook(summary: pd.DataFrame, results: list[dict],
+                       premium_year: int | None) -> bytes:
+    """The household as an Excel file: a summary tab, then one per person.
+
+    Excel rather than CSV, so everything fits in one file with a tab for
+    each person - "Zusammenfassung", "Person 1", "Person 2" - and opens
+    with umlauts and columns intact. Headers are in the page language; the
+    first line names viaprima.ch, where the figures come from.
+    """
+    buffer = io.BytesIO()
+    credit = t("xlsx.credit", year=premium_year, date=date.today().strftime("%d.%m.%Y"))
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        # Amounts the table shows as text ("1'254") go in as numbers, so
+        # Excel can add them up; "nein" and "–" stay text.
+        table = summary.apply(lambda col: col.map(_as_number)).rename(
+            columns=lambda c: t(f"col.{c}"))
+        table.to_excel(writer, sheet_name=t("xlsx.summary"), index=False, startrow=2)
+        sheet = writer.sheets[t("xlsx.summary")]
+        sheet["A1"] = credit
+        _tidy(sheet, header_row=3)
+
+        for i, r in enumerate(results, start=1):
+            name = t("xlsx.person", n=i)
+            matrix = r["matrix"].round(2)
+            matrix.columns = [t("xlsx.deductible_column", deductible=chf(d))
+                              for d in matrix.columns]
+            matrix.index.name = t("xlsx.costs_axis")
+            matrix.to_excel(writer, sheet_name=name, startrow=3)
+            sheet = writer.sheets[name]
+            sheet["A1"] = t(
+                "xlsx.person_heading",
+                age_class=t(f'age_class.{r["age_group"]}'), town=r.get("town", ""),
+                costs=chf(r.get("costs", 0)), deductible=chf(r["deductible"]))
+            sheet["A2"] = t("xlsx.matrix_note")
+            _tidy(sheet, header_row=4)
+    return buffer.getvalue()
+
+
+def _tidy(sheet, header_row: int) -> None:
+    """Readable column widths and Swiss-style number formats."""
+    for column in sheet.iter_cols(min_row=header_row):
+        values = [str(c.value) for c in column if c.value is not None]
+        width = max((len(v) for v in values), default=8)
+        sheet.column_dimensions[column[0].column_letter].width = min(max(width + 2, 10), 45)
+        for cell in column[1:]:
+            if isinstance(cell.value, float) and not cell.value.is_integer():
+                cell.number_format = "#,##0.00"
+            elif isinstance(cell.value, (int, float)):
+                cell.number_format = "#,##0"
+
+
+def _as_number(value):
+    if isinstance(value, str) and value.replace("'", "").isdigit():
+        return int(value.replace("'", ""))
+    return value

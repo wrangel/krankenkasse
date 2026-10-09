@@ -17,9 +17,17 @@ from calculation import load_premiums
 # The message says why it takes a moment and that it only takes it once. On the
 # first call after a restart the BAG file is parsed - noticeably slow on the
 # Synology - and is then held ready in parsed form.
-@st.cache_data(show_spinner=False)
+# cache_resource rather than cache_data: cache_data hands every run its own
+# copy of the 220,000-row table, cache_resource the same object. Nothing
+# modifies it - get_data and friends filter into new frames.
+@st.cache_resource(show_spinner=False)
 def _premiums(max_age_days: int):
     return load_premiums(max_age_days)
+
+
+def premiums_cached():
+    """The table already loaded - for cached helpers that must not spin."""
+    return _premiums(7)
 
 
 def premiums(max_age_days: int):
@@ -33,11 +41,27 @@ def chf(amount: float, decimals: int = 0) -> str:
     return f"{amount:,.{decimals}f}".replace(",", "'")
 
 
+def excel_csv(df: pd.DataFrame, index: bool = True) -> bytes:
+    """CSV that Excel opens correctly as it is, on a Swiss machine.
+
+    UTF-8 with a byte-order mark - without it Excel reads the file as Mac
+    Roman and "Zürich" becomes "Z√ºrich" - and semicolons, the list separator
+    of Swiss and German Excel; with commas everything landed in column A.
+    """
+    return df.to_csv(sep=";", index=index).encode("utf-8-sig")
+
+
+# Columns whose entries are long enough to wrap onto a second line.
+_WRAPPING = {"Versicherer", "Tarif", "Änderung"}
+
+
 def show_table(
     df: pd.DataFrame,
     numbers: dict[str, int | None],
     highlight: list[bool] | None = None,
     counters: tuple[str, ...] = (),
+    group: tuple[str, list[str]] | None = None,
+    marked: list[bool] | None = None,
 ) -> None:
     """Draw `df` as a plain HTML table, styled by .vp-table in theme.py.
 
@@ -54,15 +78,34 @@ def show_table(
     Headers are the translated col.* labels; the DataFrame keeps its German
     column names for the CSV exports. `highlight` tints rows, e.g. today's
     contract. `counters` (Rang, Nr.) stay left but as narrow as numbers.
+    `group` puts one header (a col.* key) over adjacent columns; `marked`
+    tints those grouped cells in the rows where it is true.
     """
 
     def css(c: str) -> str:
         if c in numbers:
             return ' class="num"'
-        return ' class="counter"' if c in counters else ""
+        if c in counters:
+            return ' class="counter"'
+        return ' class="wrap"' if c in _WRAPPING else ""
 
-    head = "".join(f"<th{css(c)}>{html.escape(t(f'col.{c}'))}</th>"
-                   for c in df.columns)
+    def label(c: str) -> str:
+        return html.escape(t(f"col.{c}"))
+
+    grouped = group[1] if group else []
+    if grouped:
+        top, sub = [], []
+        for c in df.columns:
+            if c not in grouped:
+                top.append(f'<th rowspan="2"{css(c)}>{label(c)}</th>')
+            elif c == grouped[0]:
+                top.append(f'<th colspan="{len(grouped)}" class="group">'
+                           f"{label(group[0])}</th>")
+            if c in grouped:
+                sub.append(f"<th{css(c)}>{label(c)}</th>")
+        head = f"{''.join(top)}</tr><tr>{''.join(sub)}"
+    else:
+        head = "".join(f"<th{css(c)}>{label(c)}</th>" for c in df.columns)
     rows = []
     for i, (_, row) in enumerate(df.iterrows()):
         cells = []
@@ -74,7 +117,11 @@ def show_table(
                 text = chf(float(value), numbers[c])
             else:
                 text = str(value)
-            cells.append(f"<td{css(c)}>{html.escape(text)}</td>")
+            cell_css = css(c)
+            if marked and marked[i] and c in grouped:
+                cell_css = cell_css.replace('class="', 'class="changed ') if cell_css \
+                    else ' class="changed"'
+            cells.append(f"<td{cell_css}>{html.escape(text)}</td>")
         current = ' class="current"' if highlight and highlight[i] else ""
         rows.append(f"<tr{current}>{''.join(cells)}</tr>")
     st.markdown(

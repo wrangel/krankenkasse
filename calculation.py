@@ -258,8 +258,12 @@ def available_tariff_types(df: pd.DataFrame) -> list[str]:
     that is empty is never offered. TARIFF_TYPES stays the full vocabulary, so
     the label is ready whenever a category shows up.
     """
-    present = set(df["Tariftyp"].dropna())
-    return [t for t in TARIFF_TYPES if t in present]
+    # Kept on the frame itself: the form asks for it once per person and
+    # per run, and scanning 220,000 rows each time made every click slower.
+    if "tariff_types" not in df.attrs:
+        present = set(df["Tariftyp"].dropna())
+        df.attrs["tariff_types"] = [t for t in TARIFF_TYPES if t in present]
+    return list(df.attrs["tariff_types"])
 
 
 def cheapest_premiums(df: pd.DataFrame) -> pd.DataFrame:
@@ -571,7 +575,8 @@ def shared_switch_saving(
     today = monthly(current[0], current[1], (tier, "K1"))
     if target is None or today is None:
         return None
-    return (today - target) * 12
+    # Rounded yearly amounts, as the tables show them.
+    return float(round(today * 12) - round(target * 12))
 
 
 def shared_contract_switch(
@@ -609,7 +614,7 @@ def shared_contract_switch(
             return None, []
         today = annual_costs(float(own["Prämie"].min()), deductible,
                              healthcare_costs, environmental_rebate, CHILDREN)
-        saving = today - placement["costs"]
+        saving = float(round(today) - round(placement["costs"]))
         if deductible != placement["deductible"]:
             changes.append("deductible")
     if insurer != shared["insurer"]:

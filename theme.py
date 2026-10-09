@@ -197,9 +197,18 @@ def configure_page() -> None:
           .vp-table .num { text-align: right; width: 1%; }
           .vp-table .counter { width: 1%; }
           /* Short of room, a long name wraps onto a second line rather than
-             pushing the money columns off the edge; numbers never wrap. */
-          .vp-table td:not(.num):not(.counter) { white-space: normal; }
+             pushing the money columns off the edge. Only the long names -
+             insurer, tariff, the change - may wrap; "8057 Zürich", numbers
+             and the like stay on one line. */
+          .vp-table td.wrap { white-space: normal; }
           .vp-table tr.current td { background: rgba(77, 166, 255, 0.18); }
+          .vp-table th.group {
+              text-align: center;
+              border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+          }
+          /* A change worth making: the same green as "Weitere Person
+             hinzufügen", faint, on the two Wechsel cells. */
+          .vp-table td.changed { background: rgba(95, 185, 122, 0.18); }
 
           /* The language switch reads as text, not as a control: muted grey,
              no border, no fill, brightening to the accent on hover. */
@@ -272,16 +281,18 @@ def configure_page() -> None:
 # in each person's chart is drawn in the same colour (view_person.person_view).
 PERSON_COLOURS = [
     "#4da6ff",  # brand blue - the first person carries the viaprima colour
-    "#c9a227",  # gold
     "#5fb97a",  # green
+    "#c9a227",  # gold
     "#e8913a",  # orange
     "#a97bc9",  # violet
     "#d3756b",  # salmon
+    "#d0679f",  # magenta
+    "#9aa84a",  # olive
 ]
 
 
 def colour_for_person(number: int) -> str:
-    """Colour of the nth person, 1-based. Repeats after six people."""
+    """Colour of the nth person, 1-based. Repeats after eight people."""
     return PERSON_COLOURS[(number - 1) % len(PERSON_COLOURS)]
 
 

@@ -11,12 +11,14 @@ chart axes.
 """
 
 import altair as alt
+import numpy as np
 import pandas as pd
 import streamlit as st
 
 from common import (
     age_group_for_age,
     chf,
+    excel_csv,
     choose_location,
     show_table,
     with_gap_to_cheapest,
@@ -30,6 +32,7 @@ from constants import (
     coinsurance_cap,
     coinsurance_rate,
     min_cost_range,
+    noticeable_saving,
 )
 from calculation import (
     available_tariff_types,
@@ -77,6 +80,7 @@ def person_summary(
     return {
         "age_group": age_group,
         "deductible": best_deductible,
+        "matrix": r.costs,
         "annual_costs": float(at_expected.min()),
         "insurer": row["Versicherername"],
         "tariff": row["Tarifbezeichnung"],
@@ -103,12 +107,18 @@ def switch_saving(offers: pd.DataFrame, current) -> float | None:
                  & (offers["Tarifbezeichnung"] == current[1])]
     if hit.empty:
         return None
-    return (float(hit["Prämie"].min()) - float(offers["Prämie"].min())) * 12
+    # From the yearly amounts rounded as the table shows them, so the saving
+    # always equals the difference of the two figures on screen.
+    return float(round(float(hit["Prämie"].min()) * 12)
+                 - round(float(offers["Prämie"].min()) * 12))
 
 
-# Streamlit's categorical palette, which the chart used implicitly before.
-_FRANCHISE_COLOURS = ["#0068c9", "#83c9ff", "#ff2b2b", "#ffabab", "#29b09d",
-                      "#7defa1", "#ff8700", "#ffd16a", "#6d3fc0", "#d5dae5"]
+# The other deductibles, in muted tones - slate, sand, sage, lavender, each
+# dark and light - so the cheapest one, in the person's saturated colour,
+# stands out in every chart. The same deductible gets the same tone in every
+# person's chart.
+_FRANCHISE_COLOURS = ["#7f8c9d", "#a9b6c6", "#9c8b7a", "#c6b8a8",
+                      "#7d9a8f", "#a9c4b9", "#9a8fb0", "#c4bbd6"]
 
 
 def contract_switch(
@@ -117,38 +127,66 @@ def contract_switch(
 ) -> tuple[float | None, list[str]]:
     """What leaving today's contract saves a year, and what would change.
 
-    `best` holds the recommendation: insurer, tariff, deductible, the
-    annual costs and the offers at its deductible. With today's deductible
-    known, whole yearly costs are compared - premium, deductible and
-    coinsurance at the expected healthcare costs - so a better deductible
-    counts as much as a cheaper insurer. Without it, only insurer and model,
-    at the recommended deductible. Changes are "deductible", "insurer" and
-    "model" (the model only when the insurer stays).
+    `best` holds the recommendation: insurer, tariff, deductible, annual
+    costs and the offers at its deductible. With today's deductible known,
+    whole yearly costs are compared - premium, deductible and coinsurance at
+    the expected healthcare costs - so a better deductible counts as much as a
+    cheaper insurer. Without it, premiums at the recommended deductible.
+
+    The change named is the least effort that gets within noticeable_saving
+    of the cheapest: only the deductible at today's insurer and model, else a
+    model (and deductible) at today's insurer, else the full switch. A new
+    insurer for one franc is not advice anyone needs. Changes are
+    "deductible", "model" and "insurer".
     """
     if not current:
         return None, []
     insurer, tariff, deductible = (list(current) + [None])[:3]
-    changes = []
-    if deductible is not None:
-        rows = data[(data["Versicherername"] == insurer)
-                    & (data["Tarifbezeichnung"] == tariff)
-                    & (data["Franchise"] == deductible)]
-        if rows.empty:
+    own = data[data["Versicherername"] == insurer]
+
+    if deductible is None:
+        offers = best["offers"]
+        today = switch_saving(offers, (insurer, tariff))
+        if today is None:
             return None, []
-        today = annual_costs(float(rows["Prämie"].min()), deductible,
-                             healthcare_costs, environmental_rebate, age_group)
-        saving = today - best["annual_costs"]
-        if deductible != best["deductible"]:
-            changes.append("deductible")
-    else:
-        saving = switch_saving(best["offers"], (insurer, tariff))
-        if saving is None:
-            return None, []
-    if insurer != best["insurer"]:
-        changes.append("insurer")
-    elif tariff != best["tariff"]:
-        changes.append("model")
-    return saving, changes
+        # Premium differences against the cheapest offer, per tariff of
+        # today's insurer, at the recommended deductible.
+        same_insurer = offers[offers["Versicherername"] == insurer]
+        model_gap = float(round(float(same_insurer["Prämie"].min()) * 12)
+                          - round(float(offers["Prämie"].min()) * 12))
+        if model_gap < noticeable_saving:
+            cheapest_own = same_insurer.loc[same_insurer["Prämie"].idxmin(),
+                                            "Tarifbezeichnung"]
+            return today - model_gap, ([] if cheapest_own == tariff else ["model"])
+        return today, ["insurer"]
+
+    def yearly(rows: pd.DataFrame) -> pd.Series:
+        """Rounded yearly costs per row, as the tables show them."""
+        return rows.apply(lambda row: round(annual_costs(
+            float(row["Prämie"]), int(row["Franchise"]), healthcare_costs,
+            environmental_rebate, age_group)), axis=1)
+
+    rows = own[(own["Tarifbezeichnung"] == tariff) & (own["Franchise"] == deductible)]
+    if rows.empty:
+        return None, []
+    today = float(yearly(rows).min())
+    cheapest = float(round(best["annual_costs"]))
+
+    same_model = own[own["Tarifbezeichnung"] == tariff]
+    stay = yearly(same_model)
+    if stay.min() - cheapest < noticeable_saving:
+        chosen = same_model.loc[stay.idxmin()]
+        return today - float(stay.min()), (
+            ["deductible"] if int(chosen["Franchise"]) != deductible else [])
+
+    any_model = yearly(own)
+    if any_model.min() - cheapest < noticeable_saving:
+        chosen = own.loc[any_model.idxmin()]
+        changes = ["deductible"] if int(chosen["Franchise"]) != deductible else []
+        return today - float(any_model.min()), changes + ["model"]
+
+    changes = ["deductible"] if best["deductible"] != deductible else []
+    return today - cheapest, changes + ["insurer"]
 
 
 def person_view(
@@ -194,17 +232,16 @@ def person_view(
     curves = r.costs.reset_index().melt(
         id_vars="Krankheitskosten", var_name="Franchise", value_name="Jahreskosten"
     )
-    dominated = set(r.never_optimal)
-    curves["Rolle"] = [
-        t("chart.role_never") if d in dominated else t("chart.role_relevant")
-        for d in curves["Franchise"]
-    ]
+    # Vectorised: these used to be Python loops over every one of the some
+    # 70,000 points, on every rerun.
+    dominated = curves["Franchise"].isin(set(r.never_optimal))
+    curves["Rolle"] = np.where(dominated, t("chart.role_never"), t("chart.role_relevant"))
+    is_best = curves["Franchise"] == best_deductible
+    curves["Gewicht"] = np.where(is_best, "best", np.where(dominated, "never", "other"))
     # The deductible that is cheapest at the current costs is drawn in bold - so
     # you can see at a glance which curve is yours.
-    curves["Auswahl"] = [
-        t("chart.choice_best") if d == best_deductible else t("chart.choice_other")
-        for d in curves["Franchise"]
-    ]
+    curves["Auswahl"] = np.where(curves["Franchise"] == best_deductible,
+                                 t("chart.choice_best"), t("chart.choice_other"))
     curves["Franchise"] = curves["Franchise"].astype(str)
 
     # Fixed colours per deductible, so the cheapest one can take the person's
@@ -212,7 +249,7 @@ def person_view(
     # the legend still matches the lines. The others keep Streamlit's own
     # categorical colours, in the same order as before.
     palette = {
-        str(d): (colour if colour and d == best_deductible
+        str(d): ((colour or "#4da6ff") if d == best_deductible
                  else _FRANCHISE_COLOURS[i % len(_FRANCHISE_COLOURS)])
         for i, d in enumerate(r.costs.columns)
     }
@@ -274,11 +311,9 @@ def person_view(
                 legend=alt.Legend(title=t("chart.legend_choice")),
             ),
             opacity=alt.Opacity(
-                "Rolle:N",
-                scale=alt.Scale(
-                    domain=[t("chart.role_relevant"), t("chart.role_never")],
-                    range=[1.0, 0.3],
-                ),
+                "Gewicht:N",
+                scale=alt.Scale(domain=["best", "other", "never"],
+                                range=[1.0, 0.75, 0.3]),
                 legend=None,
             ),
             tooltip=[
@@ -463,10 +498,10 @@ def person_view(
 
     st.download_button(
         t("download.cost_matrix"),
-        r.costs.to_csv().encode("utf-8"),
+        excel_csv(r.costs),
         # The code, not the label: a download name should not change
         # when the interface language does.
-        file_name=f"kostenmatrix_{age_group.removeprefix('AKL-').lower()}_{canton}.csv",
+        file_name=f"viaprima.ch_kostenmatrix_{age_group.removeprefix('AKL-').lower()}_{canton}.csv",
         mime="text/csv",
         key=f"csv_{key}",
     )
@@ -475,6 +510,7 @@ def person_view(
     return {
         "age_group": age_group,
         "deductible": best_deductible,
+        "matrix": r.costs,
         "annual_costs": float(at_expected.min()),
         "switch": contract_switch(
             group_data, current,
