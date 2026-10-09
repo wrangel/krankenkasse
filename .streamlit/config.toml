@@ -27,6 +27,9 @@ textColor = "#ffffff"
 primaryColor = "#4da6ff"
 linkColor = "#4da6ff"
 borderColor = "rgba(255, 255, 255, 0.1)"
+# Streamlit's default blends backgroundColor and secondaryBackgroundColor,
+# which on black is invisible. One step up from black: slight but visible.
+dataframeHeaderBackgroundColor = "#1a1d23"
 
 # Light is the same brand inverted. The accent is darkened for links: #4da6ff
 # on white is about 2.6:1, below the 4.5:1 body text needs; #1f73c2 is 4.9:1.
@@ -39,6 +42,8 @@ textColor = "#111111"
 primaryColor = "#1f73c2"
 linkColor = "#1f73c2"
 borderColor = "rgba(0, 0, 0, 0.1)"
+# The default blend was barely there; matched in weight to the dark header.
+dataframeHeaderBackgroundColor = "#eef1f5"
 
 [browser]
 gatherUsageStats = false

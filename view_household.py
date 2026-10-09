@@ -93,19 +93,19 @@ def household_total(
         width="stretch",
         column_config={
             "Nr.": header("Nr.", kind=st.column_config.NumberColumn,
-                          format="%d", width="small", alignment="left"),
+                          format="%d", alignment="left"),
             "Altersklasse": header("Altersklasse"),
             "Ort": header("Ort"),
             "Franchise": header("Franchise", kind=st.column_config.NumberColumn,
-                                format="%d", width="small"),
+                                format="%d"),
             "Versicherer": header("Versicherer"),
             "Tarif": header("Tarif"),
             "Kosten/Jahr": header("Kosten/Jahr",
                                   kind=st.column_config.NumberColumn,
-                                  format="%.0f", width="small"),
+                                  format="%.0f"),
             "Kosten/Monat": header("Kosten/Monat",
                                    kind=st.column_config.NumberColumn,
-                                   format="%.2f", width="small"),
+                                   format="%.2f"),
         },
     )
 
