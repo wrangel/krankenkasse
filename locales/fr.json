@@ -45,7 +45,6 @@
   "footer.link.coffee": "Offrez-moi un café",
   "footer.link.contact": "Contact",
   "footer.link.license": "Licence",
-  "footer.link.source": "Code source",
   "footnote.data": "\\* Sur la base des données officielles de l'OFSP via [opendata.swiss]({opendata}). Le remboursement de la taxe environnementale ({rebate_year} CHF par an) est déjà déduit des primes.",
   "footnote.pharm": "\\*\\*\\* Les modèles pharmacie manquent comme catégorie distincte. L'OFSP distingue cinq catégories de modèles et priminfo.admin.ch les propose toutes les cinq – dont PHARM. Or, dans les données des primes {year}, il n'existe pas une seule ligne PHARM en Suisse. Les modèles pharmacie existent bel et bien – PharMed, Favorit Medpharm, casamed pharm, KPTwin.win – mais l'OFSP les classe sous PRAXIS et FLEX. Filtrer sur PHARM dans priminfo masque donc précisément ces modèles. Cette application ne propose dès lors que les catégories réellement présentes dans les données.",
   "footnote.tipping_point": "\\*\\* J'observe ce point de bascule, inchangé, depuis des années. Une [formule publiée]({formula}) pour les paliers 300 et 2500 le confirme, mais ne compare que ces deux paliers. Que les franchises intermédiaires ne soient *jamais* avantageuses, seul le calcul sur tous les paliers le montre – et c'est ce que fait cette application. Dans les données des dernières années, cela s'est vérifié à chaque fois ; comme les primes sont fixées à nouveau chaque année, cela peut toutefois changer.",

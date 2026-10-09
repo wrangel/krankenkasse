@@ -45,7 +45,6 @@
   "footer.link.coffee": "Kaffee ausgeben",
   "footer.link.contact": "Kontakt",
   "footer.link.license": "Lizenz",
-  "footer.link.source": "Quellcode",
   "footnote.data": "\\* Basierend auf den offiziellen Daten des BAG über [opendata.swiss]({opendata}). Die Rückerstattung der Umweltabgabe ({rebate_year} CHF pro Jahr) ist bereits von den Prämien abgezogen.",
   "footnote.pharm": "\\*\\*\\* Apothekenmodelle gibt es nicht als eigene Kategorie. Das BAG kennt fünf Modellkategorien und priminfo.admin.ch bietet alle fünf an, auch PHARM. In den Prämiendaten für {year} steht aber keine einzige Zeile mit PHARM, in der ganzen Schweiz nicht. Apothekenmodelle gibt es schon: PharMed, Favorit Medpharm, casamed pharm, KPTwin.win. Das BAG legt sie nur unter PRAXIS und FLEX ab. Wer bei priminfo nach PHARM filtert, blendet damit genau diese Modelle aus. Darum zeigt diese App nur die Kategorien, die in den Daten auch vorkommen.",
   "footnote.tipping_point": "\\*\\* Diesen Kipppunkt beobachte ich seit Jahren unverändert. Eine [publizierte Formel]({formula}) für die Stufen 300 und 2500 bestätigt ihn, vergleicht aber nur diese zwei Stufen. Dass sich die mittleren Franchisen *nie* rechnen, zeigt erst die Rechnung über alle Stufen – und die findest du in dieser App. In den Daten der letzten Jahre war das jedes Mal so; weil die Prämien jedes Jahr neu festgelegt werden, kann es sich aber ändern.",
