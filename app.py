@@ -68,6 +68,10 @@ if not restore(available_tariff_types(raw)):
     st.spinner(t("loading.moment"))
     st.stop()
 
+# The tab title was set above, before restore() knew the stored language - so a
+# returning English visitor got the German title. Set again, now it is known.
+st.set_page_config(page_title=t("page_title"))
+
 st.session_state.setdefault("people", [dict(DEFAULT_PERSON)])
 
 # Wordmark and language switch on one row, the switch subordinate on the right.

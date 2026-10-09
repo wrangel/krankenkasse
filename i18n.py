@@ -89,6 +89,27 @@ def t(key: str, **kwargs) -> str:
             return fallback
 
 
+def per_language_key(key: str, default=None) -> str:
+    """A widget key that changes with the language, carrying the value along.
+
+    A selectbox or multiselect keeps showing the labels its value had when it
+    was chosen: switching language reruns format_func, but the chips and the
+    selected entry stay in the old language while the label around them
+    changes. A key per language gives a fresh widget instead.
+
+    The value itself lives language-neutrally under `key` - the caller writes
+    it back after the widget - and that is also what persistence stores. Keys
+    for the other languages are dropped, so switching back reseeds from the
+    current value rather than reviving an old one.
+    """
+    widget_key = f"{key}@{current_language()}"
+    if widget_key not in st.session_state:
+        for language in LANGUAGES:
+            st.session_state.pop(f"{key}@{language}", None)
+        st.session_state[widget_key] = st.session_state.get(key, default)
+    return widget_key
+
+
 def language_picker(container=None) -> None:
     """The language switch, at the very top.
 

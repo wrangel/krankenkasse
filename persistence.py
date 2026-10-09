@@ -68,6 +68,10 @@ _RESTORED = "_restore_done"
 _PENDING = "_restore_pending"
 _FORGET = "_forget_requested"
 _FORGET_RUN = "_forget_counter"
+# Whether this browser holds an entry (restored, or written this session), and
+# a counter so each removal gets a fresh component key.
+_HAS_STORED = "_inputs_stored"
+_CLEARS = "_inputs_cleared"
 
 
 def _widget_keys(person_id: int) -> tuple[str, ...]:
@@ -112,6 +116,7 @@ def restore(offered_tariff_types: list[str]) -> bool:
     st.session_state[_RESTORED] = True
     if not stored:
         return True  # answered, and there was nothing stored
+    st.session_state[_HAS_STORED] = True
 
     try:
         data = json.loads(stored)
@@ -177,11 +182,23 @@ def save(offered_tariff_types: list[str]) -> None:
     """Write the current entries to the browser. Call after the form is drawn."""
     data = _collect()
     if _is_pristine(data, offered_tariff_types):
+        # Back to the defaults - typically German chosen again after English.
+        # Writing nothing is not enough then: the earlier entry would still be
+        # there, and the next visit would come back in English.
+        if st.session_state.get(_HAS_STORED):
+            st.session_state[_HAS_STORED] = False
+            st.session_state[_PENDING] = None
+            streamlit_js_eval(
+                js_expressions=f"localStorage.removeItem('{STORAGE_KEY}')",
+                key=f"clear_inputs_{st.session_state.get(_CLEARS, 0)}",
+            )
+            st.session_state[_CLEARS] = st.session_state.get(_CLEARS, 0) + 1
         return
     payload = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
     if st.session_state.get(_PENDING) == payload:
         return
     st.session_state[_PENDING] = payload
+    st.session_state[_HAS_STORED] = True
     streamlit_js_eval(
         js_expressions=(
             f"localStorage.setItem('{STORAGE_KEY}', {json.dumps(payload)})"
