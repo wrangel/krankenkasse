@@ -130,6 +130,11 @@ def _normalise_codes(df: pd.DataFrame) -> pd.DataFrame:
             new.isna(), "FRA-" + new.str.lstrip("0").replace("", "0")
         ).fillna(df["Franchise"])
 
+    # The file carries stray blanks in some tariff names ("Helsana BeneFit
+    # PLUS Flexmed "); priminfo shows them trimmed.
+    if "Tarifbezeichnung" in df:
+        df["Tarifbezeichnung"] = df["Tarifbezeichnung"].str.strip()
+
     return df
 
 
