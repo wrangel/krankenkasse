@@ -13,7 +13,7 @@ def configure_page() -> None:
     """Call once per run, before anything else."""
     st.set_page_config(
         page_title=t("page_title"),
-        page_icon="🏥",
+        page_icon="seo/favicon.png",  # the same "v" the static page serves
         layout="wide",
     )
 

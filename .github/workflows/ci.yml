@@ -47,6 +47,12 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      # Fails if a Streamlit update moved what the image build patches. Without
+      # this, an automerged Streamlit bump would ship the bare "Streamlit" title
+      # to search engines and link previews without anyone noticing.
+      - name: Static page can still be patched
+        run: python scripts/patch_streamlit_head.py
+
       - name: Byte-compile every module
         run: python -m compileall -q .
 

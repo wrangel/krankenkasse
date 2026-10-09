@@ -139,4 +139,11 @@ def header(column: str, **kwargs):
     shown on screen is translated.
     """
     kind = kwargs.pop("kind", st.column_config.Column)
+    # Numbers right, text left - and stated explicitly, because only then does
+    # the header follow its column. Left to the default, the numbers sat right
+    # and their headers left, so a header did not line up with its figures.
+    if kind is st.column_config.NumberColumn:
+        kwargs.setdefault("alignment", "right")
+    elif kind is st.column_config.TextColumn:
+        kwargs.setdefault("alignment", "left")
     return kind(label=t(f"col.{column}"), **kwargs)
