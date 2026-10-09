@@ -279,7 +279,7 @@ def person_view(
         hide_index=True,
         width="stretch",
         column_config={
-            c: header(c, kind=st.column_config.NumberColumn, format=f, width="small")
+            c: header(c, kind=st.column_config.NumberColumn, format=f)
             for c, f in [
                 ("Franchise", "%d"),
                 ("Kosten/Jahr", "%.0f"),
@@ -361,25 +361,21 @@ def person_view(
             column_config={
                 # A counter, not an amount: left, beside the name it ranks.
                 "Rang": header("Rang", kind=st.column_config.NumberColumn,
-                               format="%d", width="small", alignment="left"),
+                               format="%d", alignment="left"),
                 "Versicherer": header("Versicherer",
-                                      kind=st.column_config.TextColumn,
-                                      width="medium"),
-                "Tarif": header("Tarif", kind=st.column_config.TextColumn,
-                                width="small"),
-                "Typ": header("Typ", kind=st.column_config.TextColumn,
-                              width="small"),
+                                      kind=st.column_config.TextColumn),
+                "Tarif": header("Tarif", kind=st.column_config.TextColumn),
+                "Typ": header("Typ", kind=st.column_config.TextColumn),
                 "Prämie/Jahr": header("Prämie/Jahr",
                                       kind=st.column_config.NumberColumn,
-                                      format="%.0f", width="small"),
-                # No width: "small" cut the header off at "Mehrkosten/Ja".
+                                      format="%.0f"),
                 "Mehrkosten/Jahr": header("Mehrkosten/Jahr",
                                           kind=st.column_config.NumberColumn,
                                           format="%.0f"),
                 "Prämie/Monat": header("Prämie/Monat",
                                        kind=st.column_config.NumberColumn,
-                                       format="%.2f", width="small"),
-                "": st.column_config.TextColumn("", width="medium"),
+                                       format="%.2f"),
+                "": st.column_config.TextColumn(""),
             },
         )
 
