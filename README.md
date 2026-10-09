@@ -449,7 +449,7 @@ what was taken from it and the one place the two deliberately differ.
 
 ## Licence
 
-[MIT](LICENSE) — Copyright (c) 2023-2026 Matthias Wettstein.
+[MIT](LICENSE) — Copyright (c) 2017-2026 Matthias Wettstein.
 
 The premium data comes from the Federal Office of Public Health and is subject to its
 terms of use.

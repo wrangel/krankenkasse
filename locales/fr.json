@@ -41,7 +41,7 @@
   "footer.also_by_me": "Du même auteur",
   "footer.coffee": "Si l'application vous a été utile, vous pouvez [m'offrir un café]({url}).",
   "footer.contact": "Quelque chose ne va pas ? Une question ou un retour ? [Écrivez-moi]({mailto}).",
-  "footer.copyright": "© 2023–{year} viaprima",
+  "footer.copyright": "© 2017–{year} viaprima",
   "footer.link.coffee": "Offrez-moi un café",
   "footer.link.contact": "Contact",
   "footer.link.license": "Licence",
