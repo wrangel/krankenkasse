@@ -23,6 +23,8 @@ from calculation import (
     cheapest_premiums,
     child_tier_schemes,
     children_cost_sharing,
+    children_with_one_insurer,
+    family_cap,
     compute_tipping_point,
     get_data,
 )
@@ -159,6 +161,41 @@ def test_family_cap_under_art_93_para_3_kvv():
     # Three children: 2850 uncapped, cut to 2 × (600 + 350) = 1900.
     amount, capped = children_cost_sharing([5000.0] * 3, 600)
     assert (amount, capped) == (1900.0, True)
+
+
+def test_family_cap_without_deductible_follows_art_64_para_4_kvg():
+    """Deductible 0: together at most an adult's 300 + 700, not 2 x 350."""
+    assert family_cap(0) == 1000
+    assert family_cap(600) == 2 * (600 + 350)
+    # Three children at 0, each at the 350 coinsurance cap: 1050 -> 1000.
+    amount, capped = children_cost_sharing([5000.0] * 3, 0)
+    assert (amount, capped) == (1000.0, True)
+
+
+def test_household_children_get_the_family_cap():
+    """The cap enters the household figure, on a common deductible only.
+
+    One insurer, tier K1, monthly premium 100 at deductible 0 and 80 at 600,
+    three children with CHF 5000 of costs each, no environmental rebate:
+
+    each on its own:   d=0: 1200 + 0 + 350 = 1550;  d=600: 960 + 600 + 350 = 1910
+                       -> 3 x 1550 = 4650, uncapped
+    all on d=0:        4650 - (1050 - 1000) = 4600
+    all on d=600:      3 x 1910 = 5730, sharing 2850 capped to 1900 -> 4780
+    cheapest:          all on 0, 4600, of which 50 is the family cap
+    """
+    data = pd.DataFrame({
+        "Versicherername": ["A", "A"],
+        "Tarifbezeichnung": ["T", "T"],
+        "Altersuntergruppe": ["K1", "K1"],
+        "Franchise": [0, 600],
+        "Prämie": [100.0, 80.0],
+    })
+    best = children_with_one_insurer(data, [5000.0] * 3, 0.0)
+    assert best["total"] == 4600.0
+    assert best["family_cap_saving"] == 50.0
+    assert best["family_cap"] == 1000
+    assert [c["deductible"] for c in best["per_child"]] == [0, 0, 0]
 
 
 def test_children_have_the_lower_coinsurance_cap():

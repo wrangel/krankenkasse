@@ -33,6 +33,7 @@ from constants import (
     coinsurance_cap,
     coinsurance_rate,
     min_cost_range,
+    ordinary_adult_deductible,
     premiums_sheet,
     premiums_url,
 )
@@ -501,18 +502,31 @@ def household_offers(
     return result.sort_values("Jahresprämie").reset_index(drop=True)
 
 
+def family_cap(deductible: int) -> float:
+    """Most that all children of a family with one insurer pay in cost sharing.
+
+    Two rules, depending on the deductible they share:
+
+    * None (0, the ordinary one for children): Art. 64 para. 4 KVG - together
+      at most an adult's deductible and coinsurance cap, 300 + 700.
+    * A chosen one (100 to 600): Art. 93 para. 3 KVV - twice the maximum per
+      child, 2 x (deductible + 350).
+
+    For children on *different* deductibles Art. 93 para. 3 KVV leaves the
+    limit to the insurer, so there is no figure to compute; callers apply no
+    cap then.
+    """
+    if deductible == 0:
+        return ordinary_adult_deductible + coinsurance_cap[ADULTS]
+    return 2 * (deductible + coinsurance_cap[CHILDREN])
+
+
 def children_cost_sharing(
     costs_per_child: list[float], deductible: int
 ) -> tuple[float, bool]:
-    """Combined cost sharing of all children, with the family cap.
+    """Combined cost sharing of children who share one insurer and deductible.
 
-    Art. 93 para. 3 KVV: where several children of one family are insured with
-    the same insurer, their combined cost sharing may not exceed twice the
-    maximum amount per child (deductible plus coinsurance cap).
-
-    Returns (amount, was_capped). The ordinance sets no formula for children on
-    different deductibles ("the insurer shall set the maximum share") - a common
-    deductible is therefore assumed here.
+    Returns (amount, was_capped), with the family cap applied.
     """
     cap = coinsurance_cap[CHILDREN]
     individually = sum(
@@ -520,7 +534,7 @@ def children_cost_sharing(
         + min(max(0.0, c - deductible) * coinsurance_rate, cap)
         for c in costs_per_child
     )
-    maximum = 2 * (deductible + cap)
+    maximum = family_cap(deductible)
     return (min(individually, maximum), individually > maximum)
 
 
@@ -665,6 +679,65 @@ def _child_annual_costs(
     )
 
 
+def _each_on_own_deductible(
+    premium: pd.Series, scheme: list[str], costs_per_child: list[float],
+    environmental_rebate: float,
+) -> dict | None:
+    """Every child on whichever deductible is cheapest for it.
+
+    No family cap: with different deductibles Art. 93 para. 3 KVV leaves the
+    limit to the insurer, so the figure shown is an upper bound.
+    """
+    total, per_child = 0.0, []
+    for tier, healthcare_costs in zip(scheme, costs_per_child):
+        costs = {
+            int(deductible): _child_annual_costs(
+                monthly, int(deductible), healthcare_costs, environmental_rebate)
+            for deductible, monthly in premium[tier].items()
+        }
+        deductible = min(costs, key=costs.get)
+        total += costs[deductible]
+        per_child.append({"deductible": deductible, "tier": tier,
+                          "costs": costs[deductible]})
+    return {"total": total, "per_child": per_child, "family_cap_saving": 0.0}
+
+
+def _all_on_one_deductible(
+    premium: pd.Series, scheme: list[str], costs_per_child: list[float],
+    environmental_rebate: float,
+) -> dict | None:
+    """All children on one common deductible, with the family cap applied.
+
+    The cap only has a statutory figure when the deductible is shared, which
+    is why this is computed apart from the free choice above.
+    """
+    common = set.intersection(
+        *(set(premium[tier].index.astype(int)) for tier in scheme))
+    best = None
+    for deductible in sorted(common):
+        per_child = [
+            {"deductible": deductible, "tier": tier,
+             "costs": _child_annual_costs(premium[tier][deductible], deductible,
+                                          healthcare_costs, environmental_rebate)}
+            for tier, healthcare_costs in zip(scheme, costs_per_child)
+        ]
+        uncapped = sum(c["costs"] for c in per_child)
+        individually = sum(
+            min(c, deductible)
+            + min(max(0.0, c - deductible) * coinsurance_rate,
+                  coinsurance_cap[CHILDREN])
+            for c in costs_per_child
+        )
+        sharing, _ = children_cost_sharing(costs_per_child, deductible)
+        saving = individually - sharing
+        total = uncapped - saving
+        if best is None or total < best["total"]:
+            best = {"total": total, "per_child": per_child,
+                    "family_cap_saving": saving,
+                    "family_cap": family_cap(deductible)}
+    return best
+
+
 def children_with_one_insurer(
     data: pd.DataFrame, costs_per_child: list[float], environmental_rebate: float
 ) -> dict | None:
@@ -708,42 +781,25 @@ def children_with_one_insurer(
         ["Versicherername", "Tarifbezeichnung"]
     ):
         available = set(group["Altersuntergruppe"].dropna())
+        # Monthly premium per (tier, deductible) at this insurer and tariff.
+        premium = (
+            group.dropna(subset=["Altersuntergruppe"])
+            .groupby(["Altersuntergruppe", "Franchise"])["Prämie"].min()
+        )
         for scheme in child_tier_schemes(count, available):
-            total = 0.0
-            per_child = []
-            for tier, healthcare_costs in zip(scheme, costs_per_child):
-                possible = group[group["Altersuntergruppe"] == tier]
-                if possible.empty:
-                    per_child = []
-                    break
-                costs = possible.apply(
-                    lambda row: _child_annual_costs(
-                        row["Prämie"],
-                        int(row["Franchise"]),
-                        healthcare_costs,
-                        environmental_rebate,
-                    ),
-                    axis=1,
-                )
-                best_row = possible.loc[costs.idxmin()]
-                total += float(costs.min())
-                per_child.append(
-                    {
-                        "deductible": int(best_row["Franchise"]),
-                        "tier": tier,
-                        "costs": float(costs.min()),
-                    }
-                )
-            if not per_child:
+            if any(tier not in available for tier in scheme):
                 continue
-            if best is None or total < best["total"]:
-                best = {
-                    "insurer": insurer,
-                    "tariff": tariff,
-                    "total": total,
-                    "per_child": per_child,
-                    "scheme": list(scheme),
-                }
+            for option in (
+                _each_on_own_deductible(premium, scheme, costs_per_child,
+                                        environmental_rebate),
+                _all_on_one_deductible(premium, scheme, costs_per_child,
+                                       environmental_rebate),
+            ):
+                if option is None:
+                    continue
+                if best is None or option["total"] < best["total"]:
+                    best = {"insurer": insurer, "tariff": tariff,
+                            "scheme": list(scheme), **option}
     if best is not None:
         best["unknown_tiers"] = sorted(unknown)
     return best

@@ -46,14 +46,22 @@ def household_total(
         saving = children_separately - shared["total"]
         tiers = ", ".join(c["tier"] for c in shared["per_child"])
         if saving > 0:
-            st.info(
-                t("household.sibling_discount",
-                  saving=chf(saving), separate=chf(children_separately),
-                  count=child_count, insurer=shared["insurer"],
-                  tariff=shared["tariff"], tiers=tiers,
-                  total=chf(shared["total"])),
-                icon="👪",
-            )
+            message = t("household.sibling_discount",
+                        saving=chf(saving), separate=chf(children_separately),
+                        count=child_count, insurer=shared["insurer"],
+                        tariff=shared["tariff"], tiers=tiers,
+                        total=chf(shared["total"]))
+            # Part of the saving can be the statutory family cap rather than a
+            # discount - say so, and under which law, since it differs between
+            # no deductible (KVG) and a chosen one (KVV).
+            if shared.get("family_cap_saving", 0) > 0:
+                law = ("law.family_cap_no_deductible"
+                       if shared["per_child"][0]["deductible"] == 0
+                       else "law.family_cap_chosen_deductible")
+                message += "\n\n" + t("household.family_cap_applied",
+                                       cap=chf(shared["family_cap"]), law=t(law),
+                                       saving=chf(shared["family_cap_saving"]))
+            st.info(message, icon="👪")
         else:
             st.info(
                 t("household.sibling_not_worth",
@@ -123,6 +131,3 @@ def household_total(
         file_name="haushalt.csv",
         mime="text/csv",
     )
-
-    if child_count >= 2:
-        st.caption(t("household.family_cap_note"))
