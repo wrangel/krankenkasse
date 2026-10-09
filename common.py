@@ -32,6 +32,19 @@ def chf(amount: float, decimals: int = 0) -> str:
     return f"{amount:,.{decimals}f}".replace(",", "'")
 
 
+def fit_width(values, label: str = "") -> int:
+    """Pixel width for a text column, from its longest entry or its header.
+
+    In content-width tables Streamlit caps a column's automatic width, which
+    cut "KPTwin.smart - Hausarzt mit App" in half; fixed sizes ("small",
+    "medium") cut other names. Measured in the browser, insurer and tariff
+    names need about 7px a character in the table font (6.4 cut them, 7.5
+    pushed the money columns off the edge); plus 20px of cell padding.
+    """
+    longest = max([len(str(v)) for v in values] + [len(label)])
+    return int(longest * 7.0) + 20
+
+
 def chf_table(df: pd.DataFrame, money: dict[str, int]):
     """`df` with its money columns shown like the text around it: 1'318.
 

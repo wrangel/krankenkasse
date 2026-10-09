@@ -3,7 +3,7 @@
 import pandas as pd
 import streamlit as st
 
-from common import chf, chf_table, header
+from common import chf, chf_table, fit_width, header
 from constants import CHILDREN, noticeable_saving
 from i18n import t
 
@@ -122,15 +122,17 @@ def household_total(
     st.dataframe(
         chf_table(overview, {"Franchise": 0, "Kosten/Jahr": 0}),
         hide_index=True,
-        width="stretch",
+        width="content",
         column_config={
             "Nr.": header("Nr.", kind=st.column_config.NumberColumn,
                           format="%d", alignment="left"),
             "Altersklasse": header("Altersklasse"),
             "Ort": header("Ort"),
             "Franchise": header("Franchise", kind=st.column_config.NumberColumn),
-            "Versicherer": header("Versicherer"),
-            "Tarif": header("Tarif"),
+            "Versicherer": header("Versicherer", width=fit_width(
+                overview["Versicherer"], t("col.Versicherer"))),
+            "Tarif": header("Tarif", width=fit_width(
+                overview["Tarif"], t("col.Tarif"))),
             "Kosten/Jahr": header("Kosten/Jahr",
                                         kind=st.column_config.NumberColumn),
             # Amounts, so right-aligned like the other money columns, even

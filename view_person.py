@@ -18,6 +18,7 @@ from common import (
     age_group_for_age,
     chf,
     chf_table,
+    fit_width,
     choose_location,
     header,
     with_gap_to_cheapest,
@@ -354,34 +355,42 @@ def person_view(
         offers["Typ"] = offers["Typ"].map(lambda c: t(f"tariff_short.{c}"))
         columns = ["Rang", "Versicherer", "Tarif", "Typ", "Prämie/Jahr",
                    "Mehrkosten/Jahr", "Prämie/Monat"]
-        # Only create the marker column when there is something to mark -
-        # otherwise an empty column sits there asking what it is missing.
-        # Not "t" for the tariff: that would shadow the translation function
-        # inside the comprehension, and t("...") would call the tariff name.
-        marker = [
-            t("offers.current_marker")
-            if current and insurer == current[0] and tariff == current[1]
-            else ""
+        # Today's contract is marked by a tinted row rather than an extra
+        # column: that column had an empty header, so Streamlit sized it to
+        # nothing and cut the marker text off. The accent at low alpha reads
+        # on black and on white alike.
+        # Not "t" for the tariff: that would shadow the translation function.
+        is_current = [
+            bool(current) and insurer == current[0] and tariff == current[1]
             for insurer, tariff in zip(shown["Versicherername"],
                                        shown["Tarifbezeichnung"])
         ]
-        if any(marker):
-            offers[""] = marker
-            columns.append("")
         offers = offers[columns]
+        styled = chf_table(offers, {"Prämie/Jahr": 0, "Mehrkosten/Jahr": 0,
+                                    "Prämie/Monat": 2})
+        if any(is_current):
+            styled = styled.apply(
+                lambda row: ["background-color: rgba(77, 166, 255, 0.22)"
+                             if is_current[row.name] else ""] * len(row),
+                axis=1,
+            )
 
         st.dataframe(
-            chf_table(offers, {"Prämie/Jahr": 0, "Mehrkosten/Jahr": 0,
-                               "Prämie/Monat": 2}),
+            styled,
             hide_index=True,
-            width="stretch",
+            # As wide as the columns: stretched, the spare width was spread
+            # over every column and the table read as too broad.
+            width="content",
             column_config={
                 # A counter, not an amount: left, beside the name it ranks.
                 "Rang": header("Rang", kind=st.column_config.NumberColumn,
                                format="%d", alignment="left"),
-                "Versicherer": header("Versicherer",
-                                      kind=st.column_config.TextColumn),
-                "Tarif": header("Tarif", kind=st.column_config.TextColumn),
+                "Versicherer": header(
+                    "Versicherer", kind=st.column_config.TextColumn,
+                    width=fit_width(offers["Versicherer"], t("col.Versicherer"))),
+                "Tarif": header(
+                    "Tarif", kind=st.column_config.TextColumn,
+                    width=fit_width(offers["Tarif"], t("col.Tarif"))),
                 "Typ": header("Typ", kind=st.column_config.TextColumn),
                 "Prämie/Jahr": header("Prämie/Jahr",
                                       kind=st.column_config.NumberColumn),
@@ -389,7 +398,6 @@ def person_view(
                                           kind=st.column_config.NumberColumn),
                 "Prämie/Monat": header("Prämie/Monat",
                                        kind=st.column_config.NumberColumn),
-                "": st.column_config.TextColumn(""),
             },
         )
 
@@ -581,8 +589,8 @@ def person_form(person: dict, person_count: int, raw) -> dict | None:
     # next to their own delete and expand icons - a misclick there removes the
     # whole person without asking. It now stands on its own, bottom right.
     if person_count > 1:
-        _, bottom_right = st.columns([5, 1])
-        if bottom_right.button(t("form.remove_person"), key=f"remove_{person_id}"):
+        if st.container(horizontal_alignment="right").button(
+                t("form.remove_person"), key=f"remove_{person_id}"):
             st.session_state["people"] = [
                 p for p in st.session_state["people"] if p["id"] != person_id
             ]

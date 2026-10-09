@@ -145,10 +145,11 @@ for number, person in enumerate(people, start=1):
         # always sits in the same place - whether the report is open or not.
         open_key = f"open_{person['id']}"
         is_open = st.session_state.setdefault(open_key, number == 1)
-        if head[1].button(
+        # Buttons: as wide as their label, flush with an edge - here the card's
+        # right edge. Stretched, this one was the widest control on the page.
+        if head[1].container(horizontal_alignment="right").button(
                 t("person.collapse") if is_open else t("person.expand"),
             key=f"toggle_{person['id']}",
-            width="stretch",
         ):
             st.session_state[open_key] = not is_open
             st.rerun()
@@ -299,11 +300,12 @@ st.markdown("---")
 with st.expander(t("disclaimer.title")):
     st.markdown(t("disclaimer.body", priminfo=PRIMINFO_URL))
 
-# The two housekeeping rows share one shape: caption left, a button filling the
-# same right-hand column, so the buttons line up as a pair.
+# The two housekeeping rows share one shape: caption left, the button flush
+# with the right edge at its natural size, so the two line up on that edge.
 left, right = st.columns([3, 1], vertical_alignment="center")
 left.caption(t("reload_data.caption"))
-if right.button(t("reload_data.button"), width="stretch"):
+if right.container(horizontal_alignment="right").button(
+        t("reload_data.button"), key="reload_data_button"):
     st.cache_data.clear()
     premiums(0)
     st.rerun()
@@ -312,7 +314,8 @@ if right.button(t("reload_data.button"), width="stretch"):
 # sight rather than buried in browser settings.
 links, clear = st.columns([3, 1], vertical_alignment="center")
 links.caption(t("storage.caption"))
-if clear.button(t("storage.forget_button"), key="forget_inputs_button", width="stretch"):
+if clear.container(horizontal_alignment="right").button(
+        t("storage.forget_button"), key="forget_inputs_button"):
     request_forget()
     st.rerun()
 
