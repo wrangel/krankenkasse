@@ -16,7 +16,7 @@ import streamlit.components.v1 as components
 from calculation import (
     available_tariff_types, children_with_one_insurer, get_data, shared_contract_switch,
 )
-from common import age_group_for_age, premiums, premiums_cached
+from common import age_group_for_birth_year, premium_year_of, premiums, premiums_cached
 from i18n import language_picker, t, t_html
 from constants import (
     ADULTS,
@@ -138,14 +138,17 @@ people = st.session_state["people"]
 
 # How many children live in the household has to be settled before the first
 # person is drawn - which tariff tiers are open to a child depends on it. The
-# ages are already in session_state, because Streamlit holds each input's value
+# years of birth are already in session_state, because Streamlit holds each input's value
 # under its key; for a person just added the key does not exist yet, and then
 # their starting value applies.
-def _age_of(entry: dict) -> int:
-    return int(st.session_state.get(f"age_{entry['id']}", entry["age"]))
+def _birth_year_of(entry: dict) -> int:
+    return int(st.session_state.get(f"birth_year_{entry['id']}", entry["birth_year"]))
 
 
-child_ids = [p["id"] for p in people if age_group_for_age(_age_of(p)) == CHILDREN]
+child_ids = [
+    p["id"] for p in people
+    if age_group_for_birth_year(_birth_year_of(p), premium_year_of(raw)) == CHILDREN
+]
 
 apply_person_colours(len(people))
 
@@ -213,7 +216,7 @@ for number, person in enumerate(people, start=1):
             results.append(result)
 
 st.session_state["people"] = [
-    {k: v for k, v in p.items() if k in {"id", "age", "accident", "costs"}}
+    {k: v for k, v in p.items() if k in {"id", "birth_year", "accident", "costs"}}
     for p in updated
 ]
 
@@ -223,7 +226,8 @@ if not forgetting:
 if st.button(t("add_person"), key="add_person", width="stretch"):
     next_id = max((p["id"] for p in updated), default=0) + 1
     st.session_state["people"] = st.session_state["people"] + [
-        {"id": next_id, "age": 8, "accident": "MIT-UNF", "costs": 500}
+        {"id": next_id, "birth_year": premium_year_of(raw) - 9,
+         "accident": "MIT-UNF", "costs": 500}
     ]
     # Expand the new person, collapse the rest - otherwise you face a page full
     # of open reports and cannot see what was just added.

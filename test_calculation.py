@@ -345,6 +345,23 @@ def test_switch_names_only_changes_worth_making():
         899.0, ["deductible"])
 
 
+def test_age_class_follows_the_year_of_birth():
+    """Premium year 2027 (Art. 61 para. 3 KVG, Art. 89 para. 3 KVV).
+
+    Born 2009: 18 in 2027, a child all year. Born 2008: 19, young adult.
+    Born 2002: 25, still a young adult. Born 2001: 26, an adult. Today's age
+    would get the second and fourth wrong for anyone whose birthday has
+    already passed this year.
+    """
+    from common import age_group_for_birth_year
+    from constants import YOUNG_ADULTS
+
+    assert age_group_for_birth_year(2009, 2027) == CHILDREN
+    assert age_group_for_birth_year(2008, 2027) == YOUNG_ADULTS
+    assert age_group_for_birth_year(2002, 2027) == YOUNG_ADULTS
+    assert age_group_for_birth_year(2001, 2027) == ADULTS
+
+
 def test_children_have_the_lower_coinsurance_cap():
     """For children the cap is 350 rather than 700 (Art. 103 para. 2 KVV)."""
     data = get_data(

@@ -16,7 +16,8 @@ import pandas as pd
 import streamlit as st
 
 from common import (
-    age_group_for_age,
+    age_group_for_birth_year,
+    premium_year_of,
     chf,
     excel_csv,
     choose_location,
@@ -563,15 +564,16 @@ def person_form(person: dict, person_count: int, raw) -> dict | None:
 
     location = choose_location(person_id, top[0])
 
-    # Same reason as the postcode above: seed, never value= next to key=. This
-    # one does not warn yet only because the restore does not cover age; it
-    # would the moment it did.
-    age_key = f"age_{person_id}"
-    st.session_state.setdefault(age_key, int(person["age"]))
-    age = top[1].number_input(
-        t("form.age"), min_value=0, max_value=120, step=1, key=age_key
+    # The year of birth, not the age: the premium class is set by the year
+    # (age_group_for_birth_year). Seeded, never value= next to key=.
+    premium_year = premium_year_of(raw)
+    birth_key = f"birth_year_{person_id}"
+    st.session_state.setdefault(birth_key, int(person["birth_year"]))
+    birth_year = top[1].number_input(
+        t("form.birth_year"), min_value=premium_year - 120, max_value=premium_year,
+        step=1, format="%d", key=birth_key, help=t("form.birth_year_help"),
     )
-    age_group = age_group_for_age(int(age))
+    age_group = age_group_for_birth_year(int(birth_year), premium_year)
 
     # Seeded from the stored entry like the age. An index= by age group alone
     # ignored it, so a child entered without accident cover came back with it
@@ -687,7 +689,7 @@ def person_form(person: dict, person_count: int, raw) -> dict | None:
 
     return {
         "id": person_id,
-        "age": int(age),
+        "birth_year": int(birth_year),
         "accident": accident,
         "costs": int(costs),
         "location": location,
