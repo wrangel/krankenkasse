@@ -103,6 +103,11 @@ coinsurance_cap = {
     CHILDREN: 350,
 }
 
+# The ordinary adult deductible (Art. 103 para. 1 KVV). Needed for the family
+# cap on children with no deductible: Art. 64 para. 4 KVG limits them together
+# to an adult's deductible plus an adult's coinsurance cap.
+ordinary_adult_deductible = 300
+
 # Age subgroups for children - the sibling discounts. The codes come from the
 # BAG tariff list (Tarife.xlsx on opendata.swiss, category ALT); what each one
 # means is set out in calculation.child_tier_schemes. Codes only: anything

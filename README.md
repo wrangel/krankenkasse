@@ -414,11 +414,13 @@ typically a multiple of the gap between neighbouring steps.
 
 - **Premium reductions** (*Prämienverbilligung*), supplementary insurance, the hospital
   contribution of CHF 15 per day, and the particulars of individual models.
-- **The family cap** on cost sharing (Art. 93 para. 3 KVV) is reported but not computed
-  into the cost curves. For families with three or more children the real cost sharing is
-  therefore lower than the per-person curves suggest.
-- **Different deductibles for the children.** The ordinance then leaves the maximum share
-  to the insurer; the tool assumes a common deductible.
+- **The family cap for children on different deductibles.** Children of one family with
+  the same insurer share a cap on cost sharing, and the household total includes it when
+  they share a deductible: 300 + 700 CHF together with no deductible (Art. 64 para. 4 KVG),
+  twice the per-child maximum with a chosen one (Art. 93 para. 3 KVV). With different
+  deductibles the ordinance leaves the cap to the insurer, which publishes it nowhere, so
+  the total for that case is computed without one. The per-person curves never include
+  the cap: it is a property of the household, not of one child.
 - **Restrictions on the choice of doctor.** Alternative models (HMO, family doctor,
   telemedicine) are included in the premiums, but their conditions are not evaluated. The
   cheapest premium is not automatically the most suitable model — the cheapest are almost
