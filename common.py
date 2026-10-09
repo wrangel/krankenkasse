@@ -32,6 +32,21 @@ def chf(amount: float, decimals: int = 0) -> str:
     return f"{amount:,.{decimals}f}".replace(",", "'")
 
 
+def chf_table(df: pd.DataFrame, money: dict[str, int]):
+    """`df` with its money columns shown like the text around it: 1'318.
+
+    `money` maps column -> decimals. A Styler rather than text columns: the
+    cells keep their numbers, so sorting by a column header still sorts by
+    value (as text, 989 would land after 1'318) and the CSV stays numeric.
+    Streamlit's own number formats offer only 1,318 or the browser's locale.
+    The unit goes in the header, "(CHF)", not into every cell.
+    """
+    return df.style.format(
+        {c: (lambda v, d=d: "" if pd.isna(v) else chf(v, d))
+         for c, d in money.items() if c in df.columns}
+    )
+
+
 @st.cache_data
 def regions_by_postcode() -> dict[str, list[dict]]:
     """Postcode -> possible canton/region combinations (refresh_regions.py)."""

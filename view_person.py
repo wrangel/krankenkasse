@@ -17,6 +17,7 @@ import streamlit as st
 from common import (
     age_group_for_age,
     chf,
+    chf_table,
     choose_location,
     header,
     with_gap_to_cheapest,
@@ -294,16 +295,14 @@ def person_view(
     # twelve months they make a figure nobody pays. Monthly figures appear
     # only where they are real: the premium per offer, the household total.
     st.dataframe(
-        comparison,
+        chf_table(comparison, {"Franchise": 0, "Kosten/Jahr": 0, "Mehrkosten/Jahr": 0}),
         hide_index=True,
-        width="stretch",
+        # As wide as its three columns, not the page: stretched, Streamlit's
+        # left-set headers drifted far from their right-set numbers.
+        width="content",
         column_config={
-            c: header(c, kind=st.column_config.NumberColumn, format=f)
-            for c, f in [
-                ("Franchise", "%d"),
-                ("Kosten/Jahr", "%.0f"),
-                ("Mehrkosten/Jahr", "%.0f"),
-            ]
+            c: header(c, kind=st.column_config.NumberColumn)
+            for c in ("Franchise", "Kosten/Jahr", "Mehrkosten/Jahr")
         },
     )
 
@@ -372,7 +371,8 @@ def person_view(
         offers = offers[columns]
 
         st.dataframe(
-            offers,
+            chf_table(offers, {"Prämie/Jahr": 0, "Mehrkosten/Jahr": 0,
+                               "Prämie/Monat": 2}),
             hide_index=True,
             width="stretch",
             column_config={
@@ -384,14 +384,11 @@ def person_view(
                 "Tarif": header("Tarif", kind=st.column_config.TextColumn),
                 "Typ": header("Typ", kind=st.column_config.TextColumn),
                 "Prämie/Jahr": header("Prämie/Jahr",
-                                      kind=st.column_config.NumberColumn,
-                                      format="%.0f"),
+                                      kind=st.column_config.NumberColumn),
                 "Mehrkosten/Jahr": header("Mehrkosten/Jahr",
-                                          kind=st.column_config.NumberColumn,
-                                          format="%.0f"),
+                                          kind=st.column_config.NumberColumn),
                 "Prämie/Monat": header("Prämie/Monat",
-                                       kind=st.column_config.NumberColumn,
-                                       format="%.2f"),
+                                       kind=st.column_config.NumberColumn),
                 "": st.column_config.TextColumn(""),
             },
         )
