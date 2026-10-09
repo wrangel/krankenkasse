@@ -146,6 +146,10 @@ GITHUB_PROFILE_URL = "https://github.com/wrangel"
 # The /de/ segment is language-specific and will need to follow the user's
 # choice once the translation layer exists.
 PRIMINFO_URL = "https://www.priminfo.admin.ch/de/praemien"
+# The published closed form for the 300/2500 tipping point. A forum post on
+# moneyland.ch, not a study - it is cited as a formula, not as research. It
+# agrees with this app to within a franc across all 42 canton/region pairs.
+FORMULA_URL = "https://www.moneyland.ch/de/forum/krankenkassen-formel-beste-franchise-3684"
 
 # The form's starting state. Named because three places need to agree on it:
 # app.py seeds session_state with it, common.py offers the postcode, and

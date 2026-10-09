@@ -5,6 +5,7 @@ people, show each person's report, and the household total at the end. The
 computation is in calculation.py, the drawing in the view_* modules.
 """
 
+import html
 import sys
 from datetime import date
 
@@ -23,6 +24,7 @@ from constants import (
     GITHUB_PROFILE_URL,
     OTHER_APPS_URL,
     DEFAULT_PERSON,
+    FORMULA_URL,
     OPENDATA_URL,
     PRIMINFO_URL,
     REPO_URL,
@@ -78,7 +80,16 @@ head_left.markdown(
     '<h1 class="wordmark">via<span class="accent">prima</span></h1>', unsafe_allow_html=True
 )
 language_picker(head_right)
-st.subheader(t("subtitle"))
+premium_year = int(raw["Geschäftsjahr"].max())
+# Two lines, one heading. A markdown heading ends at the line break - the second
+# line would drop out as body text - so both go into a single <h3>.
+subtitle_lines = t("subtitle", year=premium_year).split("\n")
+st.markdown(
+    '<h3 class="subtitle">'
+    + "<br>".join(html.escape(line.strip()) for line in subtitle_lines)
+    + "</h3>",
+    unsafe_allow_html=True,
+)
 st.caption(t("lead"))
 
 # What "Gesamtkosten" means, before the first one is shown. The figures come
@@ -92,15 +103,9 @@ st.caption(
         cap_child=coinsurance_cap[CHILDREN],
     )
 )
-st.info(
-    t(
-        "data_banner",
-        year=int(raw["Geschäftsjahr"].max()),
-        rebate_year=f"{environmental_rebate_default * 12:.2f}",
-        rebate_month=f"{environmental_rebate_default:.2f}",
-    ),
-    icon="ℹ️",
-)
+# What the app is and is not, and nothing else. The data source and the
+# environmental levy moved to footnote *, the premium year into the subtitle.
+st.info(t("data_banner"), icon="ℹ️")
 
 people = st.session_state["people"]
 
@@ -284,32 +289,25 @@ if clear.button(t("storage.forget_button"), key="forget_inputs_button", width="s
 
 st.markdown("---")
 
-# The footnote for the asterisk on "Kipppunkt" in each person's chart caption.
-# It sits here once rather than under every chart - with four people in the
-# household the same paragraph would otherwise appear four times.
-st.caption(t("footnote.tipping_point"))
+# The footnotes, in the order their markers appear: * on the data source in the
+# lead, ** on the Kipppunkt in each chart caption, *** on the tariff-model help.
+# Written once here rather than beside each marker - with four people in the
+# household the Kipppunkt note would otherwise repeat four times.
+st.caption(
+    t("footnote.data", opendata=OPENDATA_URL,
+      rebate_year=f"{environmental_rebate_default * 12:.2f}")
+)
+st.caption(t("footnote.tipping_point", formula=FORMULA_URL))
+st.caption(t("footnote.pharm", year=premium_year))
 
-# The PHARM category. Worth stating plainly: the vocabulary and the data
-# disagree, and the app quietly departs from what priminfo offers, so it should
-# say why rather than leave someone wondering where Apothekenmodelle went.
-st.caption(t("footnote.pharm", year=int(raw["Geschäftsjahr"].max())))
+st.markdown("---")
 
-# Why the thing exists. It belongs next to the contact line: someone who writes
-# in should know who they are writing to and what question the tool grew out of.
+# Why the thing exists, then the two asks. Someone who writes in should know who
+# they are writing to and what question the tool grew out of; the coffee reads
+# very differently once they know it was built for one family and given away.
 st.caption(t("motivation"))
-
-# Contact and provenance. The address is an alias, not the real mailbox - see
-# CONTACT_EMAIL in constants.py. Saying what the reply is *not* keeps the
-# expectation straight: this is a calculation tool, and an individual answer
-# about somebody's own policy would be the advice the page disclaims.
-# Kept to one quiet line, and placed after the explanation of why the app
-# exists rather than before it: the ask reads very differently once someone
-# knows it was built for one family and given away.
 st.caption(t("footer.coffee", url=COFFEE_URL))
-
 st.caption(t("footer.contact", mailto=f"mailto:{CONTACT_EMAIL}"))
-
-st.caption(t("footer.disclaimer"))
 
 # The footer block from abstractaltitudes, same shape: a centred column no
 # wider than 800px, a hairline rule above it, credits and copyright recessive
