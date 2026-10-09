@@ -198,6 +198,35 @@ def test_household_children_get_the_family_cap():
     assert [c["deductible"] for c in best["per_child"]] == [0, 0, 0]
 
 
+def test_nothing_shadows_the_translation_function():
+    """No loop, comprehension or assignment may bind the name t.
+
+    Not arithmetic, but cheap to check and it bit once: a comprehension over
+    tariffs named its loop variable t, so t("offers.current_marker") called a
+    tariff name - a TypeError on the live site, only when the visitor's
+    current contract was among the cheapest offers.
+    """
+    import ast
+    from pathlib import Path
+
+    for path in Path(__file__).parent.glob("*.py"):
+        source = path.read_text(encoding="utf-8")
+        if "from i18n import" not in source:
+            continue
+        for node in ast.walk(ast.parse(source)):
+            targets = []
+            if isinstance(node, (ast.For, ast.comprehension)):
+                targets = [node.target]
+            elif isinstance(node, ast.Assign):
+                targets = node.targets
+            elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
+                targets = [node.target]
+            for target in targets:
+                for name in ast.walk(target):
+                    assert not (isinstance(name, ast.Name) and name.id == "t"), (
+                        f"{path.name}:{name.lineno} binds t, shadowing i18n.t")
+
+
 def test_children_have_the_lower_coinsurance_cap():
     """For children the cap is 350 rather than 700 (Art. 103 para. 2 KVV)."""
     data = get_data(

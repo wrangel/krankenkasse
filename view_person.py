@@ -340,11 +340,14 @@ def person_view(
                    "Mehrkosten/Jahr", "Prämie/Monat"]
         # Only create the marker column when there is something to mark -
         # otherwise an empty column sits there asking what it is missing.
+        # Not "t" for the tariff: that would shadow the translation function
+        # inside the comprehension, and t("...") would call the tariff name.
         marker = [
             t("offers.current_marker")
-            if current and i == current[0] and t == current[1]
+            if current and insurer == current[0] and tariff == current[1]
             else ""
-            for i, t in zip(shown["Versicherername"], shown["Tarifbezeichnung"])
+            for insurer, tariff in zip(shown["Versicherername"],
+                                       shown["Tarifbezeichnung"])
         ]
         if any(marker):
             offers[""] = marker
