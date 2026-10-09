@@ -53,6 +53,12 @@ def configure_page() -> None:
           }
           [data-testid="stAlertContainer"] p { margin-bottom: 0.35rem !important; }
           [data-testid="stAlertContainer"] p:last-child { margin-bottom: 0 !important; }
+          /* Streamlit pulls the text block up by 1rem to cancel the last
+             paragraph's bottom margin. That margin is already 0 here, so the
+             pull-up ate the bottom padding: 14px above the text, -2px below. */
+          [data-testid="stAlertContainer"] [data-testid="stMarkdownContainer"] {
+              margin-bottom: 0 !important;
+          }
 
           /* Input fields came out at 14px while every label around them was
              16px. The values someone types - postcode, age, expected costs -

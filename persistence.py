@@ -149,7 +149,7 @@ def restore(offered_tariff_types: list[str]) -> bool:
                 continue
             # A tariff category can disappear between visits - PHARM did. A
             # multiselect raises if its default is not among the options.
-            value = [t for t in value if t in offered_tariff_types]
+            value = [m for m in value if m in offered_tariff_types]
             if not value:
                 continue
         st.session_state[key] = value
@@ -159,7 +159,7 @@ def restore(offered_tariff_types: list[str]) -> bool:
 def _is_pristine(data: dict, offered_tariff_types: list[str]) -> bool:
     """True when nothing has been entered that is worth keeping.
 
-    Without this, "Eingaben vergessen" would delete the entry and the very next
+    Without this, "Eingaben löschen" would delete the entry and the very next
     run would write the blank form straight back, leaving something behind
     after a button that promises nothing will be. A visitor who has typed
     nothing also gets nothing stored.

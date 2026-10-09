@@ -276,16 +276,18 @@ st.markdown("---")
 with st.expander(t("disclaimer.title")):
     st.markdown(t("disclaimer.body", priminfo=PRIMINFO_URL))
 
-left, right = st.columns([3, 1])
+# The two housekeeping rows share one shape: caption left, a button filling the
+# same right-hand column, so the buttons line up as a pair.
+left, right = st.columns([3, 1], vertical_alignment="center")
 left.caption(t("reload_data.caption"))
-if right.button(t("reload_data.button")):
+if right.button(t("reload_data.button"), width="stretch"):
     st.cache_data.clear()
     premiums(0)
     st.rerun()
 
 # Anything kept on the visitor's machine needs a way to be got rid of, in plain
 # sight rather than buried in browser settings.
-links, clear = st.columns([3, 1])
+links, clear = st.columns([3, 1], vertical_alignment="center")
 links.caption(t("storage.caption"))
 if clear.button(t("storage.forget_button"), key="forget_inputs_button", width="stretch"):
     request_forget()
