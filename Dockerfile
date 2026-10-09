@@ -28,6 +28,10 @@ COPY view_person.py view_household.py ./
 COPY calculation.py constants.py main.py ./
 COPY data/insurers.json data/premium_regions.json ./data/
 COPY locales/ ./locales/
+# The theme. Without it the container had no palette at all and followed the
+# visitor's light/dark preference with CSS written for black only - which is
+# how the page went white-on-white in production while dev looked fine.
+COPY .streamlit/ ./.streamlit/
 COPY scripts/docker-entrypoint.sh ./
 
 # The BAG premium file is fetched on first use and stored here. Mounted as a

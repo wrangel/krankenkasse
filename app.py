@@ -5,6 +5,7 @@ people, show each person's report, and the household total at the end. The
 computation is in calculation.py, the drawing in the view_* modules.
 """
 
+import html
 import sys
 from datetime import date
 
@@ -13,7 +14,7 @@ import streamlit.components.v1 as components
 
 from calculation import available_tariff_types, children_with_one_insurer, get_data
 from common import age_group_for_age, premiums
-from i18n import language_picker, t
+from i18n import language_picker, t, t_html
 from constants import (
     ADULTS,
     CHILD_SUBGROUPS,
@@ -23,6 +24,7 @@ from constants import (
     GITHUB_PROFILE_URL,
     OTHER_APPS_URL,
     DEFAULT_PERSON,
+    FORMULA_URL,
     OPENDATA_URL,
     PRIMINFO_URL,
     REPO_URL,
@@ -37,9 +39,6 @@ from view_person import person_form, person_summary, person_view
 
 configure_page()
 
-# The picker comes before anything else that produces text, so the very first
-# thing drawn is already in the chosen language.
-language_picker()
 
 # A visitor must not be shown a traceback with our file paths in it. The BAG
 # can be unreachable for reasons that are nobody's fault - and on the NAS it
@@ -71,8 +70,26 @@ if not restore(available_tariff_types(raw)):
 
 st.session_state.setdefault("people", [dict(DEFAULT_PERSON)])
 
-st.title(t("title"))
-st.subheader(t("subtitle"))
+# Wordmark and language switch on one row, the switch subordinate on the right.
+# Stacked above the title it read as the first thing on the site, which it is
+# not. The wordmark is markup rather than st.title so the two halves of the name
+# can be coloured - "via" plain, "prima" in the accent - which gives it presence
+# without needing a logo.
+head_left, head_right = st.columns([5, 1], vertical_alignment="center")
+head_left.markdown(
+    '<h1 class="wordmark">via<span class="accent">prima</span></h1>', unsafe_allow_html=True
+)
+language_picker(head_right)
+premium_year = int(raw["Geschäftsjahr"].max())
+# Two lines, one heading. A markdown heading ends at the line break - the second
+# line would drop out as body text - so both go into a single <h3>.
+subtitle_lines = t("subtitle", year=premium_year).split("\n")
+st.markdown(
+    '<h3 class="subtitle">'
+    + "<br>".join(html.escape(line.strip()) for line in subtitle_lines)
+    + "</h3>",
+    unsafe_allow_html=True,
+)
 st.caption(t("lead"))
 
 # What "Gesamtkosten" means, before the first one is shown. The figures come
@@ -86,15 +103,9 @@ st.caption(
         cap_child=coinsurance_cap[CHILDREN],
     )
 )
-st.info(
-    t(
-        "data_banner",
-        year=int(raw["Geschäftsjahr"].max()),
-        rebate_year=f"{environmental_rebate_default * 12:.2f}",
-        rebate_month=f"{environmental_rebate_default:.2f}",
-    ),
-    icon="ℹ️",
-)
+# What the app is and is not, and nothing else. The data source and the
+# environmental levy moved to footnote *, the premium year into the subtitle.
+st.info(t("data_banner"), icon="ℹ️")
 
 people = st.session_state["people"]
 
@@ -278,36 +289,59 @@ if clear.button(t("storage.forget_button"), key="forget_inputs_button", width="s
 
 st.markdown("---")
 
-# The footnote for the asterisk on "Kipppunkt" in each person's chart caption.
-# It sits here once rather than under every chart - with four people in the
-# household the same paragraph would otherwise appear four times.
-st.caption(t("footnote.tipping_point"))
-
-# The PHARM category. Worth stating plainly: the vocabulary and the data
-# disagree, and the app quietly departs from what priminfo offers, so it should
-# say why rather than leave someone wondering where Apothekenmodelle went.
-st.caption(t("footnote.pharm", year=int(raw["Geschäftsjahr"].max())))
-
-# Why the thing exists. It belongs next to the contact line: someone who writes
-# in should know who they are writing to and what question the tool grew out of.
-st.caption(t("motivation"))
-
-# Contact and provenance. The address is an alias, not the real mailbox - see
-# CONTACT_EMAIL in constants.py. Saying what the reply is *not* keeps the
-# expectation straight: this is a calculation tool, and an individual answer
-# about somebody's own policy would be the advice the page disclaims.
-# Kept to one quiet line, and placed after the explanation of why the app
-# exists rather than before it: the ask reads very differently once someone
-# knows it was built for one family and given away.
-st.caption(t("footer.coffee", url=COFFEE_URL))
-
-st.caption(t("footer.contact", mailto=f"mailto:{CONTACT_EMAIL}"))
-st.caption(t("footer.other_apps", apps=OTHER_APPS_URL, github=GITHUB_PROFILE_URL))
+# The footnotes, in the order their markers appear: * on the data source in the
+# lead, ** on the Kipppunkt in each chart caption, *** on the tariff-model help.
+# Written once here rather than beside each marker - with four people in the
+# household the Kipppunkt note would otherwise repeat four times.
 st.caption(
-    t("footer.provenance", repo=REPO_URL, opendata=OPENDATA_URL,
-      priminfo=PRIMINFO_URL)
+    t("footnote.data", opendata=OPENDATA_URL,
+      rebate_year=f"{environmental_rebate_default * 12:.2f}")
 )
-st.caption(
-    t("footer.copyright", year=date.today().year,
-      license=f"{REPO_URL}/blob/main/LICENSE")
+st.caption(t("footnote.tipping_point", formula=FORMULA_URL))
+st.caption(t("footnote.pharm", year=premium_year))
+
+st.markdown("---")
+
+# Why the thing exists, then the two asks. Someone who writes in should know who
+# they are writing to and what question the tool grew out of; the coffee reads
+# very differently once they know it was built for one family and given away.
+st.caption(t("motivation"))
+st.caption(t("footer.coffee", url=COFFEE_URL))
+st.caption(t("footer.contact", mailto=f"mailto:{CONTACT_EMAIL}"))
+
+# The footer block from abstractaltitudes, same rows in the same order: what you
+# can do, what it is built on, what else I have made, the copyright. Each row is
+# separate links spaced by a gap, no separator characters, as there. The
+# paragraphs above stay at reading size because here they carry the footnotes;
+# only this block recedes.
+
+
+def footer_row(links, label=None):
+    """One centred row of footer links; `label` is a dimmer leading word."""
+    items = [f'<span class="brand-footer-label">{html.escape(label)}</span>'] if label else []
+    for text, url in links:
+        external = "" if url.startswith("mailto:") else ' target="_blank" rel="noopener noreferrer"'
+        items.append(f'<a href="{html.escape(url)}"{external}>{html.escape(text)}</a>')
+    return f'<div class="brand-footer-row">{"".join(items)}</div>'
+
+
+st.markdown(
+    '<div class="brand-footer">'
+    + footer_row([
+        (t("footer.link.contact"), f"mailto:{CONTACT_EMAIL}"),
+        (t("footer.link.source"), REPO_URL),
+        (t("footer.link.license"), f"{REPO_URL}/blob/main/LICENSE"),
+        (t("footer.link.coffee"), COFFEE_URL),
+    ])
+    + footer_row([
+        ("wrangel", GITHUB_PROFILE_URL),
+        ("opendata.swiss", OPENDATA_URL),
+        ("priminfo.admin.ch", PRIMINFO_URL),
+        ("Streamlit", "https://streamlit.io"),
+    ])
+    + footer_row([("Abstract Altitudes", OTHER_APPS_URL)], label=t("footer.also_by_me"))
+    + '<p class="brand-footer-copyright">'
+    + html.escape(t("footer.copyright", year=date.today().year))
+    + "</p></div>",
+    unsafe_allow_html=True,
 )
